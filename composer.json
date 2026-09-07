@@ -20,8 +20,8 @@
         "laravel/pint": "^1.30.5",
         "mockery/mockery": "^1.6.15",
         "pestphp/pest": "^4.7.8",
-        "phpstan/phpstan": "^2.2.9",
-        "rector/rector": "^2.6.3"
+        "phpstan/phpstan": "^2.2.13",
+        "rector/rector": "^2.6.6"
     },
     "extra": {
         "class": "App\\Composer\\Plugin"
