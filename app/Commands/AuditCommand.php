@@ -179,7 +179,6 @@ final class AuditCommand extends Command
 
         if ($failing === []) {
             $this->components->info(sprintf('All [%d] packages are covered.', $report->total()));
-            $this->newLine();
 
             return $this->verdict($failing, $discrepancies);
         }

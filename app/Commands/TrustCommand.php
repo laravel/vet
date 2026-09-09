@@ -76,7 +76,6 @@ final class TrustCommand extends Command
 
         if ($targets === []) {
             $this->components->info(sprintf('All [%d] packages are already covered.', $report->total()));
-            $this->newLine();
 
             return self::SUCCESS;
         }
