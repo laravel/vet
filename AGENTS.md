@@ -80,5 +80,5 @@ Give the result first. Give the exact path, the exact command and the exact name
 
 Read the file of a rule when its subject reaches your task.
 
-- [message-value-brackets](.hod/rules/message-value-brackets.md): Put each value that a message interpolates inside square brackets.
+- [message-value-brackets](.hod/rules/message-value-brackets.md): Put each value and each command of a message inside square brackets.
 - [stale-build](.hod/rules/stale-build.md): Treat a `builds/vet` that is older than the source as normal.

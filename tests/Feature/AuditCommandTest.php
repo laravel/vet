@@ -52,7 +52,7 @@ it('renders the four buckets of a stale project, worst first', function (): void
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('acme/widget 2.0.0')
-        ->toContain('4 files to review (delta from [1.0.0])')
+        ->toContain('4 files (delta from [1.0.0])')
         ->toContain('install-time manifest (1)')
         ->toContain('~ composer.json  scripts')
         ->toContain('opaque artifact (1)')
@@ -99,7 +99,7 @@ it('asks for a baseline when the project holds no trust file', function (): void
         ->toContain('vet.json')
         ->toContain('acme/widget 1.0.0')
         ->toContain('acme/lint 1.0.0 (dev)')
-        ->toContain('5 files to review (whole package)')
+        ->toContain('5 files (whole package)')
         ->toContain('no entry; this tree is')
         ->toContain('[2] package(s) are not covered');
 });
@@ -116,7 +116,7 @@ it('reports a changed package before an ungranted one', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('4 files to review (delta from [1.0.0])')
+        ->toContain('4 files (delta from [1.0.0])')
         ->toContain('[1.0.0] was trusted, [2.0.0] is installed')
         ->toContain('acme/lint 1.0.0 (dev)')
         ->toContain('no entry; this tree is')
@@ -155,7 +155,7 @@ it('orders each package by the count of files that its review costs', function (
 
     $rows = array_values(array_filter(
         explode("\n", $output),
-        static fn (string $line): bool => str_contains($line, 'files to review'),
+        static fn (string $line): bool => str_contains($line, 'files'),
     ));
 
     expect($status)->toBe(1)
@@ -179,6 +179,6 @@ it('asks for the verbose flag of composer when composer runs the audit', functio
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('… and 18 more, with composer update -v')
-        ->toContain('with `composer update -v`')
+        ->toContain('with [composer update -v]')
         ->and(str_contains($output, 'vet audit -v'))->toBeFalse();
 });

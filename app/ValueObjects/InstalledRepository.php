@@ -25,7 +25,7 @@ final readonly class InstalledRepository
         $entries = Json::array($data, 'packages');
 
         if ($entries === []) {
-            throw InvalidJsonException::shape($path, 'expected a non-empty "packages" array. Run `composer install` first.');
+            throw InvalidJsonException::shape($path, 'expected a non-empty "packages" array. Run [composer install] first.');
         }
 
         $devNames = array_flip(array_filter(Json::array($data, 'dev-package-names'), is_string(...)));

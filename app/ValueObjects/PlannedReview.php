@@ -38,13 +38,13 @@ final readonly class PlannedReview
 
         if ($delta instanceof Delta) {
             return $delta->from === $this->operation->from
-                ? sprintf('%d files to review', count($delta->changes()))
-                : sprintf('%d files to review (delta from [%s])', count($delta->changes()), $delta->from);
+                ? sprintf('%d files', count($delta->changes()))
+                : sprintf('%d files (delta from [%s])', count($delta->changes()), $delta->from);
         }
 
         return $this->operation->change === ComposerChangeType::Install
-            ? 'whole package to review (new)'
-            : 'nothing to review (removed)';
+            ? 'whole package (new)'
+            : 'nothing (removed)';
     }
 
     public function reason(): string

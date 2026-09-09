@@ -29,6 +29,6 @@ it('names the words of composer when the plan fails', function (): void {
     }
 
     expect($failure)->toBeInstanceOf(ComposerFailedException::class)
-        ->and($failure?->getMessage())->toContain('exit code 2')
+        ->and($failure?->getMessage())->toContain('exit code [2]')
         ->and($failure?->output)->toBe(['Your requirements could not be resolved.']);
 });

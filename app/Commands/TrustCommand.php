@@ -57,7 +57,7 @@ final class TrustCommand extends Command
     private function trustProject(Project $project, AuditProject $auditor): int
     {
         if ($this->option('from') !== null) {
-            $this->components->error('The --from option needs one package. Run `vet trust <package>`.');
+            $this->components->error('The [--from] option needs one package. Run [vet trust <package>].');
 
             return self::FAILURE;
         }
@@ -109,7 +109,7 @@ final class TrustCommand extends Command
             : sprintf('Trusted [%d] package(s).', count($recorded)));
 
         if ($this->holdsPending($recorded)) {
-            $this->components->info('Run `composer install` to write those bytes to vendor/.');
+            $this->components->info('Run [composer install] to write those bytes to vendor/.');
         }
 
         foreach ($unreadable as $audit) {
@@ -149,7 +149,7 @@ final class TrustCommand extends Command
     private function trustPackages(Project $project, AuditProject $auditor, array $names): int
     {
         if (count($names) > 1 && $this->option('from') !== null) {
-            $this->components->error('The --from option needs one package. Run `vet trust <package> --from=<version>`.');
+            $this->components->error('The [--from] option needs one package. Run [vet trust <package> --from=<version>].');
 
             return self::FAILURE;
         }
@@ -226,7 +226,7 @@ final class TrustCommand extends Command
             : sprintf('Recorded [%d] package(s).', count($recorded)));
 
         if ($this->holdsPending($recorded)) {
-            $this->components->info('Run `composer install` to write those bytes to vendor/.');
+            $this->components->info('Run [composer install] to write those bytes to vendor/.');
         }
 
         return self::SUCCESS;

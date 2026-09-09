@@ -139,7 +139,7 @@ final class PreviewCommand extends Command
         $this->newLine();
 
         if ($reviews === []) {
-            $this->components->info('The next `composer update` changes nothing in vendor/.');
+            $this->components->info('The next [composer update] changes nothing in vendor/.');
             $this->newLine();
 
             return self::SUCCESS;
@@ -153,14 +153,13 @@ final class PreviewCommand extends Command
         foreach ($reviews as $review) {
             $this->components->twoColumnDetail(
                 sprintf(
-                    '<fg=yellow>%s</> <fg=gray>%s</>',
+                    '<fg=yellow>%s</> <fg=gray>%s</>  <fg=gray>%s</>',
                     $review->operation->package,
                     $review->versions(),
+                    $review->reason(),
                 ),
                 sprintf('<fg=gray>%s</>', $review->cost()),
             );
-
-            $this->line(sprintf('      <fg=gray>%s</>', $review->reason()));
 
             if ($review->delta instanceof Delta) {
                 $this->newLine();
@@ -170,9 +169,9 @@ final class PreviewCommand extends Command
 
         $this->newLine();
         $this->components->info($this->output->isVerbose()
-            ? sprintf('[%d] package(s) change. Run `composer update`, then record them with `vet trust`.', count($reviews))
+            ? sprintf('[%d] package(s) change. Run [composer update], then record them with [vet trust].', count($reviews))
             : sprintf(
-                '[%d] package(s) change. Read every change with `%s`, then run `composer update`.',
+                '[%d] package(s) change. Read every change with [%s], then run [composer update].',
                 count($reviews),
                 Invitation::verbose('vet preview -v'),
             ));

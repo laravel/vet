@@ -18,7 +18,7 @@ it('tells the user what to do with a trust file of an older schema', function ()
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('declares schema [2]')
-        ->toContain('Delete the file and run `vet trust` again.');
+        ->toContain('Delete the file and run [vet trust] again.');
 });
 
 it('tells the user to record the trust file again when it holds a truncated hash', function (): void {
@@ -35,7 +35,7 @@ it('tells the user to record the trust file again when it holds a truncated hash
         ->and($output)
         ->toContain('declares schema [3]')
         ->toContain('recorded a truncated tree hash')
-        ->toContain('Delete the file and run `vet trust` again.')
+        ->toContain('Delete the file and run [vet trust] again.')
         ->and(str_contains($output, 'Malformed tree hash digest'))->toBeFalse();
 });
 

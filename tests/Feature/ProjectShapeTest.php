@@ -32,7 +32,7 @@ it('says that a tree came from --prefer-source rather than report a change of by
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('is still installed but its bytes changed')
-        ->toContain('this tree came from --prefer-source');
+        ->toContain('this tree came from [--prefer-source]');
 });
 
 it('reports the whole package when the dist of the granted version cannot be fetched', function (): void {
@@ -47,7 +47,7 @@ it('reports the whole package when the dist of the granted version cannot be fet
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('5 files to review (whole package)')
+        ->toContain('5 files (whole package)')
         ->and(str_contains($output, 'delta from'))->toBeFalse();
 });
 
@@ -132,7 +132,7 @@ it('asks for composer install when the project installs no package', function ()
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('expected a non-empty "packages" array')
-        ->toContain('Run `composer install` first.');
+        ->toContain('Run [composer install] first.');
 });
 
 it('names the lock file that the project holds no', function (): void {

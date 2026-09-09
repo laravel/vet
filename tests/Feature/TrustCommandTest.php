@@ -64,5 +64,5 @@ it('rejects --from when the user names no package', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('The --from option needs one package.');
+        ->and($output)->toContain('The [--from] option needs one package.');
 });

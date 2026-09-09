@@ -87,7 +87,7 @@ final readonly class PackageAudit
         );
 
         if ($this->source === InstallSourceType::Source) {
-            $reason .= '; this tree came from --prefer-source';
+            $reason .= '; this tree came from [--prefer-source]';
         }
 
         return $reason;

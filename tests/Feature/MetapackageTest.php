@@ -105,6 +105,6 @@ it('shows no metapackage in the preview of the next update', function (): void {
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('The next `composer update` changes nothing in vendor/.')
+        ->and($output)->toContain('The next [composer update] changes nothing in vendor/.')
         ->and(str_contains($output, 'acme/advisories'))->toBeFalse();
 });
