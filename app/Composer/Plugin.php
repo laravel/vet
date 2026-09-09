@@ -149,6 +149,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
                 'to' => $package->getPrettyVersion(),
                 'dist_url' => $package->getDistUrl(),
                 'dist_reference' => $package->getDistReference(),
+                'dist_shasum' => $package->getDistSha1Checksum(),
             ];
         }
 
@@ -165,6 +166,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
                 'to' => $target->getPrettyVersion(),
                 'dist_url' => $target->getDistUrl(),
                 'dist_reference' => $target->getDistReference(),
+                'dist_shasum' => $target->getDistSha1Checksum(),
             ];
         }
 
@@ -178,6 +180,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
                 'to' => null,
                 'dist_url' => null,
                 'dist_reference' => null,
+                'dist_shasum' => null,
             ];
         }
 

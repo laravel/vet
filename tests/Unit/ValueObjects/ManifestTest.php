@@ -120,3 +120,42 @@ it('counts the bytes of each file and none of a symlink', function (): void {
     expect($manifest->count())->toBe(2)
         ->and($manifest->bytes())->toBe(100);
 });
+
+it('gives two trees that a file name splits two hashes', function (): void {
+    $forged = manifestTree();
+    $real = manifestTree();
+
+    $bytes = "<?php system('id');\n";
+
+    file_put_contents($forged.'/README.md', "hello\n");
+    file_put_contents($forged."/a.txt\n".hash('sha256', $bytes).'  evil.php', '');
+
+    file_put_contents($real.'/README.md', "hello\n");
+    file_put_contents($real.'/a.txt', '');
+    file_put_contents($real.'/evil.php', $bytes);
+
+    try {
+        $forgedHash = (string) Manifest::ofDirectory($forged)->hash();
+        $realHash = (string) Manifest::ofDirectory($real)->hash();
+    } finally {
+        removeManifestTree($forged);
+        removeManifestTree($real);
+    }
+
+    expect($forgedHash)->not->toBe($realHash);
+});
+
+it('keeps the hash of a tree whose paths hold no escape', function (): void {
+    $directory = manifestTree();
+
+    mkdir($directory.'/src');
+    file_put_contents($directory.'/src/Widget.php', "<?php\n");
+
+    try {
+        $hash = (string) Manifest::ofDirectory($directory)->hash();
+    } finally {
+        removeManifestTree($directory);
+    }
+
+    expect($hash)->toBe('tree-v2:'.hash('sha256', hash('sha256', "<?php\n").'  src/Widget.php'."\n"));
+});

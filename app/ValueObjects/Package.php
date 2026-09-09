@@ -25,6 +25,7 @@ final readonly class Package
         public bool $dev,
         public ?string $distUrl,
         public ?string $distReference,
+        public ?string $distShasum,
         public array $replace,
         public array $provide,
         public array $autoload,
@@ -47,6 +48,7 @@ final readonly class Package
             dev: $dev,
             distUrl: Json::string($dist, 'url'),
             distReference: Json::string($dist, 'reference'),
+            distShasum: Json::string($dist, 'shasum'),
             replace: self::constraints($data, 'replace'),
             provide: self::constraints($data, 'provide'),
             autoload: Json::array($data, 'autoload'),
@@ -71,6 +73,7 @@ final readonly class Package
             dev: $base->dev,
             distUrl: $base->distUrl,
             distReference: $base->distReference,
+            distShasum: $base->distShasum,
             replace: $base->replace,
             provide: $base->provide,
             autoload: $base->autoload,
@@ -82,9 +85,9 @@ final readonly class Package
         );
     }
 
-    public function withDist(?string $url, ?string $reference): self
+    public function withDist(?string $url, ?string $reference, ?string $shasum): self
     {
-        if (($url === null || $url === '') && ($reference === null || $reference === '')) {
+        if ($url === null || $url === '') {
             return $this;
         }
 
@@ -93,8 +96,9 @@ final readonly class Package
             version: $this->version,
             type: $this->type,
             dev: $this->dev,
-            distUrl: $url === null || $url === '' ? $this->distUrl : $url,
+            distUrl: $url,
             distReference: $reference === null || $reference === '' ? $this->distReference : $reference,
+            distShasum: $shasum === '' ? null : $shasum,
             replace: $this->replace,
             provide: $this->provide,
             autoload: $this->autoload,
@@ -117,6 +121,7 @@ final readonly class Package
             dev: $dev,
             distUrl: $this->distUrl,
             distReference: $this->distReference,
+            distShasum: $this->distShasum,
             replace: $this->replace,
             provide: $this->provide,
             autoload: $this->autoload,
@@ -149,12 +154,8 @@ final readonly class Package
     {
         $roots = [];
 
-        foreach ($this->autoloadPaths() as $path) {
-            $roots[] = trim($path, '/.');
-        }
-
-        foreach ($this->bin as $path) {
-            $roots[] = trim($path, '/');
+        foreach ([...$this->autoloadPaths(), ...$this->bin] as $path) {
+            $roots[] = Path::normalize($path);
         }
 
         return array_values(array_unique(array_filter($roots, static fn (string $root): bool => $root !== '')));
@@ -163,7 +164,7 @@ final readonly class Package
     public function autoloadsPackageRoot(): bool
     {
         foreach ($this->autoloadPaths() as $path) {
-            if (trim($path, '/.') === '') {
+            if (Path::normalize($path) === '') {
                 return true;
             }
         }

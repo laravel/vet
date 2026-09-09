@@ -117,6 +117,7 @@ final readonly class ComposerPlan
                 to: $locked->version,
                 distUrl: $locked->distUrl,
                 distReference: $locked->distReference,
+                distShasum: $locked->distShasum,
             );
         }
 
@@ -133,6 +134,7 @@ final readonly class ComposerPlan
             to: $locked->version,
             distUrl: $locked->distUrl,
             distReference: $locked->distReference,
+            distShasum: $locked->distShasum,
         );
     }
 }

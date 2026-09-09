@@ -61,7 +61,7 @@ final readonly class Manifest
         $lines = '';
 
         foreach ($this->entries as $path => $hash) {
-            $lines .= $hash.'  '.$path."\n";
+            $lines .= $hash.'  '.$this->escape($path)."\n";
         }
 
         return $lines;
@@ -120,5 +120,10 @@ final readonly class Manifest
             $entries[Path::toRelativeForm($path)] = $hash;
             $bytes += (int) @filesize($full);
         }
+    }
+
+    private function escape(string $path): string
+    {
+        return str_replace(['\\', "\n", "\r"], ['\\\\', '\\n', '\\r'], $path);
     }
 }

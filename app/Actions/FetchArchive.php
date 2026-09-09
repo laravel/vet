@@ -9,6 +9,8 @@ use App\ValueObjects\Package;
 
 final readonly class FetchArchive
 {
+    private const string CHECKSUM_ALGORITHM = 'sha1';
+
     public function __construct(
         private RequestUrl $http,
         private CacheArtifact $cache,
@@ -51,6 +53,8 @@ final readonly class FetchArchive
             $this->http->download($package->distUrl, $archive);
         }
 
+        $this->assertMatchesChecksum($package, $archive);
+
         $staging = $directory.'.'.bin2hex(random_bytes(6)).'.tmp';
 
         try {
@@ -68,6 +72,30 @@ final readonly class FetchArchive
         }
 
         return $directory;
+    }
+
+    private function assertMatchesChecksum(Package $package, string $archive): void
+    {
+        if ($package->distShasum === null || $package->distShasum === '') {
+            return;
+        }
+
+        $digest = hash_file(self::CHECKSUM_ALGORITHM, $archive);
+
+        if ($digest !== false && hash_equals(mb_strtolower($package->distShasum), $digest)) {
+            return;
+        }
+
+        @unlink($archive);
+
+        throw new FailureException(sprintf(
+            'The archive that [%s] served for [%s@%s] hashes to [%s], and composer.lock records [%s]. Those are not the bytes that composer installs.',
+            (string) $package->distUrl,
+            $package->name,
+            $package->version,
+            $digest === false ? 'nothing' : $digest,
+            $package->distShasum,
+        ));
     }
 
     private function removeDirectory(string $directory): void
