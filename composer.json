@@ -19,10 +19,8 @@
         "ext-phar": "*",
         "ext-zip": "*"
     },
-    "suggest": {
-        "ext-curl": "vet fetches package archives with curl, and falls back to PHP streams without it."
-    },
     "require-dev": {
+        "guzzlehttp/guzzle": "^7.15.5",
         "laravel-zero/foundation": "^13.25",
         "laravel-zero/framework": "^13.0",
         "laravel/pint": "^1.30.5",

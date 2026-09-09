@@ -7,22 +7,41 @@ namespace App\Actions;
 use App\Exceptions\FetchFailedException;
 use App\Support\GithubHost;
 use App\Support\Path;
-use App\ValueObjects\HttpResponse;
+use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\RequestOptions;
+use Psr\Http\Message\ResponseInterface;
 
 final readonly class RequestUrl
 {
-    private const int TIMEOUT = 60;
-
     private const int MAX_REDIRECTS = 5;
 
+    private const int CONNECT_TIMEOUT = 15;
+
+    private const int TIMEOUT = 60;
+
+    private const string SCHEME = 'https';
+
+    /**
+     * @param  array<string, string>  $githubHeaders
+     */
     public function __construct(
         private string $userAgent,
-        private ?string $githubToken = null,
+        private array $githubHeaders,
+        private ClientInterface $client,
     ) {}
 
     public static function default(): self
     {
-        return new self('vet (+https://github.com/laravel/vet)', self::discoverGithubToken());
+        return new self('vet (+https://github.com/laravel/vet)', self::discoverGithubHeaders(), app(ClientInterface::class));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function bearer(string $token): array
+    {
+        return ['Authorization' => 'Bearer '.$token];
     }
 
     public function get(string $url): string
@@ -67,13 +86,16 @@ final readonly class RequestUrl
         }
     }
 
-    private static function discoverGithubToken(): ?string
+    /**
+     * @return array<string, string>
+     */
+    private static function discoverGithubHeaders(): array
     {
         foreach (['VET_GITHUB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN'] as $variable) {
             $value = getenv($variable);
 
             if (is_string($value) && $value !== '') {
-                return $value;
+                return self::bearer($value);
             }
         }
 
@@ -97,11 +119,11 @@ final readonly class RequestUrl
             $oauth = $decoded['github-oauth'] ?? null;
 
             if (is_array($oauth) && isset($oauth['github.com']) && is_string($oauth['github.com'])) {
-                return $oauth['github.com'];
+                return self::bearer($oauth['github.com']);
             }
         }
 
-        return null;
+        return [];
     }
 
     /**
@@ -131,20 +153,16 @@ final readonly class RequestUrl
     }
 
     /**
-     * @return array<int, string>
+     * @return array<string, string>
      */
     private function headers(string $url): array
     {
         $headers = [
-            'User-Agent: '.$this->userAgent,
-            'Accept: application/json, application/zip;q=0.9, */*;q=0.8',
+            'User-Agent' => $this->userAgent,
+            'Accept' => 'application/json, application/zip;q=0.9, */*;q=0.8',
         ];
 
-        if ($this->githubToken !== null && GithubHost::matches($url)) {
-            $headers[] = 'Authorization: Bearer '.$this->githubToken;
-        }
-
-        return $headers;
+        return GithubHost::matches($url) ? [...$headers, ...$this->githubHeaders] : $headers;
     }
 
     private function getFollowingRedirects(string $url): string
@@ -152,108 +170,50 @@ final readonly class RequestUrl
         $target = $url;
 
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
-            $response = extension_loaded('curl')
-                ? $this->getWithCurl($target)
-                : $this->getWithStreams($target);
+            $this->assertSecure($target);
 
-            if ($response->redirect === null) {
-                return $response->body;
+            $response = $this->send($target);
+            $status = $response->getStatusCode();
+            $location = $response->getHeaderLine('Location');
+
+            if ($status >= 300 && $status < 400 && $location !== '') {
+                $target = $this->absolute($target, $location);
+
+                continue;
             }
 
-            $target = $response->redirect;
+            if ($status < 200 || $status >= 300) {
+                throw FetchFailedException::status($target, $status, (string) $response->getBody());
+            }
+
+            return (string) $response->getBody();
         }
 
         throw FetchFailedException::transport($url, sprintf('the server sent more than [%d] redirects.', self::MAX_REDIRECTS));
     }
 
-    private function getWithCurl(string $url): HttpResponse
+    private function send(string $url): ResponseInterface
     {
-        $handle = curl_init($url);
-
-        if ($handle === false) {
-            throw FetchFailedException::transport($url, 'could not initialise curl.');
+        try {
+            return $this->client->request('GET', $url, [
+                RequestOptions::HEADERS => $this->headers($url),
+                RequestOptions::ALLOW_REDIRECTS => false,
+                RequestOptions::HTTP_ERRORS => false,
+                RequestOptions::CONNECT_TIMEOUT => self::CONNECT_TIMEOUT,
+                RequestOptions::TIMEOUT => self::TIMEOUT,
+            ]);
+        } catch (GuzzleException $guzzleException) {
+            throw FetchFailedException::transport($url, $guzzleException->getMessage());
         }
-
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_TIMEOUT => self::TIMEOUT,
-            CURLOPT_HTTPHEADER => $this->headers($url),
-            CURLOPT_ENCODING => '',
-        ]);
-
-        $body = curl_exec($handle);
-        $error = curl_error($handle);
-        $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $location = curl_getinfo($handle, CURLINFO_REDIRECT_URL);
-
-        curl_close($handle);
-
-        if ($body === false || $error !== '') {
-            throw FetchFailedException::transport($url, $error === '' ? 'the transfer failed.' : $error);
-        }
-
-        if ($this->redirects($status) && is_string($location) && $location !== '') {
-            return HttpResponse::redirect($location);
-        }
-
-        if ($status < 200 || $status >= 300) {
-            throw FetchFailedException::status($url, $status, is_string($body) ? $body : '');
-        }
-
-        return HttpResponse::body((string) $body);
     }
 
-    private function getWithStreams(string $url): HttpResponse
+    private function assertSecure(string $url): void
     {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'header' => implode("\r\n", $this->headers($url)),
-                'timeout' => self::TIMEOUT,
-                'follow_location' => 0,
-                'max_redirects' => 1,
-                'ignore_errors' => true,
-            ],
-        ]);
+        $scheme = parse_url($url, PHP_URL_SCHEME);
 
-        $http_response_header = [];
-
-        $body = @file_get_contents($url, false, $context);
-
-        if ($body === false) {
-            throw FetchFailedException::transport($url, 'the transfer failed.');
+        if (! is_string($scheme) || mb_strtolower($scheme) !== self::SCHEME) {
+            throw FetchFailedException::insecure($url);
         }
-
-        $status = 0;
-        $location = null;
-
-        foreach ($http_response_header as $header) {
-            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches) === 1) {
-                $status = (int) $matches[1];
-                $location = null;
-            }
-
-            if (preg_match('#^Location:\s*(\S.*)$#i', $header, $matches) === 1) {
-                $location = trim($matches[1]);
-            }
-        }
-
-        if ($this->redirects($status) && $location !== null && $location !== '') {
-            return HttpResponse::redirect($this->absolute($url, $location));
-        }
-
-        if ($status < 200 || $status >= 300) {
-            throw FetchFailedException::status($url, $status, $body);
-        }
-
-        return HttpResponse::body($body);
-    }
-
-    private function redirects(int $status): bool
-    {
-        return $status >= 300 && $status < 400;
     }
 
     private function absolute(string $base, string $location): string
@@ -280,6 +240,6 @@ final readonly class RequestUrl
 
         $directory = rtrim(str_replace('\\', '/', dirname(isset($parts['path']) ? (string) $parts['path'] : '/')), '/');
 
-        return $origin.'/'.Path::normalize($directory.'/'.$location);
+        return $origin.Path::normalize($directory.'/'.$location);
     }
 }

@@ -1,10 +1,8 @@
 {
     "preset": "laravel",
-    "exclude": [
-        "tests/Fixtures"
-    ],
     "notPath": [
-        "tmp"
+        "tmp",
+        "#Fixtures/[^/]+/#"
     ],
     "rules": {
         "array_push": true,
