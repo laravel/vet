@@ -118,3 +118,69 @@ it('writes the dev package of a baseline in require-dev', function (): void {
         ->and($trustFile['require'])->toHaveKey('acme/widget')
         ->and($trustFile['require-dev'])->toHaveKey('acme/lint');
 });
+
+it('names the schema that a trust file of a later build declares', function (): void {
+    $fixture = Fixture::open('future-trust-file');
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('declares schema [99]')
+        ->toContain('this build of vet reads schema [4]')
+        ->and(str_contains($output, 'Delete the file and run `vet trust` again.'))->toBeFalse();
+});
+
+it('names the tree hash algorithm that this build does not read', function (): void {
+    $fixture = Fixture::open('unknown-hash-algorithm');
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('Unknown tree hash algorithm [tree-v1]')
+        ->toContain('this build of vet understands [tree-v2]');
+});
+
+it('names the trust file that holds no valid json', function (): void {
+    $fixture = Fixture::open('invalid-trust-file');
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('vet.json')
+        ->toContain('does not contain valid JSON');
+});
+
+it('moves the entry of a dev package into require-dev when the user records it again', function (): void {
+    $fixture = Fixture::open('dev-section-drift');
+
+    try {
+        $status = Artisan::call('trust', ['packages' => ['acme/lint'], '--path' => $fixture->rootPath]);
+
+        /** @var array{require: array<string, mixed>, require-dev: array<string, mixed>} $trustFile */
+        $trustFile = json_decode($fixture->read('vet.json'), true);
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($trustFile['require'])->toBe([])
+        ->and($trustFile['require-dev'])->toHaveKey('acme/lint');
+});

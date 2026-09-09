@@ -1,0 +1,25 @@
+{
+    "_readme": [
+        "A fixture: vet reads this file, Composer never wrote it."
+    ],
+    "content-hash": "fixture",
+    "packages": [],
+    "packages-dev": [
+        {
+            "name": "acme/lint",
+            "version": "1.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/lint/1.0.0.zip",
+                "reference": "cccc3333cccc3333cccc3333cccc3333cccc3333",
+                "shasum": ""
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Lint\\": "src/"
+                }
+            }
+        }
+    ]
+}

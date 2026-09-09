@@ -219,3 +219,102 @@ it('reads every file of a package that autoloads its own root as runtime source'
         ->toContain('inert (1)')
         ->toContain('~ docs/usage.md');
 });
+
+it('reads the files, the classmap and the psr-0 roots of a package as runtime source', function (): void {
+    $fixture = Fixture::open('autoload-shapes');
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('4 files to review (delta from [1.0.0])')
+        ->toContain('runtime source (3)')
+        ->toContain('~ lib/Legacy.php')
+        ->toContain('~ psr0/Acme/Old.php')
+        ->toContain('~ src/helpers.php')
+        ->toContain('inert (1)')
+        ->toContain('~ docs/guide.md');
+});
+
+it('limits the delta to the bucket that the user names', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    try {
+        Artisan::call('audit', [
+            'package' => 'acme/media',
+            '--bucket' => 'inert',
+            '--path' => $fixture->rootPath,
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)
+        ->toContain('inert (1)')
+        ->toContain('~ resources/font.woff2')
+        ->and(str_contains($output, 'runtime source'))->toBeFalse()
+        ->and(str_contains($output, 'src/logo.png'))->toBeFalse();
+});
+
+it('compares the two versions that the user names', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    try {
+        $status = Artisan::call('audit', [
+            'package' => 'acme/moved',
+            '--from' => '1.0.0',
+            '--to' => '2.0.0',
+            '--path' => $fixture->rootPath,
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('delta ([1.0.0] → [2.0.0])')
+        ->and(str_contains($output, 'compared against'))->toBeFalse();
+});
+
+it('refuses a delta between one version and itself', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    try {
+        $status = Artisan::call('audit', [
+            'package' => 'acme/moved',
+            '--from' => '2.0.0',
+            '--to' => '2.0.0',
+            '--path' => $fixture->rootPath,
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('[acme/moved] [2.0.0] and [2.0.0] are the same version.');
+});
+
+it('prints the exact path of a file whose name holds a space and a character outside ascii', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    file_put_contents($fixture->path('vendor/acme/moved/src/日本語 file.php'), "<?php\n\nfinal class Translated {}\n");
+
+    try {
+        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)
+        ->toContain('+ src/日本語 file.php')
+        ->toContain('runtime source (4)');
+});

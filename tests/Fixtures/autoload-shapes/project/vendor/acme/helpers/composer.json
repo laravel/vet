@@ -1,0 +1,17 @@
+{
+    "name": "acme/helpers",
+    "description": "A package that autoloads three shapes.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "files": [
+            "src/helpers.php"
+        ],
+        "classmap": [
+            "lib/"
+        ],
+        "psr-0": {
+            "Acme_": "psr0/"
+        }
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "packages": [
+        {
+            "name": "acme/widget",
+            "version": "1.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/widget/1.0.0.zip",
+                "reference": "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
+                "shasum": ""
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Widget\\": "src/"
+                }
+            },
+            "install-path": "../acme/widget",
+            "installation-source": "dist"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

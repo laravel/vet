@@ -178,3 +178,96 @@ it('fails on a directory that holds no composer.json', function (): void {
     expect($status)->toBe(1)
         ->and($output)->toContain('the project manifest');
 });
+
+it('refuses to hash a package directory that holds no file', function (): void {
+    $fixture = Fixture::open('audited-project');
+
+    unlink($fixture->path('vendor/acme/lint/composer.json'));
+    unlink($fixture->path('vendor/acme/lint/src/Linter.php'));
+    rmdir($fixture->path('vendor/acme/lint/src'));
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('contains no files; refusing to hash an empty tree');
+});
+
+it('names the package directory that the installed package list points at and vendor holds no', function (): void {
+    $fixture = Fixture::open('audited-project');
+
+    unlink($fixture->path('vendor/acme/lint/composer.json'));
+    unlink($fixture->path('vendor/acme/lint/src/Linter.php'));
+    rmdir($fixture->path('vendor/acme/lint/src'));
+    rmdir($fixture->path('vendor/acme/lint'));
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('vendor/acme/lint')
+        ->toContain('does not exist');
+});
+
+it('names the installed package that records no install path', function (): void {
+    $fixture = Fixture::open('audited-project');
+
+    file_put_contents($fixture->path('vendor/composer/installed.json'), str_replace(
+        '"install-path": "../acme/lint",',
+        '',
+        $fixture->read('vendor/composer/installed.json'),
+    ));
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('The package [acme/lint] has no recorded install path.');
+});
+
+it('names the package that the user asks for and the project does not install', function (): void {
+    $fixture = Fixture::open('audited-project');
+
+    try {
+        $status = Artisan::call('audit', ['package' => 'acme/ghost', '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('The package [acme/ghost] is not present in the installed package list.');
+});
+
+it('reads a package that ships a symlink to a file that the tree holds no', function (): void {
+    $fixture = Fixture::open('tampered-project');
+
+    unlink($fixture->path('vendor/acme/widget/README.md'));
+    symlink('../../../gone/CHANGELOG.md', $fixture->path('vendor/acme/widget/README.md'));
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '-v' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('2 files to review (delta from the published [1.0.0])')
+        ->toContain('~ README.md')
+        ->toContain('~ src/Widget.php');
+});

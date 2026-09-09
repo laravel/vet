@@ -1,0 +1,26 @@
+{
+    "packages": [
+        {
+            "name": "acme/lint",
+            "version": "1.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/lint/1.0.0.zip",
+                "reference": "cccc3333cccc3333cccc3333cccc3333cccc3333",
+                "shasum": ""
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Lint\\": "src/"
+                }
+            },
+            "install-path": "../acme/lint",
+            "installation-source": "dist"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": [
+        "acme/lint"
+    ]
+}

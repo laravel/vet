@@ -1,0 +1,11 @@
+{
+    "name": "acme/widget",
+    "description": "A tiny widget.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\Widget\\": "src/"
+        }
+    }
+}

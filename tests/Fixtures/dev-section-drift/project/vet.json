@@ -1,0 +1,10 @@
+{
+    "schema": 4,
+    "require": {
+        "acme/lint": {
+            "version": "1.0.0",
+            "hash": "tree-v2:eac3f8cc56e42fa54d4b8dc674cf02c1fd9bf25bae2efb813289750d90e567af"
+        }
+    },
+    "require-dev": {}
+}

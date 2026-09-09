@@ -1,0 +1,10 @@
+{
+    "schema": 4,
+    "require": {
+        "acme/helpers": {
+            "version": "1.0.0",
+            "hash": "tree-v2:1c6d88ba768de85db4c41f5fb6d03db39bbc91b0d2234e76d265c195768248c7"
+        }
+    },
+    "require-dev": {}
+}

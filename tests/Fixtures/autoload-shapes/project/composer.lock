@@ -1,0 +1,31 @@
+{
+    "_readme": [
+        "A fixture: vet reads this file, Composer never wrote it."
+    ],
+    "content-hash": "fixture",
+    "packages": [
+        {
+            "name": "acme/helpers",
+            "version": "2.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/helpers/2.0.0.zip",
+                "reference": "acmehelpers2.0.00000000000000000000000000",
+                "shasum": ""
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "classmap": [
+                    "lib/"
+                ],
+                "psr-0": {
+                    "Acme_": "psr0/"
+                }
+            }
+        }
+    ],
+    "packages-dev": []
+}
