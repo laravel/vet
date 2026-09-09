@@ -130,7 +130,24 @@ final readonly class Fixture
             return;
         }
 
-        self::copy($source, $this->cachePath.'/metadata');
+        foreach (glob($source.'/*.json') ?: [] as $document) {
+            $package = array_key_first(Json::array(
+                Json::readFile($document, 'the metadata of the fixture'),
+                'packages',
+            ));
+
+            if (! is_string($package)) {
+                continue;
+            }
+
+            $target = $this->metadataPath($package);
+
+            if (! is_dir(dirname($target))) {
+                mkdir(dirname($target), 0o777, true);
+            }
+
+            copy($document, $target);
+        }
     }
 
     private function seedReleases(string $source): void
@@ -151,10 +168,14 @@ final readonly class Fixture
         }
     }
 
+    private function metadataPath(string $package): string
+    {
+        return $this->cachePath.'/metadata/'.$package.'/index.json';
+    }
+
     private function archivePath(string $package, string $version): string
     {
-        $slug = str_replace('/', '-', $package);
-        $metadata = Json::readFile($this->cachePath.'/metadata/'.$slug.'.json', 'the metadata of the fixture');
+        $metadata = Json::readFile($this->metadataPath($package), 'the metadata of the fixture');
 
         $packages = Json::array($metadata, 'packages');
         $releases = is_array($packages[$package] ?? null) ? $packages[$package] : [];
@@ -171,7 +192,7 @@ final readonly class Fixture
                 (Json::string($dist, 'url') ?? '').'|'.(Json::string($dist, 'reference') ?? ''),
             ), 0, 16);
 
-            return sprintf('%s/archives/%s/%s-%s', $this->cachePath, $slug, $version, $key);
+            return sprintf('%s/archives/%s/%s-%s', $this->cachePath, $package, $version, $key);
         }
 
         throw new RuntimeException(sprintf('The metadata of the fixture holds no version [%s] of [%s].', $version, $package));

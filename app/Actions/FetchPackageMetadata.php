@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Exceptions\FailureException;
+use App\Exceptions\VetException;
 use App\Support\Json;
 use App\ValueObjects\Package;
 
@@ -12,12 +13,19 @@ final class FetchPackageMetadata
 {
     private const string ENDPOINT = 'https://repo.packagist.org/p2/%s.json';
 
+    private const string DOCUMENT = 'index.json';
+
     private const int TTL = 3600;
 
     /**
      * @var array<string, array<string, Package>>
      */
     private array $memoized = [];
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $downloaded = [];
 
     public function __construct(
         private readonly RequestUrl $http,
@@ -46,14 +54,123 @@ final class FetchPackageMetadata
 
         $this->assertValidName($package);
 
-        $path = $this->cache->path('metadata', str_replace('/', '-', $package).'.json');
-        $body = $this->cache->fresh($path, self::TTL);
+        $body = $this->cache->fresh($this->documentPath($package), self::TTL);
 
-        if ($body === null) {
-            $body = $this->http->get(sprintf(self::ENDPOINT, $package));
-            $this->cache->put($path, $body);
+        return $body === null
+            ? $this->download($package)
+            : $this->memoized[$package] = $this->parse($package, $body);
+    }
+
+    public function refresh(string $package): void
+    {
+        if (isset($this->downloaded[$package])) {
+            return;
         }
 
+        $this->assertValidName($package);
+        $this->download($package);
+    }
+
+    public function version(string $package, string $version): Package
+    {
+        $found = $this->find($this->versions($package), $version);
+
+        if ($found instanceof Package) {
+            return $found;
+        }
+
+        if (! isset($this->downloaded[$package])) {
+            $found = $this->find($this->downloadOrKeep($package), $version);
+        }
+
+        if ($found instanceof Package) {
+            return $found;
+        }
+
+        throw new FailureException(sprintf(
+            'Packagist has no version [%s] of [%s]. Known versions include: [%s].',
+            $version,
+            $package,
+            implode(', ', array_slice(array_keys($this->versions($package)), 0, 8)),
+        ));
+    }
+
+    public function previousVersion(string $package, string $version): ?string
+    {
+        $versions = array_keys($this->versions($package));
+        $wantStable = self::isStable($version);
+
+        $index = false;
+
+        foreach ([$version, 'v'.$version, ltrim($version, 'v')] as $candidate) {
+            $found = array_search($candidate, $versions, true);
+
+            if ($found !== false) {
+                $index = $found;
+
+                break;
+            }
+        }
+
+        if ($index === false) {
+            return null;
+        }
+
+        $counter = count($versions);
+
+        for ($i = $index + 1; $i < $counter; $i++) {
+            if (! $wantStable || self::isStable($versions[$i])) {
+                return $versions[$i];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, Package>  $versions
+     */
+    private function find(array $versions, string $version): ?Package
+    {
+        foreach ([$version, 'v'.$version, ltrim($version, 'v')] as $candidate) {
+            if (isset($versions[$candidate])) {
+                return $versions[$candidate];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, Package>
+     */
+    private function downloadOrKeep(string $package): array
+    {
+        try {
+            return $this->download($package);
+        } catch (VetException) {
+            return $this->memoized[$package] ?? [];
+        }
+    }
+
+    /**
+     * @return array<string, Package>
+     */
+    private function download(string $package): array
+    {
+        $body = $this->http->get(sprintf(self::ENDPOINT, $package));
+
+        $this->cache->put($this->documentPath($package), $body);
+        $this->downloaded[$package] = true;
+
+        return $this->memoized[$package] = $this->parse($package, $body);
+    }
+
+    /**
+     * @return array<string, Package>
+     */
+    private function parse(string $package, string $body): array
+    {
         $decoded = json_decode($body, true);
 
         if (! is_array($decoded)) {
@@ -93,57 +210,12 @@ final class FetchPackageMetadata
             throw new FailureException(sprintf('Packagist returned no usable version entries for [%s].', $package));
         }
 
-        return $this->memoized[$package] = $versions;
+        return $versions;
     }
 
-    public function version(string $package, string $version): Package
+    private function documentPath(string $package): string
     {
-        $versions = $this->versions($package);
-
-        foreach ([$version, 'v'.$version, ltrim($version, 'v')] as $candidate) {
-            if (isset($versions[$candidate])) {
-                return $versions[$candidate];
-            }
-        }
-
-        throw new FailureException(sprintf(
-            'Packagist has no version [%s] of [%s]. Known versions include: [%s].',
-            $version,
-            $package,
-            implode(', ', array_slice(array_keys($versions), 0, 8)),
-        ));
-    }
-
-    public function previousVersion(string $package, string $version): ?string
-    {
-        $versions = array_keys($this->versions($package));
-        $wantStable = self::isStable($version);
-
-        $index = false;
-
-        foreach ([$version, 'v'.$version, ltrim($version, 'v')] as $candidate) {
-            $found = array_search($candidate, $versions, true);
-
-            if ($found !== false) {
-                $index = $found;
-
-                break;
-            }
-        }
-
-        if ($index === false) {
-            return null;
-        }
-
-        $counter = count($versions);
-
-        for ($i = $index + 1; $i < $counter; $i++) {
-            if (! $wantStable || self::isStable($versions[$i])) {
-                return $versions[$i];
-            }
-        }
-
-        return null;
+        return $this->cache->forPackage('metadata', $package, self::DOCUMENT);
     }
 
     private function assertValidName(string $package): void

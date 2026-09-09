@@ -6,8 +6,6 @@ namespace App\Support;
 
 final class Path
 {
-    private const string UNNAMED_SEGMENT = 'unnamed';
-
     public static function join(string ...$segments): string
     {
         $parts = [];
@@ -56,12 +54,5 @@ final class Path
     public static function toRelativeForm(string $path): string
     {
         return str_replace(DIRECTORY_SEPARATOR, '/', $path);
-    }
-
-    public static function toSegment(string $value): string
-    {
-        $segment = (string) preg_replace('#[^A-Za-z0-9._-]+#', '-', $value);
-
-        return trim($segment, '.') === '' ? self::UNNAMED_SEGMENT : $segment;
     }
 }

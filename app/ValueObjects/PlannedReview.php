@@ -13,6 +13,7 @@ final readonly class PlannedReview
         public ComposerOperation $operation,
         public ?string $trusted,
         public ?Delta $delta,
+        public ?string $note,
     ) {}
 
     public function files(): ?int
@@ -42,9 +43,12 @@ final readonly class PlannedReview
                 : sprintf('%d files (delta from [%s])', count($delta->changes()), $delta->from);
         }
 
-        return $this->operation->change === ComposerChangeType::Install
-            ? 'whole package (new)'
-            : 'nothing (removed)';
+        return match (true) {
+            $this->operation->change === ComposerChangeType::Install => 'whole package (new)',
+            $this->operation->change === ComposerChangeType::Remove => 'nothing (removed)',
+            $this->trusted !== null && $this->trusted === $this->operation->to => 'nothing (already trusted)',
+            default => 'whole package',
+        };
     }
 
     public function reason(): string
@@ -70,6 +74,7 @@ final readonly class PlannedReview
             'to' => $this->operation->to,
             'trusted' => $this->trusted,
             'files_to_review' => $this->files(),
+            'note' => $this->note,
             'delta' => $this->delta instanceof Delta ? $renderer->toArray($this->delta) : null,
         ];
     }

@@ -18,6 +18,14 @@ it('replaces a character that holds no width', function (): void {
         ->and(ControlSafe::text("Widget\u{00AD}.php"))->toBe('Widget?.php');
 });
 
+it('keeps the byte that marks a line that ends with a backslash', function (): void {
+    expect(ControlSafe::text("continues \0"))->toBe("continues \0");
+});
+
+it('replaces a character that separates a line', function (): void {
+    expect(ControlSafe::text("one\u{2028}two"))->toBe('one?two');
+});
+
 it('replaces a control character above the ascii range', function (): void {
     expect(ControlSafe::text("read\u{009B}2Kme.md"))->toBe('read?2Kme.md');
 });

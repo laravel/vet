@@ -76,7 +76,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
         }
 
         try {
-            $this->run($gate, $io, $gate->command($io->isVerbose(), $planPath));
+            $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated(), $planPath));
         } finally {
             $gate->deletePlan($planPath);
         }
@@ -95,7 +95,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
             return;
         }
 
-        $this->run($gate, $io, $gate->command($io->isVerbose()));
+        $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated(), null));
     }
 
     /**

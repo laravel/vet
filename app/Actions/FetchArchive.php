@@ -35,7 +35,8 @@ final readonly class FetchArchive
         }
 
         $key = mb_substr(hash('sha256', $package->distUrl.'|'.($package->distReference ?? '')), 0, 16);
-        $directory = $this->cache->path('archives', $package->name, $package->version.'-'.$key);
+        $release = $package->version.'-'.$key;
+        $directory = $this->cache->forPackage('archives', $package->name, $release);
 
         $marker = $directory.'.complete';
 
@@ -46,7 +47,7 @@ final readonly class FetchArchive
         @unlink($marker);
         $this->removeDirectory($directory);
 
-        $archive = $this->cache->path('downloads', $package->name.'-'.$package->version.'-'.$key.'.zip');
+        $archive = $this->cache->forPackage('downloads', $package->name, $release.'.zip');
 
         if (! $useCache || ! is_file($archive)) {
             $this->http->download($package->distUrl, $archive);

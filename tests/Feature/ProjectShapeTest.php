@@ -267,7 +267,7 @@ it('reads a package that ships a symlink to a file that the tree holds no', func
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('2 files to review (delta from the published [1.0.0])')
+        ->toContain('2 files (delta from the published [1.0.0])')
         ->toContain('~ README.md')
         ->toContain('~ src/Widget.php');
 });

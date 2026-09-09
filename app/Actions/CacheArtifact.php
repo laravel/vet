@@ -35,7 +35,18 @@ final readonly class CacheArtifact
 
     public function path(string ...$segments): string
     {
-        return Path::normalize(Path::join($this->rootPath, ...array_map(Path::toSegment(...), $segments)));
+        return Path::normalize(Path::join($this->rootPath, ...$segments));
+    }
+
+    public function forPackage(string $section, string $package, string ...$segments): string
+    {
+        $parts = explode('/', $package);
+
+        if (count($parts) !== 2) {
+            throw new FailureException(sprintf('[%s] is not a valid package name; expected "vendor/name".', $package));
+        }
+
+        return $this->path($section, ...array_map($this->segment(...), [...$parts, ...$segments]));
     }
 
     public function fresh(string $path, int $seconds): ?string
@@ -66,5 +77,12 @@ final readonly class CacheArtifact
         if (@file_put_contents($path, $contents) === false) {
             throw new FailureException(sprintf('Could not write to the cache file [%s].', $path));
         }
+    }
+
+    private function segment(string $value): string
+    {
+        $safe = (string) preg_replace('/[^A-Za-z0-9._-]+/', '-', $value);
+
+        return trim($safe, '.') === '' ? '-' : $safe;
     }
 }

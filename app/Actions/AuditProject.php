@@ -168,7 +168,7 @@ final readonly class AuditProject
 
         $metadata = $locked instanceof Package && $locked->version === $version
             ? $locked
-            : $this->packagist->version($operation->package, $version);
+            : $this->publishedVersion($operation->package, $version);
 
         return $metadata
             ->withDist($operation->distUrl, $operation->distReference, $operation->distShasum)
@@ -215,6 +215,15 @@ final readonly class AuditProject
         }
 
         return $problems;
+    }
+
+    private function publishedVersion(string $package, string $version): Package
+    {
+        if (! $this->useCache) {
+            $this->packagist->refresh($package);
+        }
+
+        return $this->packagist->version($package, $version);
     }
 
     private function installsTree(string $package): bool

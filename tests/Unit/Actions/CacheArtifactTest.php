@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\CacheArtifact;
+use App\Exceptions\FailureException;
 
 function cacheRoot(): string
 {
@@ -17,32 +18,33 @@ afterEach(function (): void {
     putenv('VET_CACHE_DIR');
 });
 
-it('holds a package name that traverses inside the cache root', function (): void {
+it('holds a version that traverses inside the cache root', function (): void {
     $root = cacheRoot();
 
-    $path = CacheArtifact::default()->path('archives', '../../../../etc', '1.0.0-abcdef');
+    $path = CacheArtifact::default()->forPackage('archives', 'acme/widget', 'dev-../../../../victim/x-abcdef');
 
-    expect($path)->toBe($root.'/archives/..-..-..-..-etc/1.0.0-abcdef');
+    expect($path)->toBe($root.'/archives/acme/widget/dev-..-..-..-..-victim-x-abcdef')
+        ->and($path)->toStartWith($root.'/');
 });
 
-it('holds a package version that traverses inside the cache root', function (): void {
-    $root = cacheRoot();
+it('refuses a package name that traverses', function (): void {
+    cacheRoot();
 
-    $path = CacheArtifact::default()->path('archives', 'acme/widget', 'dev-../../../../victim/x-abcdef');
-
-    expect($path)->toBe($root.'/archives/acme-widget/dev-..-..-..-..-victim-x-abcdef');
+    expect(fn (): string => CacheArtifact::default()->forPackage('archives', '../../../../etc', '1.0.0-abcdef'))
+        ->toThrow(FailureException::class, 'is not a valid package name');
 });
 
-it('names a segment that holds no readable character', function (): void {
+it('names a version that holds no readable character', function (): void {
     $root = cacheRoot();
 
-    expect(CacheArtifact::default()->path('downloads', '..'))->toBe($root.'/downloads/unnamed');
+    expect(CacheArtifact::default()->forPackage('downloads', 'acme/widget', '..'))
+        ->toBe($root.'/downloads/acme/widget/-');
 });
 
 it('keeps a package name and a version that traverse nowhere', function (): void {
     $root = cacheRoot();
 
-    $path = CacheArtifact::default()->path('archives', 'acme/widget', '2.0.0-rc.1-abcdef');
+    $path = CacheArtifact::default()->forPackage('archives', 'acme/widget', '2.0.0-rc.1-abcdef');
 
-    expect($path)->toBe($root.'/archives/acme-widget/2.0.0-rc.1-abcdef');
+    expect($path)->toBe($root.'/archives/acme/widget/2.0.0-rc.1-abcdef');
 });
