@@ -115,6 +115,26 @@ it('names an upgrade between composer.lock and the installed tree', function ():
         ->and($widget?->distUrl)->toBe('https://example.test/acme-widget-2.0.0.zip');
 });
 
+it('names a rebuild of the same version between composer.lock and the installed tree', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TRUSTED_VERSION);
+
+    try {
+        $located = Project::at($project->rootPath);
+        $plan = ComposerPlan::between(LockFile::fromProject($located), InstalledRepository::fromProject($located));
+    } finally {
+        $project->remove();
+    }
+
+    $widget = $plan->of(PendingUpdate::PACKAGE);
+
+    expect($plan->operations)->toHaveCount(1)
+        ->and($widget?->change)->toBe(ComposerChangeType::Upgrade)
+        ->and($widget?->from)->toBe('1.0.0')
+        ->and($widget?->to)->toBe('1.0.0')
+        ->and($widget?->distReference)->toBe('bbbb2222');
+});
+
 it('names a downgrade between composer.lock and the installed tree', function (): void {
     $project = PendingUpdate::create();
     $project->lockAt('0.9.0');

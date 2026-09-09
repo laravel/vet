@@ -53,6 +53,34 @@ it('records the bytes of the next install, while vendor/ holds the old ones', fu
         ->and($audited)->toBe(0);
 });
 
+it('records the rebuilt bytes of the same version, while vendor/ holds the old ones', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TRUSTED_VERSION);
+
+    try {
+        $audited = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $auditOutput = Artisan::output();
+
+        $trusted = Artisan::call('trust', ['--path' => $project->rootPath]);
+        $trustOutput = Artisan::output();
+
+        $trustFile = $project->trustFile();
+        $rebuiltHash = $project->rebuiltHash();
+    } finally {
+        $project->remove();
+    }
+
+    expect($audited)->toBe(1)
+        ->and($auditOutput)->toContain('composer would install [1.0.0] again, and its bytes changed')
+        ->and($trusted)->toBe(0)
+        ->and($trustOutput)
+        ->toContain('Trusted [1] package(s).')
+        ->toContain('Run `composer install` to write those bytes to vendor/.')
+        ->and($trustFile)
+        ->toContain('"version": "1.0.0"')
+        ->toContain($rebuiltHash);
+});
+
 it('shows the delta of the incoming bytes against the installed tree', function (): void {
     $project = PendingUpdate::create();
     $project->lockAt(PendingUpdate::TARGET_VERSION);
