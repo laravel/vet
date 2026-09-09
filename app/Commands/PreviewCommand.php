@@ -139,7 +139,7 @@ final class PreviewCommand extends Command
         $this->newLine();
 
         if ($reviews === []) {
-            $this->components->info('The next `composer update` changes nothing in vendor/.');
+            $this->components->info('The next [composer update] changes nothing in vendor/.');
             $this->newLine();
 
             return self::SUCCESS;
@@ -170,9 +170,9 @@ final class PreviewCommand extends Command
 
         $this->newLine();
         $this->components->info($this->output->isVerbose()
-            ? sprintf('[%d] package(s) change. Run `composer update`, then record them with `vet trust`.', count($reviews))
+            ? sprintf('[%d] package(s) change. Run [composer update], then record them with [vet trust].', count($reviews))
             : sprintf(
-                '[%d] package(s) change. Read every change with `%s`, then run `composer update`.',
+                '[%d] package(s) change. Read every change with [%s], then run [composer update].',
                 count($reviews),
                 Invitation::verbose('vet preview -v'),
             ));

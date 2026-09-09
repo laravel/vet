@@ -17,7 +17,7 @@ final class ComposerFailedException extends VetException
     public static function missing(string $binary): self
     {
         return new self(sprintf(
-            'Could not find [%s] on your PATH. Install Composer, or name the binary in VET_COMPOSER_BINARY.',
+            'Could not find [%s] on your PATH. Install Composer, or name the binary in [VET_COMPOSER_BINARY].',
             $binary,
         ), []);
     }
@@ -27,7 +27,7 @@ final class ComposerFailedException extends VetException
         $lines = preg_split('/\R/', trim($output));
 
         return new self(sprintf(
-            '`composer update --dry-run` failed in [%s] with exit code %s. Composer says:',
+            '[composer update --dry-run] failed in [%s] with exit code [%s]. Composer says:',
             $rootPath,
             $exitCode === null ? 'unknown' : (string) $exitCode,
         ), $lines === false ? [] : array_values(array_filter($lines, static fn (string $line): bool => trim($line) !== '')));

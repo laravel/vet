@@ -133,7 +133,7 @@ it('fails with the words of composer when the plan fails', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('exit code 2')
+        ->toContain('exit code [2]')
         ->toContain('Your requirements could not be resolved.');
 });
 

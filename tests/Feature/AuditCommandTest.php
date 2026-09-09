@@ -179,6 +179,6 @@ it('asks for the verbose flag of composer when composer runs the audit', functio
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('… and 18 more, with composer update -v')
-        ->toContain('with `composer update -v`')
+        ->toContain('with [composer update -v]')
         ->and(str_contains($output, 'vet audit -v'))->toBeFalse();
 });

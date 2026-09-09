@@ -213,7 +213,7 @@ final readonly class RenderDelta
 
         if ($hidden > 0) {
             $this->components->info(sprintf(
-                '[%d] change(s) are not shown. Read them with `%s`.',
+                '[%d] change(s) are not shown. Read them with [%s].',
                 $hidden,
                 Invitation::verbose(),
             ));

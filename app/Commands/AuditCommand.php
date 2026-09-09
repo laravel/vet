@@ -172,10 +172,9 @@ final class AuditCommand extends Command
 
         if (! $auditor->trustFile->exists()) {
             $this->components->warn(sprintf(
-                'No trust file yet. `vet trust` records every installed package in [%s].',
+                'No trust file yet. [vet trust] records every installed package in [%s].',
                 $this->relative($project->rootPath, $auditor->trustFile->path),
             ));
-            $this->newLine();
         }
 
         if ($failing === []) {
@@ -232,15 +231,15 @@ final class AuditCommand extends Command
         $this->newLine();
 
         $this->components->error($this->output->isVerbose()
-            ? sprintf('[%d] package(s) are not covered. Record them with `vet trust`.', count($failing))
+            ? sprintf('[%d] package(s) are not covered. Record them with [vet trust].', count($failing))
             : sprintf(
-                '[%d] package(s) are not covered. Read every change with `%s`, then record them with `vet trust`.',
+                '[%d] package(s) are not covered. Read every change with [%s], then record them with [vet trust].',
                 count($failing),
                 Invitation::verbose('vet audit -v'),
             ));
 
         if ($this->holdsPending($failing)) {
-            $this->components->warn('composer holds those bytes out of vendor/ until you record them. Then run `composer install`.');
+            $this->components->warn('composer holds those bytes out of vendor/ until you record them. Then run [composer install].');
         }
 
         return self::FAILURE;
@@ -366,7 +365,7 @@ final class AuditCommand extends Command
         }
 
         if (! $covered) {
-            $this->components->info(sprintf('Record these bytes with `vet trust %s`.', $audit->package));
+            $this->components->info(sprintf('Record these bytes with [vet trust %s].', $audit->package));
         }
 
         return $covered ? self::SUCCESS : self::FAILURE;

@@ -45,7 +45,7 @@ it('records the bytes of the next install, while vendor/ holds the old ones', fu
     }
 
     expect($trusted)->toBe(0)
-        ->and($trustOutput)->toContain('Run `composer install` to write those bytes to vendor/.')
+        ->and($trustOutput)->toContain('Run [composer install] to write those bytes to vendor/.')
         ->and($trustFile)
         ->toContain('"version": "2.0.0"')
         ->toContain($targetHash)

@@ -107,7 +107,7 @@ final readonly class Gate
             return null;
         }
 
-        return 'vet has no trust file in this project yet. Run `vet trust` to record what you trust today.';
+        return 'vet has no trust file in this project yet. Run [vet trust] to record what you trust today.';
     }
 
     public function firstInstallNotice(): ?string

@@ -21,7 +21,7 @@ it('renders the buckets and the changed paths of a stale package', function (): 
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
         ->toContain("+        return 'gadget';")
-        ->toContain('Read every change with `vet audit -v`');
+        ->toContain('Read every change with [vet audit -v]');
 });
 
 it('renders the source of each change with -v', function (): void {
@@ -40,5 +40,5 @@ it('renders the source of each change with -v', function (): void {
         ->toContain('~ src/Widget.php')
         ->toContain("-        return 'widget';")
         ->toContain("+        return 'gadget';")
-        ->toContain('[1] package(s) are not covered. Record them with `vet trust`.');
+        ->toContain('[1] package(s) are not covered. Record them with [vet trust].');
 });
