@@ -232,7 +232,7 @@ it('reads the files, the classmap and the psr-0 roots of a package as runtime so
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('4 files to review (delta from [1.0.0])')
+        ->toContain('4 files (delta from [1.0.0])')
         ->toContain('runtime source (3)')
         ->toContain('~ lib/Legacy.php')
         ->toContain('~ psr0/Acme/Old.php')
@@ -317,4 +317,43 @@ it('prints the exact path of a file whose name holds a space and a character out
     expect($output)
         ->toContain('+ src/日本語 file.php')
         ->toContain('runtime source (4)');
+});
+
+it('names the buckets that the option accepts when the user names another', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    try {
+        $status = Artisan::call('audit', [
+            'package' => 'acme/media',
+            '--bucket' => 'runtime',
+            '--path' => $fixture->rootPath,
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('The [--bucket] option accepts [install-manifest], [opaque], [runtime-source], [inert].');
+});
+
+it('prints a line that ends with a backslash and closes the color of that line', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    file_put_contents(
+        $fixture->path('vendor/acme/moved/src/Kept.php'),
+        "<?php\n\n// continues \\\n// and ends\n",
+    );
+
+    try {
+        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath, '-v' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)
+        ->toContain('+// continues \\')
+        ->and(str_contains($output, '</>'))->toBeFalse();
 });

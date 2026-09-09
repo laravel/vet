@@ -11,6 +11,7 @@ use App\ValueObjects\Change;
 use App\ValueObjects\Delta;
 use App\ValueObjects\ManifestChange;
 use Illuminate\Console\OutputStyle;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final readonly class RenderDelta
 {
@@ -249,6 +250,8 @@ final readonly class RenderDelta
 
     private function escape(string $line): string
     {
-        return str_replace(['<', '>'], ['\\<', '\\>'], $line);
+        return OutputFormatter::escapeTrailingBackslash(
+            str_replace(['<', '>'], ['\\<', '\\>'], $line),
+        );
     }
 }

@@ -135,7 +135,7 @@ final readonly class StaleProject
             16,
         );
 
-        return sprintf('%s/archives/acme-widget/%s-%s', $this->cachePath, self::GRANTED_VERSION, $key);
+        return sprintf('%s/archives/%s/%s-%s', $this->cachePath, self::PACKAGE, self::GRANTED_VERSION, $key);
     }
 
     private function seedGrantedTree(): void
@@ -150,7 +150,7 @@ final readonly class StaleProject
 
     private function seedMetadata(): void
     {
-        $this->write($this->cachePath.'/metadata/acme-widget.json', Json::encode([
+        $this->write($this->cachePath.'/metadata/'.self::PACKAGE.'/index.json', Json::encode([
             'packages' => [
                 self::PACKAGE => [
                     $this->metadataOf(self::INSTALLED_VERSION, self::INSTALLED_REFERENCE),

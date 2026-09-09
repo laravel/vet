@@ -75,7 +75,7 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
         ->and($trusted)->toBe(0)
         ->and($trustOutput)
         ->toContain('Trusted [1] package(s).')
-        ->toContain('Run `composer install` to write those bytes to vendor/.')
+        ->toContain('Run [composer install] to write those bytes to vendor/.')
         ->and($trustFile)
         ->toContain('"version": "1.0.0"')
         ->toContain($rebuiltHash);
