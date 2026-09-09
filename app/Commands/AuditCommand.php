@@ -195,24 +195,22 @@ final class AuditCommand extends Command
 
             $this->components->twoColumnDetail(
                 sprintf(
-                    '<fg=%s>%s</> <fg=gray>%s</>%s',
+                    '<fg=%s>%s</> <fg=gray>%s</>%s  <fg=gray>%s</>',
                     $this->statusColor($audit->status),
                     $audit->package,
                     $audit->versions(),
                     $audit->dev ? ' <fg=gray>(dev)</>' : '',
+                    $audit->reason(),
                 ),
                 $audit->status === AuditStatus::Unknown
                     ? '<fg=red>bytes not readable</>'
-                    : sprintf('<fg=gray>%d files to review (%s)</>', $review['files'], $review['scope']),
+                    : sprintf(
+                        '<fg=gray>%d files (%s)  ·  %s</>',
+                        $review['files'],
+                        $review['scope'],
+                        Bytes::human($audit->bytes),
+                    ),
             );
-
-            $this->line($audit->status === AuditStatus::Unknown
-                ? sprintf('      <fg=gray>%s</>', $audit->reason())
-                : sprintf(
-                    '      <fg=gray>%s  ·  %s</>',
-                    $audit->reason(),
-                    Bytes::human($audit->bytes),
-                ));
 
             if ($review['delta'] instanceof Delta) {
                 $this->newLine();

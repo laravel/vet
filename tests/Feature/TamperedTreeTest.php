@@ -18,7 +18,7 @@ it('reads the delta of a tree whose bytes changed at the trusted version', funct
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('acme/widget 1.0.0')
-        ->toContain('1 files to review (delta from the published [1.0.0])')
+        ->toContain('1 files (delta from the published [1.0.0])')
         ->toContain('[1.0.0] is still installed but its bytes changed')
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')

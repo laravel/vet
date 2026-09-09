@@ -21,7 +21,7 @@ it('shows what the next composer update changes, and leaves the installed tree a
         ->and($untouched)->toBe($installed)
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
-        ->toContain('4 files to review')
+        ->toContain('4 files')
         ->toContain('you trust [1.0.0]')
         ->toContain('install-time manifest (1)')
         ->toContain('opaque artifact (1)')
@@ -98,9 +98,9 @@ it('names a package that arrives and a package that leaves, and builds no delta 
     expect($status)->toBe(0)
         ->and($output)
         ->toContain('acme/gadget 3.0.0')
-        ->toContain('whole package to review (new)')
+        ->toContain('whole package (new)')
         ->toContain('acme/legacy 0.9.0')
-        ->toContain('nothing to review (removed)');
+        ->toContain('nothing (removed)');
 });
 
 it('says so when the next composer update changes nothing', function (): void {
@@ -167,13 +167,13 @@ it('previews an upgrade, a downgrade, a package that arrives and a package that 
         ->and($output)
         ->toContain('to review (4, worst first)')
         ->toContain('acme/widget 2.0.0 → 1.0.0')
-        ->toContain('4 files to review')
+        ->toContain('4 files')
         ->toContain('acme/lint 1.0.0 → 2.0.0')
-        ->toContain('1 files to review')
+        ->toContain('1 files')
         ->toContain('acme/gadget 3.0.0')
-        ->toContain('whole package to review (new)')
+        ->toContain('whole package (new)')
         ->toContain('acme/legacy 0.9.0')
-        ->toContain('nothing to review (removed)')
+        ->toContain('nothing (removed)')
         ->and(mb_strpos($output, 'acme/widget'))->toBeLessThan((int) mb_strpos($output, 'acme/gadget'))
         ->and(mb_strpos($output, 'acme/gadget'))->toBeLessThan((int) mb_strpos($output, 'acme/legacy'));
 });

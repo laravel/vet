@@ -17,7 +17,7 @@ it('renders the buckets and the changed paths of a stale package', function (): 
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('1 files to review (delta from [1.0.0])')
+        ->toContain('1 files (delta from [1.0.0])')
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
         ->toContain("+        return 'gadget';")

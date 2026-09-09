@@ -47,7 +47,7 @@ it('reports the whole package when the dist of the granted version cannot be fet
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('5 files to review (whole package)')
+        ->toContain('5 files (whole package)')
         ->and(str_contains($output, 'delta from'))->toBeFalse();
 });
 
