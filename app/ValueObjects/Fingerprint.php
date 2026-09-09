@@ -17,9 +17,4 @@ final readonly class Fingerprint
         public int $files,
         public int $bytes,
     ) {}
-
-    public function key(): string
-    {
-        return $this->package.'@'.$this->version.' ['.$this->source->value.'] '.$this->hash;
-    }
 }

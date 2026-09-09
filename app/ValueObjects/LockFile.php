@@ -14,7 +14,6 @@ final readonly class LockFile
      */
     private function __construct(
         private array $packages,
-        public string $contentHash,
     ) {}
 
     public static function fromProject(Project $project): self
@@ -47,7 +46,7 @@ final readonly class LockFile
 
         ksort($packages, SORT_STRING);
 
-        return new self($packages, Json::string($data, 'content-hash') ?? '');
+        return new self($packages);
     }
 
     /**

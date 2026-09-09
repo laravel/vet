@@ -25,10 +25,10 @@ it('records the review of one package, and turns the gate green', function (): v
         ->toContain('acme/widget')
         ->toContain('bytes changed')
         ->toContain('~ src/Widget.php')
-        ->toContain('Recorded acme/widget 2.0.0')
+        ->toContain('Recorded [acme/widget] [2.0.0]')
         ->and($trustFile)->toContain('"version": "2.0.0"')
         ->and($audited)->toBe(0)
-        ->and($auditOutput)->toContain('All 1 packages are covered.');
+        ->and($auditOutput)->toContain('All [1] packages are covered.');
 });
 
 it('baselines every installed package of a project that holds no trust file', function (): void {
@@ -49,7 +49,7 @@ it('baselines every installed package of a project that holds no trust file', fu
         ->and($trustOutput)
         ->toContain('to trust (1)')
         ->toContain('no entry')
-        ->toContain('wrote vet.json')
+        ->toContain('wrote [vet.json]')
         ->and($audited)->toBe(0);
 });
 

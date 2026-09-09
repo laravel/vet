@@ -72,7 +72,7 @@ it('prints no source of an opaque artifact, and warns that it cannot be read', f
 
     expect($output)
         ->toContain('opaque artifact (2)  cannot be reviewed — trust and provenance only')
-        ->toContain('2 opaque artifacts cannot be read: builds/native.so, builds/tool.phar.')
+        ->toContain('[2] opaque artifacts cannot be read: [builds/native.so, builds/tool.phar].')
         ->and(str_contains($output, '@@'))->toBeFalse();
 });
 
@@ -161,7 +161,7 @@ it('stops at five paths and invites the source of the rest', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('23 files to review (delta from 1.0.0)')
+        ->toContain('23 files to review (delta from [1.0.0])')
         ->toContain('runtime source (23)')
         ->toContain('+ src/Rule01.php')
         ->toContain('+ src/Rule05.php')
@@ -196,7 +196,7 @@ it('reports a change of a line ending as a change', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('2 files to review (delta from 1.0.0)')
+        ->toContain('2 files to review (delta from [1.0.0])')
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php');
 });

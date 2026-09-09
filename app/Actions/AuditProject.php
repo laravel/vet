@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\AuditStatus;
 use App\Enums\PackageStatus;
+use App\Exceptions\PackageInstallsNoTreeException;
 use App\Exceptions\VetException;
 use App\ValueObjects\AuditReport;
 use App\ValueObjects\ComposerOperation;
@@ -41,7 +42,7 @@ final readonly class AuditProject
             project: $project,
             trustFile: TrustFile::forProject($project),
             installed: $installed,
-            fingerprinter: new FingerprintPackage($installed, FetchArchive::default()),
+            fingerprinter: new FingerprintPackage(FetchArchive::default()),
             lock: $lock,
             plan: $plan ?? ComposerPlan::between($lock, $installed),
             packagist: FetchPackageMetadata::default(),
@@ -54,11 +55,6 @@ final readonly class AuditProject
         return $this->installed;
     }
 
-    public function fingerprinter(): FingerprintPackage
-    {
-        return $this->fingerprinter;
-    }
-
     public function plan(): ComposerPlan
     {
         return $this->plan;
@@ -69,7 +65,7 @@ final readonly class AuditProject
         $results = [];
 
         foreach ($this->installed->all() as $name => $package) {
-            if ($this->plan->touches($name)) {
+            if ($this->plan->touches($name) || ! $this->installsTree($name)) {
                 continue;
             }
 
@@ -77,6 +73,10 @@ final readonly class AuditProject
         }
 
         foreach ($this->plan->incoming() as $operation) {
+            if (! $this->installsTree($operation->package)) {
+                continue;
+            }
+
             $results[$operation->package] = $this->auditOfIncoming($operation);
         }
 
@@ -87,6 +87,10 @@ final readonly class AuditProject
 
     public function auditOfName(string $name): PackageAudit
     {
+        if (! $this->installsTree($name)) {
+            throw PackageInstallsNoTreeException::named($name);
+        }
+
         $operation = $this->plan->of($name);
 
         return $operation instanceof ComposerOperation && $operation->to !== null
@@ -135,7 +139,7 @@ final readonly class AuditProject
                 state: PackageStatus::Pending,
                 from: $operation->from,
                 cause: sprintf(
-                    'composer would install %s and vet cannot read those bytes: %s',
+                    'composer would install [%s] and vet cannot read those bytes: %s',
                     $version,
                     $vetException->getMessage(),
                 ),
@@ -189,14 +193,14 @@ final readonly class AuditProject
             }
 
             if (! isset($installed[$name])) {
-                $problems[] = sprintf('%s is in composer.lock at %s but is not installed', $name, $package->version);
+                $problems[] = sprintf('[%s] is in composer.lock at [%s] but is not installed', $name, $package->version);
 
                 continue;
             }
 
             if ($installed[$name]->version !== $package->version) {
                 $problems[] = sprintf(
-                    '%s is installed at %s but composer.lock says %s',
+                    '[%s] is installed at [%s] but composer.lock says [%s]',
                     $name,
                     $installed[$name]->version,
                     $package->version,
@@ -206,11 +210,22 @@ final readonly class AuditProject
 
         foreach ($installed as $name => $package) {
             if (! isset($locked[$name]) && (! $explained || ! $this->plan->touches($name))) {
-                $problems[] = sprintf('%s is installed at %s but is not in composer.lock', $name, $package->version);
+                $problems[] = sprintf('[%s] is installed at [%s] but is not in composer.lock', $name, $package->version);
             }
         }
 
         return $problems;
+    }
+
+    private function installsTree(string $package): bool
+    {
+        $locked = $this->lock->packages()[$package] ?? null;
+
+        if ($locked instanceof Package) {
+            return $locked->installsTree();
+        }
+
+        return ! $this->installed->has($package) || $this->installed->get($package)->installsTree();
     }
 
     private function isDev(string $package): bool

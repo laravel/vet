@@ -1,0 +1,32 @@
+{
+    "packages": [
+        {
+            "name": "acme/widget",
+            "version": "1.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/widget/1.0.0.zip",
+                "reference": "acmewidget1.0.00000000000000000000000000",
+                "shasum": ""
+            },
+            "source": {
+                "type": "git",
+                "url": "https://git.test/acme/widget.git",
+                "reference": "acmewidget1.0.00000000000000000000000000"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Widget\\": "src/"
+                }
+            },
+            "bin": [
+                "bin/widget.phar"
+            ],
+            "installation-source": "dist",
+            "install-path": "../acme/widget"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

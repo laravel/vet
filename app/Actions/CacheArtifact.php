@@ -38,17 +38,6 @@ final readonly class CacheArtifact
         return Path::normalize(Path::join($this->rootPath, ...$segments));
     }
 
-    public function directory(string ...$segments): string
-    {
-        $path = $this->path(...$segments);
-
-        if (! is_dir($path) && ! @mkdir($path, 0o777, true) && ! is_dir($path)) {
-            throw new FailureException(sprintf('Could not create the cache directory [%s].', $path));
-        }
-
-        return $path;
-    }
-
     public function fresh(string $path, int $seconds): ?string
     {
         if (! is_file($path)) {

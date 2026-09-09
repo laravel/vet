@@ -15,7 +15,7 @@ final class FetchFailedException extends VetException
         };
 
         return new self(sprintf(
-            'Request to [%s] failed with HTTP %d.%s%s',
+            'Request to [%s] failed with HTTP [%d].%s%s',
             $url,
             $status,
             $hint,

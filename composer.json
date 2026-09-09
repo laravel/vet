@@ -12,7 +12,15 @@
     ],
     "require": {
         "php": "^8.3",
-        "composer-plugin-api": "^2.0"
+        "composer-plugin-api": "^2.0",
+        "ext-dom": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-phar": "*",
+        "ext-zip": "*"
+    },
+    "suggest": {
+        "ext-curl": "vet fetches package archives with curl, and falls back to PHP streams without it."
     },
     "require-dev": {
         "laravel-zero/foundation": "^13.25",

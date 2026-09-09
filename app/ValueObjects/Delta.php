@@ -45,6 +45,11 @@ final readonly class Delta
         );
     }
 
+    public function comparesPublishedToInstalled(): bool
+    {
+        return $this->toIsLocalInstall && $this->from === $this->to;
+    }
+
     /**
      * @return array<int, Change>
      */
@@ -87,11 +92,6 @@ final readonly class Delta
         return $this->changes === [];
     }
 
-    public function hasOpaqueChanges(): bool
-    {
-        return $this->inBucket(BucketType::Opaque) !== [];
-    }
-
     public function isInertOnly(): bool
     {
         foreach ($this->changes as $change) {
@@ -129,7 +129,7 @@ final readonly class Delta
 
         if ($opaque !== []) {
             $blockers[] = sprintf(
-                '%d opaque %s cannot be read: %s.',
+                '[%d] opaque %s cannot be read: [%s].',
                 count($opaque),
                 count($opaque) === 1 ? 'artifact' : 'artifacts',
                 implode(', ', array_slice(array_map(static fn (Change $c): string => $c->path, $opaque), 0, 3)),
@@ -138,7 +138,7 @@ final readonly class Delta
 
         if ($this->manifestChange instanceof ManifestChange && $this->manifestChange->touchesExecution()) {
             $blockers[] = sprintf(
-                'composer.json changes what runs or what is loaded (%s).',
+                'composer.json changes what runs or what is loaded [%s].',
                 implode(', ', $this->manifestChange->changedKeys()),
             );
         }

@@ -1,9 +1,9 @@
 {
-    "schema": 3,
+    "schema": 4,
     "require": {
         "acme/endings": {
             "version": "1.0.0",
-            "hash": "tree-v1:2c2f7553f2968c6382b94e459ff3bd0d"
+            "hash": "tree-v2:2c2f7553f2968c6382b94e459ff3bd0da10ea5f759fc4dc7348ead64a51b6d5d"
         }
     },
     "require-dev": {}

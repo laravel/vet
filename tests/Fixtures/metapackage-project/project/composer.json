@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "description": "A project that installs a metapackage.",
+    "require": {
+        "acme/widget": "^1.0",
+        "acme/advisories": "^1.0"
+    },
+    "require-dev": {
+        "acme/lint": "^1.0"
+    }
+}

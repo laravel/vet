@@ -17,6 +17,7 @@ use App\ValueObjects\ComposerPlan;
 use App\ValueObjects\Delta;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
+use Symfony\Component\Console\Output\OutputInterface;
 
 final class AuditCommand extends Command
 {
@@ -154,7 +155,7 @@ final class AuditCommand extends Command
                         'delta' => $review['delta'] instanceof Delta ? $renderer->toArray($review['delta']) : null,
                     ];
                 }, $failing)),
-            ]));
+            ]), false, OutputInterface::OUTPUT_RAW);
 
             return $this->verdict($failing, $discrepancies);
         }
@@ -171,14 +172,14 @@ final class AuditCommand extends Command
 
         if (! $auditor->trustFile->exists()) {
             $this->components->warn(sprintf(
-                'No trust file yet. `vet trust` records every installed package in %s.',
+                'No trust file yet. `vet trust` records every installed package in [%s].',
                 $this->relative($project->rootPath, $auditor->trustFile->path),
             ));
             $this->newLine();
         }
 
         if ($failing === []) {
-            $this->components->info(sprintf('All %d packages are covered.', $report->total()));
+            $this->components->info(sprintf('All [%d] packages are covered.', $report->total()));
             $this->newLine();
 
             return $this->verdict($failing, $discrepancies);
@@ -231,9 +232,9 @@ final class AuditCommand extends Command
         $this->newLine();
 
         $this->components->error($this->output->isVerbose()
-            ? sprintf('%d package(s) are not covered. Record them with `vet trust`.', count($failing))
+            ? sprintf('[%d] package(s) are not covered. Record them with `vet trust`.', count($failing))
             : sprintf(
-                '%d package(s) are not covered. Read every change with `%s`, then record them with `vet trust`.',
+                '[%d] package(s) are not covered. Read every change with `%s`, then record them with `vet trust`.',
                 count($failing),
                 Invitation::verbose('vet audit -v'),
             ));
@@ -300,7 +301,7 @@ final class AuditCommand extends Command
                 }
 
                 $unresolved = sprintf(
-                    'Could not build the delta from the granted %s: %s',
+                    'Could not build the delta from the granted [%s]: %s',
                     $from,
                     $vetException->getMessage(),
                 );
@@ -321,7 +322,7 @@ final class AuditCommand extends Command
                 'bytes' => $audit->bytes,
                 'path' => $audit->path,
                 'delta' => $delta instanceof Delta ? $renderer->toArray($delta) : null,
-            ]));
+            ]), false, OutputInterface::OUTPUT_RAW);
 
             return $covered ? self::SUCCESS : self::FAILURE;
         }
@@ -398,9 +399,16 @@ final class AuditCommand extends Command
 
         return [
             'files' => count($delta->changes()),
-            'scope' => sprintf('delta from %s', $delta->from),
+            'scope' => $this->scopeOf($delta),
             'delta' => $delta,
         ];
+    }
+
+    private function scopeOf(Delta $delta): string
+    {
+        return $delta->comparesPublishedToInstalled()
+            ? sprintf('delta from the published [%s]', $delta->from)
+            : sprintf('delta from [%s]', $delta->from);
     }
 
     /**
@@ -413,7 +421,7 @@ final class AuditCommand extends Command
         return $delta instanceof Delta
             ? [
                 'files' => count($delta->changes()),
-                'scope' => sprintf('delta from %s', $delta->from),
+                'scope' => $this->scopeOf($delta),
                 'delta' => $delta,
             ]
             : $this->wholePackage($audit);
@@ -457,9 +465,7 @@ final class AuditCommand extends Command
             return $requested;
         }
 
-        $granted = $audit->grant?->version;
-
-        return $granted === null || $granted === $audit->version ? null : $granted;
+        return $audit->status === AuditStatus::Covered ? null : $audit->grant?->version;
     }
 
     private function relative(string $root, string $path): string

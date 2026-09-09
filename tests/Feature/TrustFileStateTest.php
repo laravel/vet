@@ -17,8 +17,26 @@ it('tells the user what to do with a trust file of an older schema', function ()
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('declares schema 2')
+        ->toContain('declares schema [2]')
         ->toContain('Delete the file and run `vet trust` again.');
+});
+
+it('tells the user to record the trust file again when it holds a truncated hash', function (): void {
+    $fixture = Fixture::open('truncated-trust-file');
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('declares schema [3]')
+        ->toContain('recorded a truncated tree hash')
+        ->toContain('Delete the file and run `vet trust` again.')
+        ->and(str_contains($output, 'Malformed tree hash digest'))->toBeFalse();
 });
 
 it('names the entry that holds no hash', function (): void {
@@ -46,7 +64,7 @@ it('ignores an entry of a package that the project does not install', function (
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All 1 packages are covered.');
+        ->and($output)->toContain('All [1] packages are covered.');
 });
 
 it('keeps the notes of an entry that the user records again', function (): void {

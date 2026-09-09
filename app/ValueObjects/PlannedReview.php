@@ -39,7 +39,7 @@ final readonly class PlannedReview
         if ($delta instanceof Delta) {
             return $delta->from === $this->operation->from
                 ? sprintf('%d files to review', count($delta->changes()))
-                : sprintf('%d files to review (delta from %s)', count($delta->changes()), $delta->from);
+                : sprintf('%d files to review (delta from [%s])', count($delta->changes()), $delta->from);
         }
 
         return $this->operation->change === ComposerChangeType::Install
@@ -53,8 +53,8 @@ final readonly class PlannedReview
             ComposerChangeType::Install => 'composer would add this package to the tree',
             ComposerChangeType::Remove => 'composer would take this package out of the tree',
             default => $this->trusted === null
-                ? sprintf('no entry in the trust file; compared from the installed %s', $this->operation->from)
-                : sprintf('you trust %s', $this->trusted),
+                ? sprintf('no entry in the trust file; compared from the installed [%s]', $this->operation->from)
+                : sprintf('you trust [%s]', $this->trusted),
         };
     }
 

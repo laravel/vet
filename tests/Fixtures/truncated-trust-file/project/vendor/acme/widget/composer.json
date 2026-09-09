@@ -1,0 +1,14 @@
+{
+    "name": "acme/widget",
+    "description": "A tiny package.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\Widget\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/widget.phar"
+    ]
+}

@@ -24,11 +24,6 @@ final class TrustFile
         return self::fromDocument(PersistTrustFile::forProject($project));
     }
 
-    public static function atPath(string $path): self
-    {
-        return self::fromDocument(PersistTrustFile::atPath($path));
-    }
-
     public static function fromDocument(PersistTrustFile $document): self
     {
         $grants = [];
@@ -52,27 +47,9 @@ final class TrustFile
         return $this->document->has('require') || $this->document->has('require-dev');
     }
 
-    public function has(string $package): bool
-    {
-        return isset($this->grants[$package]);
-    }
-
     public function grantFor(string $package): ?Grant
     {
         return $this->grants[$package] ?? null;
-    }
-
-    /**
-     * @return array<string, Grant>
-     */
-    public function all(): array
-    {
-        return $this->grants;
-    }
-
-    public function count(): int
-    {
-        return count($this->grants);
     }
 
     public function record(Grant $grant): void

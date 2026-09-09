@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Exceptions\FetchFailedException;
+use App\Support\GithubHost;
 use App\Support\Path;
+use App\ValueObjects\HttpResponse;
 
 final readonly class RequestUrl
 {
     private const int TIMEOUT = 60;
+
+    private const int MAX_REDIRECTS = 5;
 
     public function __construct(
         private string $userAgent,
@@ -23,9 +27,7 @@ final readonly class RequestUrl
 
     public function get(string $url): string
     {
-        $body = extension_loaded('curl')
-            ? $this->getWithCurl($url)
-            : $this->getWithStreams($url);
+        $body = $this->getFollowingRedirects($url);
 
         if (trim($body) === '') {
             throw FetchFailedException::empty($url);
@@ -138,16 +140,33 @@ final readonly class RequestUrl
             'Accept: application/json, application/zip;q=0.9, */*;q=0.8',
         ];
 
-        $host = parse_url($url, PHP_URL_HOST);
-
-        if ($this->githubToken !== null && is_string($host) && str_ends_with($host, 'github.com')) {
+        if ($this->githubToken !== null && GithubHost::matches($url)) {
             $headers[] = 'Authorization: Bearer '.$this->githubToken;
         }
 
         return $headers;
     }
 
-    private function getWithCurl(string $url): string
+    private function getFollowingRedirects(string $url): string
+    {
+        $target = $url;
+
+        for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
+            $response = extension_loaded('curl')
+                ? $this->getWithCurl($target)
+                : $this->getWithStreams($target);
+
+            if ($response->redirect === null) {
+                return $response->body;
+            }
+
+            $target = $response->redirect;
+        }
+
+        throw FetchFailedException::transport($url, sprintf('the server sent more than [%d] redirects.', self::MAX_REDIRECTS));
+    }
+
+    private function getWithCurl(string $url): HttpResponse
     {
         $handle = curl_init($url);
 
@@ -157,8 +176,7 @@ final readonly class RequestUrl
 
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_TIMEOUT => self::TIMEOUT,
             CURLOPT_HTTPHEADER => $this->headers($url),
@@ -168,6 +186,7 @@ final readonly class RequestUrl
         $body = curl_exec($handle);
         $error = curl_error($handle);
         $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $location = curl_getinfo($handle, CURLINFO_REDIRECT_URL);
 
         curl_close($handle);
 
@@ -175,22 +194,26 @@ final readonly class RequestUrl
             throw FetchFailedException::transport($url, $error === '' ? 'the transfer failed.' : $error);
         }
 
+        if ($this->redirects($status) && is_string($location) && $location !== '') {
+            return HttpResponse::redirect($location);
+        }
+
         if ($status < 200 || $status >= 300) {
             throw FetchFailedException::status($url, $status, is_string($body) ? $body : '');
         }
 
-        return (string) $body;
+        return HttpResponse::body((string) $body);
     }
 
-    private function getWithStreams(string $url): string
+    private function getWithStreams(string $url): HttpResponse
     {
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
                 'header' => implode("\r\n", $this->headers($url)),
                 'timeout' => self::TIMEOUT,
-                'follow_location' => 1,
-                'max_redirects' => 5,
+                'follow_location' => 0,
+                'max_redirects' => 1,
                 'ignore_errors' => true,
             ],
         ]);
@@ -199,22 +222,64 @@ final readonly class RequestUrl
 
         $body = @file_get_contents($url, false, $context);
 
+        if ($body === false) {
+            throw FetchFailedException::transport($url, 'the transfer failed.');
+        }
+
         $status = 0;
+        $location = null;
 
         foreach ($http_response_header as $header) {
             if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches) === 1) {
                 $status = (int) $matches[1];
+                $location = null;
+            }
+
+            if (preg_match('#^Location:\s*(\S.*)$#i', $header, $matches) === 1) {
+                $location = trim($matches[1]);
             }
         }
 
-        if ($body === false) {
-            throw FetchFailedException::transport($url, 'the transfer failed.');
+        if ($this->redirects($status) && $location !== null && $location !== '') {
+            return HttpResponse::redirect($this->absolute($url, $location));
         }
 
         if ($status < 200 || $status >= 300) {
             throw FetchFailedException::status($url, $status, $body);
         }
 
-        return $body;
+        return HttpResponse::body($body);
+    }
+
+    private function redirects(int $status): bool
+    {
+        return $status >= 300 && $status < 400;
+    }
+
+    private function absolute(string $base, string $location): string
+    {
+        if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.\-]*://#', $location) === 1) {
+            return $location;
+        }
+
+        $parts = parse_url($base);
+
+        if (! is_array($parts) || ! isset($parts['scheme'], $parts['host'])) {
+            return $location;
+        }
+
+        if (str_starts_with($location, '//')) {
+            return $parts['scheme'].':'.$location;
+        }
+
+        $origin = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+
+        if (str_starts_with($location, '/')) {
+            return $origin.$location;
+        }
+
+        $directory = rtrim(str_replace('\\', '/', dirname(isset($parts['path']) ? (string) $parts['path'] : '/')), '/');
+
+        return $origin.'/'.Path::normalize($directory.'/'.$location);
     }
 }

@@ -102,10 +102,10 @@ vet audit symfony/console
 ```
 
 ```
-  symfony/console .................................................... v7.4.16
-  hash .............................. tree-v1:6bcaeda34b1df22209a4ea023cf74641
+  symfony/console .................................................... v7.4.18
+  hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3aac307c63cfe0
   source ................................................................ dist
-  contents ............................................... 140 files, 618.2 KB
+  contents ............................................... 140 files, 619.4 KB
   path ................................................ vendor/symfony/console
 ```
 
@@ -122,17 +122,17 @@ The trust file lives in `vet.json`, at the root of your project, next to `compos
 
 ```json
 {
-    "schema": 3,
+    "schema": 4,
     "require": {
         "carbonphp/carbon-doctrine-types": {
-            "version": "3.2.0",
-            "hash": "tree-v1:ad33848c07e8c0d58a0f9011341684a2"
+            "version": "3.2.1",
+            "hash": "tree-v2:0f158f3b909fc01e691ed5f5121186056232b049031e7d3a914676d49881ece5"
         }
     },
     "require-dev": {
         "brianium/paratest": {
-            "version": "v7.24.0",
-            "hash": "tree-v1:3629153db155b72b307e76e1d79c0b30"
+            "version": "v7.20.0",
+            "hash": "tree-v2:075f8b7e73532ba3689126db0f91288a199bcba5f2743bc17a9bf37d53e030c1"
         }
     }
 }

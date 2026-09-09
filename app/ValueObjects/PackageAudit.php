@@ -46,7 +46,7 @@ final readonly class PackageAudit
     public function reason(): string
     {
         return match ($this->status) {
-            AuditStatus::Covered => sprintf('trusted at %s', $this->shortHash()),
+            AuditStatus::Covered => sprintf('trusted at [%s]', $this->shortHash()),
             AuditStatus::Ungranted => $this->ungrantedReason(),
             AuditStatus::Changed => $this->changedReason(),
             AuditStatus::Unknown => $this->cause ?? 'these bytes cannot be read before they are installed',
@@ -56,8 +56,8 @@ final readonly class PackageAudit
     private function ungrantedReason(): string
     {
         return $this->pending()
-            ? sprintf('composer would install these bytes; no entry in the trust file (%s)', $this->shortHash())
-            : sprintf('no entry; this tree is %s', $this->shortHash());
+            ? sprintf('composer would install these bytes; no entry in the trust file [%s]', $this->shortHash())
+            : sprintf('no entry; this tree is [%s]', $this->shortHash());
     }
 
     private function changedReason(): string
@@ -67,20 +67,20 @@ final readonly class PackageAudit
         if ($this->pending()) {
             return $this->grant instanceof Grant && $this->grant->version === $this->version
                 ? sprintf(
-                    'composer would install %s again, and its bytes changed (%s, not %s)',
+                    'composer would install [%s] again, and its bytes changed ([%s], not [%s])',
                     $this->version,
                     $this->shortHash(),
                     $this->grant->hash->short(),
                 )
-                : sprintf('composer would install these bytes; you trust %s', $granted);
+                : sprintf('composer would install these bytes; you trust [%s]', $granted);
         }
 
         if (! $this->grant instanceof Grant || $this->grant->version !== $this->version) {
-            return sprintf('%s was trusted, %s is installed', $granted, $this->version);
+            return sprintf('[%s] was trusted, [%s] is installed', $granted, $this->version);
         }
 
         $reason = sprintf(
-            '%s is still installed but its bytes changed (%s, not %s)',
+            '[%s] is still installed but its bytes changed ([%s], not [%s])',
             $this->version,
             $this->shortHash(),
             $this->grant->hash->short(),

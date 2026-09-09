@@ -19,6 +19,7 @@ use App\ValueObjects\PlannedReview;
 use App\ValueObjects\Project;
 use App\ValueObjects\TrustFile;
 use Symfony\Component\Console\Formatter\OutputFormatter;
+use Symfony\Component\Console\Output\OutputInterface;
 
 final class PreviewCommand extends Command
 {
@@ -79,6 +80,10 @@ final class PreviewCommand extends Command
         $reviews = [];
 
         foreach ($plan->operations as $operation) {
+            if (! $this->installsTree($installed, $operation)) {
+                continue;
+            }
+
             $trusted = $trustFile->grantFor($operation->package)?->version;
 
             $reviews[] = new PlannedReview(
@@ -106,6 +111,15 @@ final class PreviewCommand extends Command
         ]);
 
         return $reviews;
+    }
+
+    private function installsTree(?InstalledRepository $installed, ComposerOperation $operation): bool
+    {
+        if (! $installed instanceof InstalledRepository || ! $installed->has($operation->package)) {
+            return true;
+        }
+
+        return $installed->get($operation->package)->installsTree();
     }
 
     private function installedVersion(?InstalledRepository $installed, ComposerOperation $operation): ?string
@@ -156,9 +170,9 @@ final class PreviewCommand extends Command
 
         $this->newLine();
         $this->components->info($this->output->isVerbose()
-            ? sprintf('%d package(s) change. Run `composer update`, then record them with `vet trust`.', count($reviews))
+            ? sprintf('[%d] package(s) change. Run `composer update`, then record them with `vet trust`.', count($reviews))
             : sprintf(
-                '%d package(s) change. Read every change with `%s`, then run `composer update`.',
+                '[%d] package(s) change. Read every change with `%s`, then run `composer update`.',
                 count($reviews),
                 Invitation::verbose('vet preview -v'),
             ));
@@ -179,7 +193,7 @@ final class PreviewCommand extends Command
                 static fn (PlannedReview $review): array => $review->toArray($renderer),
                 $reviews,
             ),
-        ]));
+        ]), false, OutputInterface::OUTPUT_RAW);
 
         return self::SUCCESS;
     }

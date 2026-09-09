@@ -16,7 +16,7 @@ it('reads the vendor directory that composer.json configures', function (): void
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All 1 packages are covered.');
+        ->and($output)->toContain('All [1] packages are covered.');
 });
 
 it('says that a tree came from --prefer-source rather than report a change of bytes alone', function (): void {
@@ -100,8 +100,8 @@ it('names a package of composer.lock that is not installed, and one that the loc
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('acme/ghost is in composer.lock at 1.0.0 but is not installed')
-        ->toContain('acme/extra is installed at 1.0.0 but is not in composer.lock')
+        ->toContain('[acme/ghost] is in composer.lock at [1.0.0] but is not installed')
+        ->toContain('[acme/extra] is installed at [1.0.0] but is not in composer.lock')
         ->toContain('The installed tree does not match composer.lock.');
 });
 
@@ -116,7 +116,7 @@ it('names a tree whose version disagrees with composer.lock', function (): void 
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('acme/widget is installed at 1.0.0 but composer.lock says 1.1.0');
+        ->and($output)->toContain('[acme/widget] is installed at [1.0.0] but composer.lock says [1.1.0]');
 });
 
 it('asks for composer install when the project installs no package', function (): void {
@@ -146,7 +146,7 @@ it('names the lock file that the project holds no', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('Could not read the lock file');
+        ->and($output)->toContain('Could not read [the lock file]');
 });
 
 it('names the installed package list that the project holds no', function (): void {
@@ -160,7 +160,7 @@ it('names the installed package list that the project holds no', function (): vo
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('Could not read the installed package list');
+        ->and($output)->toContain('Could not read [the installed package list]');
 });
 
 it('fails on a directory that holds no composer.json', function (): void {

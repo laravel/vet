@@ -107,7 +107,7 @@ final class FetchPackageMetadata
         }
 
         throw new FailureException(sprintf(
-            'Packagist has no version [%s] of [%s]. Known versions include: %s.',
+            'Packagist has no version [%s] of [%s]. Known versions include: [%s].',
             $version,
             $package,
             implode(', ', array_slice(array_keys($versions), 0, 8)),

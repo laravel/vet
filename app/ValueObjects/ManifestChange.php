@@ -69,14 +69,6 @@ final readonly class ManifestChange
         return $this->changedKeys;
     }
 
-    /**
-     * @return array<string, array{old: mixed, new: mixed}>
-     */
-    public function values(): array
-    {
-        return $this->values;
-    }
-
     public function isEmpty(): bool
     {
         return $this->changedKeys === [];

@@ -69,11 +69,6 @@ final readonly class ComposerPlan
         return new self($operations);
     }
 
-    public static function empty(): self
-    {
-        return new self([]);
-    }
-
     public function explains(): bool
     {
         return $this->explains;

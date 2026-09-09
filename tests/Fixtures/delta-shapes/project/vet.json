@@ -1,25 +1,25 @@
 {
-    "schema": 3,
+    "schema": 4,
     "require": {
         "acme/inert-only": {
             "version": "1.0.0",
-            "hash": "tree-v1:770ba4ef896b6defc89ceaa713ad120a"
+            "hash": "tree-v2:770ba4ef896b6defc89ceaa713ad120a1cbb40d0ea623588a2816495ef194b49"
         },
         "acme/manifest-only": {
             "version": "1.0.0",
-            "hash": "tree-v1:6a76baa10b4a80b64dddb6ba95d2534d"
+            "hash": "tree-v2:6a76baa10b4a80b64dddb6ba95d2534da4ad5a8fae1c6c216316d2b1340e199b"
         },
         "acme/media": {
             "version": "1.0.0",
-            "hash": "tree-v1:ff1e20dc205d60b4c8802d01000a32ea"
+            "hash": "tree-v2:ff1e20dc205d60b4c8802d01000a32eafe2f8df0c4851f0c4ea5143b84d7d740"
         },
         "acme/moved": {
             "version": "1.0.0",
-            "hash": "tree-v1:ba36da9124d1def0d8723c52ca4e9149"
+            "hash": "tree-v2:ba36da9124d1def0d8723c52ca4e91498955d476cc8e376188a517289653d32f"
         },
         "acme/opaque": {
             "version": "1.0.0",
-            "hash": "tree-v1:834205105996a9fab234ed7575282831"
+            "hash": "tree-v2:834205105996a9fab234ed7575282831e70a3c7d43ebc3b2af2993f38807b9b5"
         }
     },
     "require-dev": {}

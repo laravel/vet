@@ -73,3 +73,12 @@ A tool that writes a comment into a file that it owns keeps that comment. Do not
 Write each message that you give the user in the English of section 2: one instruction in one sentence, the imperative, the active voice, one meaning for one word, and no contraction. A question, a report, a plan and an answer obey this rule.
 
 Give the result first. Give the exact path, the exact command and the exact name. Write no sentence that says the work again, and no adjective that gives the reader no new fact.
+
+---
+
+## 6. The rules of this project
+
+Read the file of a rule when its subject reaches your task.
+
+- [message-value-brackets](.hod/rules/message-value-brackets.md): Put each value that a message interpolates inside square brackets.
+- [stale-build](.hod/rules/stale-build.md): Treat a `builds/vet` that is older than the source as normal.

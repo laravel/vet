@@ -1,9 +1,9 @@
 {
-    "schema": 3,
+    "schema": 4,
     "require": {
         "acme/widget": {
             "version": "1.0.0",
-            "hash": "tree-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "hash": "tree-v2:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         }
     },
     "require-dev": {}

@@ -1,0 +1,3 @@
+<?php
+
+// The widget test.

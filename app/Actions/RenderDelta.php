@@ -54,9 +54,10 @@ final readonly class RenderDelta
     {
         $this->output->newLine();
         $this->output->writeln(sprintf(
-            '  <options=bold>delta</> <fg=gray>(%s → %s)</>',
-            $delta->from,
-            $delta->to,
+            '  <options=bold>delta</> <fg=gray>(%s)</>',
+            $delta->comparesPublishedToInstalled()
+                ? sprintf('[%s] as published → [%s] as installed', $delta->from, $delta->to)
+                : sprintf('[%s] → [%s]', $delta->from, $delta->to),
         ));
 
         $this->components->twoColumnDetail(
@@ -75,7 +76,7 @@ final readonly class RenderDelta
         $this->output->newLine();
 
         if ($delta->isEmpty()) {
-            $this->components->info(sprintf('No files differ between %s and %s.', $delta->from, $delta->to));
+            $this->components->info(sprintf('No files differ between [%s] and [%s].', $delta->from, $delta->to));
 
             return;
         }
@@ -212,7 +213,7 @@ final readonly class RenderDelta
 
         if ($hidden > 0) {
             $this->components->info(sprintf(
-                '%d change(s) are not shown. Read them with %s.',
+                '[%d] change(s) are not shown. Read them with `%s`.',
                 $hidden,
                 Invitation::verbose(),
             ));

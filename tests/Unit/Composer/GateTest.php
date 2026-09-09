@@ -66,7 +66,7 @@ it('does nothing when the binary is gone', function (): void {
 });
 
 it('reads the binary of the repository of vet itself', function (): void {
-    $root = dirname(__DIR__, 2);
+    $root = dirname(__DIR__, 3);
 
     expect((new Gate($root, $root.'/vendor/bin'))->binary())->toBe($root.'/vet');
 });

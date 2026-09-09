@@ -10,7 +10,7 @@ use App\ValueObjects\Project;
 
 final readonly class PersistTrustFile
 {
-    public const int SCHEMA = 3;
+    public const int SCHEMA = 4;
 
     private const array ORDER = [
         'schema',
@@ -41,18 +41,19 @@ final readonly class PersistTrustFile
 
         $schema = $data['schema'] ?? null;
 
-        if ($schema === 1 || $schema === 2) {
+        if (is_int($schema) && $schema >= 1 && $schema < self::SCHEMA) {
             throw new FailureException(sprintf(
-                'The vet file [%s] declares schema %d, which recorded permissions. Schema %d records the version and the hash of each package that you trust. Delete the file and run `vet trust` again.',
+                'The vet file [%s] declares schema [%d], which %s. Schema [%d] records the version and the full tree hash of each package that you trust. Delete the file and run `vet trust` again.',
                 $path,
                 $schema,
+                $schema === 3 ? 'recorded a truncated tree hash' : 'recorded permissions',
                 self::SCHEMA,
             ));
         }
 
         if ($schema !== self::SCHEMA) {
             throw new FailureException(sprintf(
-                'The vet file [%s] declares schema %s; this build of vet reads schema %d.',
+                'The vet file [%s] declares schema [%s]; this build of vet reads schema [%d].',
                 $path,
                 is_scalar($schema) ? (string) $schema : 'none',
                 self::SCHEMA,

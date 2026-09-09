@@ -17,7 +17,7 @@ it('covers every package of an audited project, and reaches no network', functio
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All 2 packages are covered.');
+        ->and($output)->toContain('All [2] packages are covered.');
 });
 
 it('reports one package of an audited project without a delta', function (): void {
@@ -33,7 +33,7 @@ it('reports one package of an audited project without a delta', function (): voi
     expect($status)->toBe(0)
         ->and($output)
         ->toContain('acme/widget')
-        ->toContain('tree-v1:9353593981e757356e4365ed9b510a3a')
+        ->toContain('tree-v2:9353593981e757356e4365ed9b510a3a2483c2a4ec7cdb3dfd0b9c1f1e7a9e99')
         ->toContain('5 files')
         ->toContain('vendor/acme/widget')
         ->and(str_contains($output, 'delta'))->toBeFalse();
@@ -52,7 +52,7 @@ it('renders the four buckets of a stale project, worst first', function (): void
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('acme/widget 2.0.0')
-        ->toContain('4 files to review (delta from 1.0.0)')
+        ->toContain('4 files to review (delta from [1.0.0])')
         ->toContain('install-time manifest (1)')
         ->toContain('~ composer.json  scripts')
         ->toContain('opaque artifact (1)')
@@ -101,7 +101,7 @@ it('asks for a baseline when the project holds no trust file', function (): void
         ->toContain('acme/lint 1.0.0 (dev)')
         ->toContain('5 files to review (whole package)')
         ->toContain('no entry; this tree is')
-        ->toContain('2 package(s) are not covered');
+        ->toContain('[2] package(s) are not covered');
 });
 
 it('reports a changed package before an ungranted one', function (): void {
@@ -116,8 +116,8 @@ it('reports a changed package before an ungranted one', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('4 files to review (delta from 1.0.0)')
-        ->toContain('1.0.0 was trusted, 2.0.0 is installed')
+        ->toContain('4 files to review (delta from [1.0.0])')
+        ->toContain('[1.0.0] was trusted, [2.0.0] is installed')
         ->toContain('acme/lint 1.0.0 (dev)')
         ->toContain('no entry; this tree is')
         ->and(mb_strpos($output, 'acme/widget'))->toBeLessThan((int) mb_strpos($output, 'acme/lint'));
@@ -140,7 +140,7 @@ it('names a tree that disagrees with composer.lock', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('is installed at 1.1.0 but composer.lock says 1.0.0');
+        ->and($output)->toContain('is installed at [1.1.0] but composer.lock says [1.0.0]');
 });
 
 it('orders each package by the count of files that its review costs', function (): void {

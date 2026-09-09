@@ -19,7 +19,7 @@ it('audits the bytes that composer would write, and does not pass them', functio
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
-        ->toContain('composer would install these bytes; you trust 1.0.0')
+        ->toContain('composer would install these bytes; you trust [1.0.0]')
         ->toContain('install-time manifest')
         ->toContain('composer holds those bytes out of vendor/ until you record them');
 });
@@ -96,7 +96,7 @@ it('names the incoming bytes that it cannot read, and blocks them', function ():
         ->toContain('vet cannot read those bytes')
         ->toContain('has no dist URL')
         ->and($trusted)->toBe(1)
-        ->and($trustOutput)->toContain('acme/widget stays unrecorded');
+        ->and($trustOutput)->toContain('[acme/widget] stays unrecorded');
 });
 
 it('audits the tree on disk when composer plans nothing', function (): void {
@@ -110,5 +110,5 @@ it('audits the tree on disk when composer plans nothing', function (): void {
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All 1 packages are covered.');
+        ->and($output)->toContain('All [1] packages are covered.');
 });

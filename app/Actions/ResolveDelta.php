@@ -67,12 +67,12 @@ final readonly class ResolveDelta
         $fromMetadata = $this->packagist->version($package, $fromVersion);
         $fromVersion = $fromMetadata->version;
 
-        if ($fromVersion === $toVersion) {
-            throw new FailureException(sprintf('[%s] %s and %s are the same version.', $package, $fromVersion, $toVersion));
-        }
-
         $notes = [];
         [$toDirectory, $toIsLocal, $source] = $this->toTree($installed, $toMetadata, $to, $useCache, $notes);
+
+        if ($fromVersion === $toVersion && ! $toIsLocal) {
+            throw new FailureException(sprintf('[%s] [%s] and [%s] are the same version.', $package, $fromVersion, $toVersion));
+        }
 
         $delta = $this->builder->handle(
             package: $package,
@@ -134,7 +134,7 @@ final readonly class ResolveDelta
 
         if ($source === InstallSourceType::Source) {
             $notes[] = sprintf(
-                '%s is installed from source; comparing dist archives instead. An audit of this delta does not cover your source install.',
+                '[%s] is installed from source; comparing dist archives instead. An audit of this delta does not cover your source install.',
                 $installed->name,
             );
 

@@ -95,9 +95,4 @@ final readonly class InstalledRepository
 
         return null;
     }
-
-    public function count(): int
-    {
-        return count($this->packages);
-    }
 }

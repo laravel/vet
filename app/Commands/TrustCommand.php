@@ -75,7 +75,7 @@ final class TrustCommand extends Command
         $this->newLine();
 
         if ($targets === []) {
-            $this->components->info(sprintf('All %d packages are already covered.', $report->total()));
+            $this->components->info(sprintf('All [%d] packages are already covered.', $report->total()));
             $this->newLine();
 
             return self::SUCCESS;
@@ -102,18 +102,18 @@ final class TrustCommand extends Command
         $this->newLine();
         $this->components->info($created
             ? sprintf(
-                'Trusted %d package(s), and wrote %s.',
+                'Trusted [%d] package(s), and wrote [%s].',
                 count($recorded),
                 $this->relative($project->rootPath, $auditor->trustFile->path),
             )
-            : sprintf('Trusted %d package(s).', count($recorded)));
+            : sprintf('Trusted [%d] package(s).', count($recorded)));
 
         if ($this->holdsPending($recorded)) {
             $this->components->info('Run `composer install` to write those bytes to vendor/.');
         }
 
         foreach ($unreadable as $audit) {
-            $this->components->error(sprintf('%s stays unrecorded: %s', $audit->package, $audit->reason()));
+            $this->components->error(sprintf('[%s] stays unrecorded: %s', $audit->package, $audit->reason()));
         }
 
         return $unreadable === [] ? self::SUCCESS : self::FAILURE;
@@ -175,7 +175,7 @@ final class TrustCommand extends Command
             if ($audit->status === AuditStatus::Covered) {
                 $this->newLine();
                 $this->components->info(sprintf(
-                    '%s %s is already covered (%s).',
+                    '[%s] [%s] is already covered (%s).',
                     $audit->package,
                     $audit->version,
                     $audit->reason(),
@@ -192,7 +192,7 @@ final class TrustCommand extends Command
                 (new RenderDelta($this->output))->report($delta);
             } else {
                 $this->newLine();
-                $this->components->warn(sprintf('Review the tree at %s before you trust it.', $audit->path ?? ''));
+                $this->components->warn(sprintf('Review the tree at [%s] before you trust it.', $audit->path ?? ''));
             }
 
             $grant = $this->grantOf($audit);
@@ -218,12 +218,12 @@ final class TrustCommand extends Command
 
         $this->components->info(count($recorded) === 1
             ? sprintf(
-                'Recorded %s %s at %s.',
+                'Recorded [%s] [%s] at [%s].',
                 $first->package,
                 $first->version,
                 $first->hash instanceof TreeHash ? $first->hash->short() : '',
             )
-            : sprintf('Recorded %d package(s).', count($recorded)));
+            : sprintf('Recorded [%d] package(s).', count($recorded)));
 
         if ($this->holdsPending($recorded)) {
             $this->components->info('Run `composer install` to write those bytes to vendor/.');
@@ -286,7 +286,7 @@ final class TrustCommand extends Command
                 to: $audit->pending() ? $audit->version : null,
             );
         } catch (VetException $vetException) {
-            $this->components->warn(sprintf('Could not build a delta from %s: %s', $from, $vetException->getMessage()));
+            $this->components->warn(sprintf('Could not build a delta from [%s]: %s', $from, $vetException->getMessage()));
 
             return null;
         }

@@ -18,14 +18,6 @@ final readonly class AuditReport
     /**
      * @return array<string, PackageAudit>
      */
-    public function all(): array
-    {
-        return $this->packages;
-    }
-
-    /**
-     * @return array<string, PackageAudit>
-     */
     public function withStatus(AuditStatus $status): array
     {
         return array_filter(

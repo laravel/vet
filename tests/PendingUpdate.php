@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Actions\PersistTrustFile;
 use App\Support\Json;
 use App\ValueObjects\Manifest;
 use FilesystemIterator;
@@ -281,7 +282,7 @@ final readonly class PendingUpdate
         $hash = Manifest::ofDirectory($this->releasePath(self::TRUSTED_VERSION, self::TRUSTED_REFERENCE))->hash();
 
         $this->write($this->rootPath.'/vet.json', Json::encode([
-            'schema' => 3,
+            'schema' => PersistTrustFile::SCHEMA,
             'require' => [
                 self::PACKAGE => [
                     'version' => self::TRUSTED_VERSION,

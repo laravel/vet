@@ -22,7 +22,7 @@ it('shows what the next composer update changes, and leaves the installed tree a
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
         ->toContain('4 files to review')
-        ->toContain('you trust 1.0.0')
+        ->toContain('you trust [1.0.0]')
         ->toContain('install-time manifest (1)')
         ->toContain('opaque artifact (1)')
         ->toContain('runtime source (1)')

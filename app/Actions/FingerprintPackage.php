@@ -7,27 +7,14 @@ namespace App\Actions;
 use App\Enums\InstallSourceType;
 use App\Exceptions\FailureException;
 use App\ValueObjects\Fingerprint;
-use App\ValueObjects\InstalledRepository;
 use App\ValueObjects\Manifest;
 use App\ValueObjects\Package;
-use App\ValueObjects\Project;
 
 final readonly class FingerprintPackage
 {
     public function __construct(
-        private InstalledRepository $installed,
         private FetchArchive $fetcher,
     ) {}
-
-    public static function forProject(Project $project): self
-    {
-        return new self(InstalledRepository::fromProject($project), FetchArchive::default());
-    }
-
-    public function of(string $package): Fingerprint
-    {
-        return $this->ofPackage($this->installed->get($package));
-    }
 
     public function ofPackage(Package $package): Fingerprint
     {
@@ -62,10 +49,5 @@ final readonly class FingerprintPackage
             files: $manifest->count(),
             bytes: $manifest->bytes(),
         );
-    }
-
-    public function repository(): InstalledRepository
-    {
-        return $this->installed;
     }
 }

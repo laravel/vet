@@ -10,6 +10,8 @@ use App\Support\Path;
 
 final readonly class Package
 {
+    private const string METAPACKAGE = 'metapackage';
+
     /**
      * @param  array<string, string>  $replace
      * @param  array<string, string>  $provide
@@ -23,9 +25,6 @@ final readonly class Package
         public bool $dev,
         public ?string $distUrl,
         public ?string $distReference,
-        public ?string $distShasum,
-        public ?string $sourceUrl,
-        public ?string $sourceReference,
         public array $replace,
         public array $provide,
         public array $autoload,
@@ -40,7 +39,6 @@ final readonly class Package
     public static function fromLockEntry(array $data, bool $dev): self
     {
         $dist = Json::array($data, 'dist');
-        $source = Json::array($data, 'source');
 
         return new self(
             name: Json::string($data, 'name') ?? '',
@@ -49,9 +47,6 @@ final readonly class Package
             dev: $dev,
             distUrl: Json::string($dist, 'url'),
             distReference: Json::string($dist, 'reference'),
-            distShasum: self::nonEmpty(Json::string($dist, 'shasum')),
-            sourceUrl: Json::string($source, 'url'),
-            sourceReference: Json::string($source, 'reference'),
             replace: self::constraints($data, 'replace'),
             provide: self::constraints($data, 'provide'),
             autoload: Json::array($data, 'autoload'),
@@ -76,9 +71,6 @@ final readonly class Package
             dev: $base->dev,
             distUrl: $base->distUrl,
             distReference: $base->distReference,
-            distShasum: $base->distShasum,
-            sourceUrl: $base->sourceUrl,
-            sourceReference: $base->sourceReference,
             replace: $base->replace,
             provide: $base->provide,
             autoload: $base->autoload,
@@ -103,9 +95,6 @@ final readonly class Package
             dev: $this->dev,
             distUrl: $url === null || $url === '' ? $this->distUrl : $url,
             distReference: $reference === null || $reference === '' ? $this->distReference : $reference,
-            distShasum: $this->distShasum,
-            sourceUrl: $this->sourceUrl,
-            sourceReference: $this->sourceReference,
             replace: $this->replace,
             provide: $this->provide,
             autoload: $this->autoload,
@@ -128,9 +117,6 @@ final readonly class Package
             dev: $dev,
             distUrl: $this->distUrl,
             distReference: $this->distReference,
-            distShasum: $this->distShasum,
-            sourceUrl: $this->sourceUrl,
-            sourceReference: $this->sourceReference,
             replace: $this->replace,
             provide: $this->provide,
             autoload: $this->autoload,
@@ -138,6 +124,11 @@ final readonly class Package
             installSource: $this->installSource,
             installPath: $this->installPath,
         );
+    }
+
+    public function installsTree(): bool
+    {
+        return $this->type !== self::METAPACKAGE;
     }
 
     /**
@@ -204,11 +195,6 @@ final readonly class Package
     private static function strings(array $data, string $key): array
     {
         return array_values(array_filter(Json::array($data, $key), is_string(...)));
-    }
-
-    private static function nonEmpty(?string $value): ?string
-    {
-        return $value === null || $value === '' ? null : $value;
     }
 
     /**

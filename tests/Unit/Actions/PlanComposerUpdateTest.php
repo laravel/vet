@@ -11,7 +11,7 @@ it('fails when composer is not on the path', function (): void {
 
 it('reads the plan of the composer binary', function (): void {
     $planner = new PlanComposerUpdate(stubBinary(
-        'cat '.escapeshellarg(__DIR__.'/../Fixtures/composer-update-dry-run.txt').' >&2',
+        'cat '.escapeshellarg(__DIR__.'/../../Fixtures/composer-update-dry-run.txt').' >&2',
     ));
 
     expect($planner->handle(__DIR__)->operations)->toHaveCount(4);

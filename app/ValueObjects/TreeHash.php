@@ -9,9 +9,9 @@ use Stringable;
 
 final readonly class TreeHash implements Stringable
 {
-    public const string ALGORITHM = 'tree-v1';
+    public const string ALGORITHM = 'tree-v2';
 
-    public const int LENGTH = 32;
+    public const int LENGTH = 64;
 
     private function __construct(
         public string $algorithm,
@@ -27,7 +27,7 @@ final readonly class TreeHash implements Stringable
     {
         return new self(
             self::ALGORITHM,
-            mb_substr(hash('sha256', $manifest), 0, self::LENGTH),
+            hash('sha256', $manifest),
         );
     }
 

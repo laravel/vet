@@ -6,7 +6,9 @@ namespace App\Actions;
 
 final class BuildUnifiedDiff
 {
-    private const int MAX_EDIT_DISTANCE = 3000;
+    private const int MAX_EDIT_DISTANCE = 400;
+
+    private const int MAX_CHANGED_LINES = 20_000;
 
     public static function handle(
         ?string $old,
@@ -24,13 +26,15 @@ final class BuildUnifiedDiff
 
         $header = '--- '.$oldLabel."\n".'+++ '.$newLabel."\n";
 
-        $ops = self::diff($oldLines, $newLines);
+        $ops = self::diff($oldLines, $newLines, $context);
 
         if ($ops === null) {
+            [$prefix, $suffix] = self::commonEdges($oldLines, $newLines);
+
             return $header.sprintf(
                 "@@ file rewritten @@\n- %d line(s) replaced by %d line(s)\n",
-                count($oldLines),
-                count($newLines),
+                count($oldLines) - $prefix - $suffix,
+                count($newLines) - $prefix - $suffix,
             );
         }
 
@@ -62,7 +66,56 @@ final class BuildUnifiedDiff
      * @param  array<int, string>  $b
      * @return array<int, array{0: '='|'-'|'+', 1: int, 2: int, 3: string}>|null
      */
-    private static function diff(array $a, array $b): ?array
+    private static function diff(array $a, array $b, int $context): ?array
+    {
+        $n = count($a);
+        $m = count($b);
+
+        [$prefix, $suffix] = self::commonEdges($a, $b);
+
+        $middleA = array_slice($a, $prefix, $n - $prefix - $suffix);
+        $middleB = array_slice($b, $prefix, $m - $prefix - $suffix);
+
+        if (count($middleA) + count($middleB) > self::MAX_CHANGED_LINES) {
+            return null;
+        }
+
+        $middle = self::myers($middleA, $middleB);
+
+        if ($middle === null) {
+            return null;
+        }
+
+        $ops = [];
+
+        for ($i = max($prefix - $context, 0); $i < $prefix; $i++) {
+            $ops[] = ['=', $i, $i, $a[$i]];
+        }
+
+        foreach ($middle as $op) {
+            $ops[] = [
+                $op[0],
+                $op[1] < 0 ? -1 : $op[1] + $prefix,
+                $op[2] < 0 ? -1 : $op[2] + $prefix,
+                $op[3],
+            ];
+        }
+
+        $tail = min($suffix, $context);
+
+        for ($i = 0; $i < $tail; $i++) {
+            $ops[] = ['=', $n - $suffix + $i, $m - $suffix + $i, $a[$n - $suffix + $i]];
+        }
+
+        return $ops;
+    }
+
+    /**
+     * @param  array<int, string>  $a
+     * @param  array<int, string>  $b
+     * @return array{0: int, 1: int}
+     */
+    private static function commonEdges(array $a, array $b): array
     {
         $n = count($a);
         $m = count($b);
@@ -79,35 +132,7 @@ final class BuildUnifiedDiff
             $suffix++;
         }
 
-        $middleA = array_slice($a, $prefix, $n - $prefix - $suffix);
-        $middleB = array_slice($b, $prefix, $m - $prefix - $suffix);
-
-        $middle = self::myers($middleA, $middleB);
-
-        if ($middle === null) {
-            return null;
-        }
-
-        $ops = [];
-
-        for ($i = 0; $i < $prefix; $i++) {
-            $ops[] = ['=', $i, $i, $a[$i]];
-        }
-
-        foreach ($middle as $op) {
-            $ops[] = [
-                $op[0],
-                $op[1] < 0 ? -1 : $op[1] + $prefix,
-                $op[2] < 0 ? -1 : $op[2] + $prefix,
-                $op[3],
-            ];
-        }
-
-        for ($i = 0; $i < $suffix; $i++) {
-            $ops[] = ['=', $n - $suffix + $i, $m - $suffix + $i, $a[$n - $suffix + $i]];
-        }
-
-        return $ops;
+        return [$prefix, $suffix];
     }
 
     /**

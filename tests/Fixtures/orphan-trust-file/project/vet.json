@@ -1,13 +1,13 @@
 {
-    "schema": 3,
+    "schema": 4,
     "require": {
         "acme/ghost": {
             "version": "9.9.9",
-            "hash": "tree-v1:ffffffffffffffffffffffffffffffff"
+            "hash": "tree-v2:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         },
         "acme/widget": {
             "version": "1.0.0",
-            "hash": "tree-v1:f9f82080778a48a0e79f50f87faedef0"
+            "hash": "tree-v2:f9f82080778a48a0e79f50f87faedef021c30f0db4886f1dfa386990582bee87"
         }
     },
     "require-dev": {}

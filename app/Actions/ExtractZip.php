@@ -23,7 +23,7 @@ final class ExtractZip
         $opened = $zip->open($archive);
 
         if ($opened !== true) {
-            throw new FailureException(sprintf('Could not open the archive [%s] (zip error %d).', $archive, (int) $opened));
+            throw new FailureException(sprintf('Could not open the archive [%s] (zip error [%d]).', $archive, (int) $opened));
         }
 
         try {
