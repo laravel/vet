@@ -216,7 +216,7 @@ final readonly class PendingUpdate
     {
         $key = mb_substr(hash('sha256', $this->distUrl($version).'|'.$reference), 0, 16);
 
-        return sprintf('%s/archives/acme-widget/%s-%s', $this->cachePath, $version, $key);
+        return sprintf('%s/archives/%s/%s-%s', $this->cachePath, self::PACKAGE, $version, $key);
     }
 
     private function seedReleases(): void
@@ -250,7 +250,7 @@ final readonly class PendingUpdate
 
     private function seedMetadata(): void
     {
-        $this->write($this->cachePath.'/metadata/acme-widget.json', Json::encode([
+        $this->write($this->cachePath.'/metadata/'.self::PACKAGE.'/index.json', Json::encode([
             'packages' => [
                 self::PACKAGE => [
                     $this->metadataOf(self::TARGET_VERSION, self::TARGET_REFERENCE),

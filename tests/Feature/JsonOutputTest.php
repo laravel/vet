@@ -81,7 +81,7 @@ it('writes the audit of one package as json with the exact path of every file', 
 it('writes the preview plan as json with the exact path of every file', function (): void {
     $fixture = Fixture::open('pending-update');
 
-    $archives = glob($fixture->cachePath.'/archives/acme-widget/2.0.0-*', GLOB_ONLYDIR) ?: [];
+    $archives = glob($fixture->cachePath.'/archives/acme/widget/2.0.0-*', GLOB_ONLYDIR) ?: [];
 
     expect($archives)->not->toBeEmpty();
 
@@ -101,4 +101,21 @@ it('writes the preview plan as json with the exact path of every file', function
     /** @var array{packages: array<int, array{delta: mixed}>} $plan */
     expect(changedPaths($plan['packages'][0]['delta']))->toContain(evilPath())
         ->and(str_contains($output, 'src//Evil.php'))->toBeFalse();
+});
+
+it('writes the status of the package that it audits as json', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    try {
+        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath, '--json' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    /** @var array{status: string, state: string} $audit */
+    $audit = json_decode($output, true);
+
+    expect($audit['status'])->toBe('changed')
+        ->and($audit['state'])->toBe('installed');
 });

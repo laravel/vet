@@ -8,6 +8,7 @@ use App\Actions\AuditProject;
 use App\Actions\RenderDelta;
 use App\Actions\ResolveDelta;
 use App\Enums\AuditStatus;
+use App\Enums\BucketType;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
 use App\Support\Invitation;
@@ -41,6 +42,15 @@ final class AuditCommand extends Command
 
     public function handle(): int
     {
+        if (! $this->bucketIsKnown()) {
+            $this->components->error(sprintf(
+                'The [--bucket] option accepts [%s].',
+                implode('], [', array_column(BucketType::cases(), 'value')),
+            ));
+
+            return self::FAILURE;
+        }
+
         $path = $this->option('path');
         assert($path === null || is_string($path));
 
@@ -68,6 +78,26 @@ final class AuditCommand extends Command
             AuditStatus::Ungranted => 2,
             AuditStatus::Covered => 3,
         };
+    }
+
+    private function useCache(): bool
+    {
+        return $this->option('no-cache') !== true;
+    }
+
+    private function bucket(): ?string
+    {
+        $bucket = $this->option('bucket');
+        assert($bucket === null || is_string($bucket));
+
+        return $bucket;
+    }
+
+    private function bucketIsKnown(): bool
+    {
+        $bucket = $this->bucket();
+
+        return $bucket === null || BucketType::tryFrom($bucket) instanceof BucketType;
     }
 
     private function statusColor(AuditStatus $status): string
@@ -103,7 +133,7 @@ final class AuditCommand extends Command
     private function auditProject(Project $project): int
     {
         try {
-            $auditor = AuditProject::forProject($project, $this->plan(), $this->option('no-cache') !== true);
+            $auditor = AuditProject::forProject($project, $this->plan(), $this->useCache());
 
             $discrepancies = $auditor->lockDiscrepancies();
             $report = $auditor->report();
@@ -254,7 +284,7 @@ final class AuditCommand extends Command
     private function auditPackage(Project $project, string $package): int
     {
         try {
-            $auditor = AuditProject::forProject($project, $this->plan(), $this->option('no-cache') !== true);
+            $auditor = AuditProject::forProject($project, $this->plan(), $this->useCache());
             $audit = $auditor->auditOfName($package);
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
@@ -287,7 +317,7 @@ final class AuditCommand extends Command
                     package: $audit->package,
                     from: $from,
                     to: $to ?? ($audit->pending() ? $audit->version : null),
-                    useCache: $this->option('no-cache') !== true,
+                    useCache: $this->useCache(),
                 );
             } catch (VetException $vetException) {
                 if ($requested) {
@@ -310,6 +340,7 @@ final class AuditCommand extends Command
             $this->output->write(Json::encode([
                 'package' => $audit->package,
                 'version' => $audit->version,
+                'status' => $audit->status->value,
                 'state' => $audit->state->value,
                 'from' => $audit->from,
                 'source' => $audit->source->value,
@@ -348,11 +379,8 @@ final class AuditCommand extends Command
             $this->relative($project->rootPath, $audit->path ?? ''),
         );
 
-        $bucket = $this->option('bucket');
-        assert($bucket === null || is_string($bucket));
-
         if ($delta instanceof Delta) {
-            $renderer->report($delta, $bucket);
+            $renderer->report($delta, $this->bucket());
         } else {
             $this->newLine();
 
@@ -388,7 +416,11 @@ final class AuditCommand extends Command
         }
 
         try {
-            $delta = ResolveDelta::forProject($project)->resolve($audit->package, $from);
+            $delta = ResolveDelta::forProject($project)->resolve(
+                package: $audit->package,
+                from: $from,
+                useCache: $this->useCache(),
+            );
         } catch (VetException) {
             return $this->wholePackage($audit);
         }
@@ -437,7 +469,7 @@ final class AuditCommand extends Command
             return ResolveDelta::forProject($project)->incoming(
                 target: $auditor->target($operation, $audit->version, $audit->dev),
                 installed: $installed->has($audit->package) ? $installed->get($audit->package) : null,
-                useCache: $this->option('no-cache') !== true,
+                useCache: $this->useCache(),
             );
         } catch (VetException) {
             return null;

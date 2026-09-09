@@ -85,18 +85,29 @@ final class PreviewCommand extends Command
             }
 
             $trusted = $trustFile->grantFor($operation->package)?->version;
+            $from = $this->comparedFrom($trusted, $installed, $operation);
+
+            $delta = null;
+            $note = null;
+
+            if ($operation->change->comparesTrees() && $from !== null) {
+                try {
+                    $delta = $resolver->resolve(
+                        package: $operation->package,
+                        from: $from,
+                        to: $operation->to,
+                        useCache: $this->option('no-cache') !== true,
+                    );
+                } catch (VetException $vetException) {
+                    $note = sprintf('vet could not read this change: %s', $vetException->getMessage());
+                }
+            }
 
             $reviews[] = new PlannedReview(
                 operation: $operation,
                 trusted: $trusted,
-                delta: $operation->change->comparesTrees()
-                    ? $resolver->resolve(
-                        package: $operation->package,
-                        from: $trusted ?? $this->installedVersion($installed, $operation),
-                        to: $operation->to,
-                        useCache: $this->option('no-cache') !== true,
-                    )
-                    : null,
+                delta: $delta,
+                note: $note,
             );
         }
 
@@ -120,6 +131,17 @@ final class PreviewCommand extends Command
         }
 
         return $installed->get($operation->package)->installsTree();
+    }
+
+    private function comparedFrom(?string $trusted, ?InstalledRepository $installed, ComposerOperation $operation): ?string
+    {
+        foreach ([$trusted, $this->installedVersion($installed, $operation)] as $candidate) {
+            if ($candidate !== null && $candidate !== $operation->to) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function installedVersion(?InstalledRepository $installed, ComposerOperation $operation): ?string
@@ -161,6 +183,10 @@ final class PreviewCommand extends Command
                 sprintf('<fg=gray>%s</>', $review->cost()),
             );
 
+            if ($review->note !== null) {
+                $this->components->warn($review->note);
+            }
+
             if ($review->delta instanceof Delta) {
                 $this->newLine();
                 $renderer->buckets($review->delta);
@@ -168,6 +194,19 @@ final class PreviewCommand extends Command
         }
 
         $this->newLine();
+
+        $unreadable = $this->unreadable($reviews);
+
+        if ($unreadable !== []) {
+            $this->components->error(sprintf(
+                '[%d] package(s) of this plan cannot be read: [%s].',
+                count($unreadable),
+                implode('], [', $unreadable),
+            ));
+
+            return self::FAILURE;
+        }
+
         $this->components->info($this->output->isVerbose()
             ? sprintf('[%d] package(s) change. Run [composer update], then record them with [vet trust].', count($reviews))
             : sprintf(
@@ -177,6 +216,23 @@ final class PreviewCommand extends Command
             ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  array<int, PlannedReview>  $reviews
+     * @return array<int, string>
+     */
+    private function unreadable(array $reviews): array
+    {
+        $packages = [];
+
+        foreach ($reviews as $review) {
+            if ($review->note !== null) {
+                $packages[] = $review->operation->package;
+            }
+        }
+
+        return $packages;
     }
 
     /**
@@ -194,6 +250,6 @@ final class PreviewCommand extends Command
             ),
         ]), false, OutputInterface::OUTPUT_RAW);
 
-        return self::SUCCESS;
+        return $this->unreadable($reviews) === [] ? self::SUCCESS : self::FAILURE;
     }
 }

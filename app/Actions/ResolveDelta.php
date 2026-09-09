@@ -42,6 +42,10 @@ final readonly class ResolveDelta
             ? $this->installed->get($package)
             : null;
 
+        if (! $useCache) {
+            $this->packagist->refresh($package);
+        }
+
         $versions = $this->packagist->versions($package);
 
         $toVersion = $to ?? $installed->version ?? array_key_first($versions);

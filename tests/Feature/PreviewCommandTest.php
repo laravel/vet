@@ -2,8 +2,16 @@
 
 declare(strict_types=1);
 
+use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Artisan;
 use Tests\Fixture;
+use Tests\Fixtures\FakeHttp;
+
+function refuseMetadata(): void
+{
+    app()->instance(ClientInterface::class, (new FakeHttp([new Response(404, [], 'Not Found')]))->client);
+}
 
 it('shows what the next composer update changes, and leaves the installed tree alone', function (): void {
     $fixture = Fixture::open('pending-update');
@@ -142,6 +150,8 @@ it('fails rather than report a plan that holds no change when a fetch fails', fu
 
     $fixture->composer('  - Upgrading acme/widget (1.0.0 => 9.9.9)');
 
+    refuseMetadata();
+
     try {
         $status = Artisan::call('preview', ['--path' => $fixture->rootPath]);
         $output = Artisan::output();
@@ -199,6 +209,8 @@ it('reads a version of a branch from the plan of composer', function (): void {
 
     $fixture->composer('  - Upgrading acme/widget (dev-main 1234567 => dev-main 89abcde)');
 
+    refuseMetadata();
+
     try {
         $status = Artisan::call('preview', ['--path' => $fixture->rootPath]);
         $output = Artisan::output();
@@ -208,4 +220,53 @@ it('reads a version of a branch from the plan of composer', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)->toContain('has no version [dev-main]');
+});
+
+it('previews an upgrade whose bytes the trust file already covers', function (): void {
+    $fixture = Fixture::open('pending-update');
+
+    file_put_contents($fixture->path('vet.json'), str_replace(
+        '"version": "1.0.0"',
+        '"version": "2.0.0"',
+        $fixture->read('vet.json'),
+    ));
+
+    try {
+        $status = Artisan::call('preview', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)
+        ->toContain('acme/widget 1.0.0 → 2.0.0')
+        ->toContain('you trust [2.0.0]')
+        ->toContain('~ src/Widget.php')
+        ->and(str_contains($output, 'are the same version'))->toBeFalse();
+});
+
+it('previews every other package when it cannot read one of them', function (): void {
+    $fixture = Fixture::open('pending-update');
+
+    $fixture->composer(<<<'PLAN'
+        Package operations: 0 installs, 2 updates, 0 removals
+          - Upgrading acme/widget (1.0.0 => 2.0.0)
+          - Upgrading acme/private (1.0.0 => 1.1.0)
+        PLAN);
+
+    refuseMetadata();
+
+    try {
+        $status = Artisan::call('preview', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('~ src/Widget.php')
+        ->toContain('vet could not read this change')
+        ->toContain('[1] package(s) of this plan cannot be read: [acme/private].');
 });
