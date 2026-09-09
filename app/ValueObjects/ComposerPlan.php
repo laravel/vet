@@ -120,7 +120,7 @@ final readonly class ComposerPlan
             );
         }
 
-        if ($installed->version === $locked->version) {
+        if ($installed->version === $locked->version && $installed->distReference === $locked->distReference) {
             return null;
         }
 

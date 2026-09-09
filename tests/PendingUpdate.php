@@ -109,6 +109,11 @@ final readonly class PendingUpdate
         return (string) Manifest::ofDirectory($this->releasePath(self::TARGET_VERSION, self::TARGET_REFERENCE))->hash();
     }
 
+    public function rebuiltHash(): string
+    {
+        return (string) Manifest::ofDirectory($this->releasePath(self::TRUSTED_VERSION, self::TARGET_REFERENCE))->hash();
+    }
+
     public function trustFile(): string
     {
         return (string) file_get_contents($this->rootPath.'/vet.json');
@@ -233,6 +238,14 @@ final readonly class PendingUpdate
         $this->write($target.'/bin/widget.phar', "PHAR gadget OPAQUE BYTES\n");
         $this->write($target.'/tests/WidgetTest.php', "<?php // the gadget test\n");
         $this->write($target.'.complete', self::TARGET_VERSION."\n");
+
+        $rebuilt = $this->releasePath(self::TRUSTED_VERSION, self::TARGET_REFERENCE);
+
+        $this->write($rebuilt.'/composer.json', $this->packageManifest());
+        $this->write($rebuilt.'/src/Widget.php', $this->widget('rebuilt widget'));
+        $this->write($rebuilt.'/bin/widget.phar', "PHAR widget OPAQUE BYTES\n");
+        $this->write($rebuilt.'/tests/WidgetTest.php', "<?php // the widget test\n");
+        $this->write($rebuilt.'.complete', self::TRUSTED_VERSION."\n");
     }
 
     private function seedMetadata(): void
