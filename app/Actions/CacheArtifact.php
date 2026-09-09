@@ -35,7 +35,7 @@ final readonly class CacheArtifact
 
     public function path(string ...$segments): string
     {
-        return Path::normalize(Path::join($this->rootPath, ...$segments));
+        return Path::normalize(Path::join($this->rootPath, ...array_map(Path::toSegment(...), $segments)));
     }
 
     public function fresh(string $path, int $seconds): ?string

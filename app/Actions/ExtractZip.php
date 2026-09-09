@@ -44,7 +44,7 @@ final class ExtractZip
             $prefix = self::commonRoot($names);
             $written = 0;
 
-            foreach ($names as $name) {
+            foreach ($names as $index => $name) {
                 if (str_ends_with($name, '/')) {
                     continue;
                 }
@@ -59,7 +59,15 @@ final class ExtractZip
                     throw new FailureException(sprintf('Could not create the directory [%s].', $directory));
                 }
 
-                $stream = $zip->getStream($name);
+                if (file_exists($target)) {
+                    throw new FailureException(sprintf(
+                        'The archive [%s] writes two entries to [%s], so vet cannot read which bytes composer installs.',
+                        $archive,
+                        $relative,
+                    ));
+                }
+
+                $stream = $zip->getStreamIndex($index);
 
                 if ($stream === false) {
                     throw new FailureException(sprintf('Could not read [%s] from the archive [%s].', $name, $archive));

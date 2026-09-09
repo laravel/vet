@@ -171,7 +171,7 @@ final readonly class AuditProject
             : $this->packagist->version($operation->package, $version);
 
         return $metadata
-            ->withDist($operation->distUrl, $operation->distReference)
+            ->withDist($operation->distUrl, $operation->distReference, $operation->distShasum)
             ->withDev($dev);
     }
 

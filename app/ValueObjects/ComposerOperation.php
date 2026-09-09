@@ -18,6 +18,7 @@ final readonly class ComposerOperation
         public ?string $to,
         public ?string $distUrl = null,
         public ?string $distReference = null,
+        public ?string $distShasum = null,
     ) {}
 
     public static function parse(string $line): ?self
@@ -57,6 +58,7 @@ final readonly class ComposerOperation
             to: Json::string($entry, 'to'),
             distUrl: Json::string($entry, 'dist_url'),
             distReference: Json::string($entry, 'dist_reference'),
+            distShasum: Json::string($entry, 'dist_shasum'),
         );
     }
 
