@@ -5,5 +5,5 @@ parameters:
         - tests
     excludePaths:
         - app/Composer/Plugin.php
-        - tests/Fixtures
+        - tests/Fixtures/*/*
     tmpDir: build/phpstan

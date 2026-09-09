@@ -11,7 +11,7 @@ return RectorConfig::configure()
     ])
     ->withSkip([
         __DIR__.'/app/Composer/Plugin.php',
-        __DIR__.'/tests/Fixtures',
+        __DIR__.'/tests/Fixtures/*/*',
     ])
     ->withPreparedSets(
         deadCode: true,

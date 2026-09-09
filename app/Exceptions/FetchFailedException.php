@@ -28,6 +28,11 @@ final class FetchFailedException extends VetException
         return new self(sprintf('Request to [%s] failed: %s', $url, $reason));
     }
 
+    public static function insecure(string $url): self
+    {
+        return new self(sprintf('Request to [%s] refused: vet reads https URLs only.', $url));
+    }
+
     public static function empty(string $url): self
     {
         return new self(sprintf('Request to [%s] returned an empty body; refusing to treat that as "no changes".', $url));
