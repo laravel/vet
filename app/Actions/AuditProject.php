@@ -73,34 +73,12 @@ final readonly class AuditProject
             $results[$name] = $this->auditOf($package);
         }
 
-        foreach ($this->plan->incoming() as $operation) {
-            if (! $this->installsTree($operation->package)) {
-                continue;
-            }
-
-            $results[$operation->package] = $this->auditOfIncoming($operation);
-        }
-
-        ksort($results, SORT_STRING);
-
-        return new AuditReport($results);
+        return $this->reportOf([...$results, ...$this->auditsOfPlan()]);
     }
 
     public function reportOfPlan(): AuditReport
     {
-        $results = [];
-
-        foreach ($this->plan->incoming() as $operation) {
-            if (! $this->installsTree($operation->package)) {
-                continue;
-            }
-
-            $results[$operation->package] = $this->auditOfIncoming($operation);
-        }
-
-        ksort($results, SORT_STRING);
-
-        return new AuditReport($results);
+        return $this->reportOf($this->auditsOfPlan());
     }
 
     public function auditOfName(string $name): PackageAudit
@@ -201,7 +179,7 @@ final readonly class AuditProject
 
     public function target(ComposerOperation $operation, string $version, bool $dev): Package
     {
-        $locked = $this->lock->packages()[$operation->package] ?? null;
+        $locked = $this->locked($operation->package);
 
         $metadata = $locked instanceof Package && $locked->version === $version
             ? $locked
@@ -254,6 +232,34 @@ final readonly class AuditProject
         return $problems;
     }
 
+    /**
+     * @return array<string, PackageAudit>
+     */
+    private function auditsOfPlan(): array
+    {
+        $results = [];
+
+        foreach ($this->plan->incoming() as $operation) {
+            if (! $this->installsTree($operation->package)) {
+                continue;
+            }
+
+            $results[$operation->package] = $this->auditOfIncoming($operation);
+        }
+
+        return $results;
+    }
+
+    /**
+     * @param  array<string, PackageAudit>  $results
+     */
+    private function reportOf(array $results): AuditReport
+    {
+        ksort($results, SORT_STRING);
+
+        return new AuditReport($results);
+    }
+
     private function treeOf(PackageAudit $audit): ?Package
     {
         $operation = $this->plan->of($audit->package);
@@ -274,9 +280,14 @@ final readonly class AuditProject
         return $this->packagist->version($package, $version);
     }
 
+    private function locked(string $package): ?Package
+    {
+        return $this->lock->packages()[$package] ?? null;
+    }
+
     private function installsTree(string $package): bool
     {
-        $locked = $this->lock->packages()[$package] ?? null;
+        $locked = $this->locked($package);
 
         if ($locked instanceof Package) {
             return $locked->installsTree();
@@ -287,7 +298,7 @@ final readonly class AuditProject
 
     private function isDev(string $package): bool
     {
-        $locked = $this->lock->packages()[$package] ?? null;
+        $locked = $this->locked($package);
 
         if ($locked instanceof Package) {
             return $locked->dev;

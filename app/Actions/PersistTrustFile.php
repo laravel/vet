@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Exceptions\FailureException;
 use App\Support\Json;
 use App\ValueObjects\Project;
+use Illuminate\Support\Facades\File;
 
 final readonly class PersistTrustFile
 {
@@ -83,7 +84,9 @@ final readonly class PersistTrustFile
     {
         $directory = dirname($this->path);
 
-        if (! is_dir($directory) && ! @mkdir($directory, 0o777, true) && ! is_dir($directory)) {
+        File::ensureDirectoryExists($directory);
+
+        if (! File::isDirectory($directory)) {
             throw new FailureException(sprintf('Could not create the directory [%s].', $directory));
         }
 

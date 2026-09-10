@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Exceptions\FailureException;
 use App\ValueObjects\Package;
+use Illuminate\Support\Facades\File;
 
 final readonly class FetchArchive
 {
@@ -45,7 +46,7 @@ final readonly class FetchArchive
         }
 
         @unlink($marker);
-        $this->removeDirectory($directory);
+        File::deleteDirectory($directory);
 
         $archive = $this->cache->forPackage('downloads', $package->name, $release.'.zip');
 
@@ -66,9 +67,7 @@ final readonly class FetchArchive
 
             file_put_contents($marker, $package->version."\n");
         } finally {
-            if (is_dir($staging)) {
-                $this->removeDirectory($staging);
-            }
+            File::deleteDirectory($staging);
         }
 
         return $directory;
@@ -96,34 +95,5 @@ final readonly class FetchArchive
             $digest === false ? 'nothing' : $digest,
             $package->distShasum,
         ));
-    }
-
-    private function removeDirectory(string $directory): void
-    {
-        if (! is_dir($directory)) {
-            return;
-        }
-
-        $names = @scandir($directory);
-
-        if ($names === false) {
-            return;
-        }
-
-        foreach ($names as $name) {
-            if ($name === '.' || $name === '..') {
-                continue;
-            }
-
-            $path = $directory.'/'.$name;
-
-            if (is_dir($path) && ! is_link($path)) {
-                $this->removeDirectory($path);
-            } else {
-                @unlink($path);
-            }
-        }
-
-        @rmdir($directory);
     }
 }

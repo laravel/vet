@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Exceptions\FailureException;
 use App\Support\Path;
+use Illuminate\Support\Facades\File;
 
 final readonly class CacheArtifact
 {
@@ -70,7 +71,9 @@ final readonly class CacheArtifact
     {
         $directory = dirname($path);
 
-        if (! is_dir($directory) && ! @mkdir($directory, 0o777, true) && ! is_dir($directory)) {
+        File::ensureDirectoryExists($directory);
+
+        if (! File::isDirectory($directory)) {
             throw new FailureException(sprintf('Could not create the cache directory [%s].', $directory));
         }
 

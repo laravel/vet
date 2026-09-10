@@ -82,6 +82,6 @@ Read the file of a rule when its subject reaches your task.
 
 - [message-value-brackets](.hod/rules/message-value-brackets.md): Put each value and each command of a message inside square brackets.
 - [fake-in-fixtures](.hod/rules/fake-in-fixtures.md): Put a fake, a stub or a test double in `tests/Fixtures/`.
-- [message-value-brackets](.hod/rules/message-value-brackets.md): Put each value that a message interpolates inside square brackets.
+- [laravel-helpers-first](.hod/rules/laravel-helpers-first.md): Call the Laravel helper before you write the routine by hand.
 - [no-optional-parameter](.hod/rules/no-optional-parameter.md): Write no nullable type and no default value on a parameter of a constructor, a method, a function or a closure.
 - [stale-build](.hod/rules/stale-build.md): Treat a `builds/vet` that is older than the source as normal.

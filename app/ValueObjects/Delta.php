@@ -10,6 +10,11 @@ use App\Enums\InstallSourceType;
 final readonly class Delta
 {
     /**
+     * @var array<int, Change>
+     */
+    private array $changes;
+
+    /**
      * @param  array<int, Change>  $changes
      * @param  array<int, string>  $notes  caveats about what was actually compared
      */
@@ -20,12 +25,16 @@ final readonly class Delta
         public TreeHash $fromHash,
         public TreeHash $toHash,
         public InstallSourceType $source,
-        private array $changes,
+        array $changes,
         public ?ManifestChange $manifestChange,
         public bool $firstInstall,
         public bool $toIsLocalInstall = false,
         public array $notes = [],
-    ) {}
+    ) {
+        usort($changes, static fn (Change $a, Change $b): int => [$a->bucket->weight(), $a->path] <=> [$b->bucket->weight(), $b->path]);
+
+        $this->changes = $changes;
+    }
 
     /**
      * @param  array<int, string>  $notes
@@ -57,11 +66,7 @@ final readonly class Delta
      */
     public function changes(): array
     {
-        $changes = $this->changes;
-
-        usort($changes, static fn (Change $a, Change $b): int => [$a->bucket->weight(), $a->path] <=> [$b->bucket->weight(), $b->path]);
-
-        return $changes;
+        return $this->changes;
     }
 
     /**
@@ -70,7 +75,7 @@ final readonly class Delta
     public function inBucket(BucketType $bucket): array
     {
         return array_values(array_filter(
-            $this->changes(),
+            $this->changes,
             static fn (Change $change): bool => $change->bucket === $bucket,
         ));
     }
@@ -134,7 +139,7 @@ final readonly class Delta
                 '[%d] opaque %s cannot be read: [%s].',
                 count($opaque),
                 count($opaque) === 1 ? 'artifact' : 'artifacts',
-                implode(', ', array_slice(array_map(static fn (Change $c): string => $c->path, $opaque), 0, 3)),
+                implode(', ', array_map(static fn (Change $c): string => $c->path, array_slice($opaque, 0, 3))),
             );
         }
 

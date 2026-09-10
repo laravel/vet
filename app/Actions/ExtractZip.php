@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Exceptions\FailureException;
 use App\Support\Path;
+use Illuminate\Support\Facades\File;
 use ZipArchive;
 
 final class ExtractZip
@@ -55,7 +56,9 @@ final class ExtractZip
                 $target = $destination.'/'.$relative;
                 $directory = dirname($target);
 
-                if (! is_dir($directory) && ! @mkdir($directory, 0o777, true) && ! is_dir($directory)) {
+                File::ensureDirectoryExists($directory);
+
+                if (! File::isDirectory($directory)) {
                     throw new FailureException(sprintf('Could not create the directory [%s].', $directory));
                 }
 

@@ -23,7 +23,7 @@ final readonly class RenderAgentReview
             '    <fg=gray>agent</>  <fg=%s;options=bold>%s</>  <fg=gray>%s</>',
             $agentReview->verdict->color(),
             $agentReview->verdict->label(),
-            $this->escape($agentReview->summary),
+            OutputFormatter::escape($agentReview->summary),
         ));
 
         $shown = array_slice($agentReview->findings, 0, self::MAX_FINDINGS);
@@ -53,8 +53,8 @@ final readonly class RenderAgentReview
     {
         $this->output->writeln(sprintf(
             '           <fg=yellow>%s</>  <fg=gray>%s</>',
-            $this->escape($agentFinding->path),
-            $this->escape($agentFinding->reason),
+            OutputFormatter::escape($agentFinding->path),
+            OutputFormatter::escape($agentFinding->reason),
         ));
     }
 
@@ -62,14 +62,7 @@ final readonly class RenderAgentReview
     {
         $this->output->writeln(sprintf(
             '    <fg=gray>agent</>  <fg=yellow;options=bold>not sent</>  <fg=gray>%s</>',
-            $this->escape($reason),
+            OutputFormatter::escape($reason),
         ));
-    }
-
-    private function escape(string $line): string
-    {
-        return OutputFormatter::escapeTrailingBackslash(
-            str_replace(['<', '>'], ['\\<', '\\>'], $line),
-        );
     }
 }
