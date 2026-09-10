@@ -11,10 +11,10 @@ use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
 use App\Support\PickedCountRenderer;
+use App\Support\PromptOutput;
 use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentReview;
 use Laravel\Prompts\MultiSelectPrompt;
-use Laravel\Prompts\Output\ConsoleOutput as PromptOutput;
 use Laravel\Prompts\Prompt;
 use LaravelZero\Framework\Commands\Command as LaravelZeroCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
@@ -32,7 +32,7 @@ abstract class Command extends LaravelZeroCommand
         if (! $formatter instanceof ControlSafeFormatter) {
             $output->setFormatter(new ControlSafeFormatter($formatter));
 
-            $this->writePromptsWithoutTheSanitizer($output, $formatter);
+            $this->writePromptsWithoutTheSanitizer($formatter);
         }
 
         $this->components = new ControlSafeComponents($this->output);
@@ -52,7 +52,6 @@ abstract class Command extends LaravelZeroCommand
         }
 
         if ($this->writesProse()) {
-            $this->newLine();
             $this->components->info(sprintf(
                 'Reading [%d] delta(s) with [%s]. The prompts hold %s. This takes a moment.',
                 $batch->count(),
@@ -64,13 +63,9 @@ abstract class Command extends LaravelZeroCommand
         return $agent->handle($batch->prompts);
     }
 
-    private function writePromptsWithoutTheSanitizer(OutputInterface $output, OutputFormatterInterface $formatter): void
+    private function writePromptsWithoutTheSanitizer(OutputFormatterInterface $formatter): void
     {
-        Prompt::setOutput(new PromptOutput(
-            $output->getVerbosity(),
-            $output->isDecorated(),
-            $formatter,
-        ));
+        Prompt::setOutput(new PromptOutput($this->output, $formatter));
 
         Prompt::addTheme('vet', [MultiSelectPrompt::class => PickedCountRenderer::class]);
         Prompt::theme('vet');

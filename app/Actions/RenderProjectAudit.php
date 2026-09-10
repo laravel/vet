@@ -124,8 +124,6 @@ final class RenderProjectAudit
 
     public function renderAgentReviews(): void
     {
-        $this->output->newLine();
-
         foreach ($this->failing as $audit) {
             $this->renderRow($audit, $this->reviews[$audit->package]);
             $this->renderAgent($audit, $this->reviews[$audit->package]->delta, true);

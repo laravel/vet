@@ -216,7 +216,6 @@ final class VetCommand extends Command
         );
 
         if ($recorded->isEmpty()) {
-            $this->newLine();
             $this->components->info('Recorded nothing.');
 
             return self::FAILURE;
@@ -234,7 +233,6 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        $this->newLine();
         $this->announceRecorded($recorded);
 
         if ($this->holdsPending($recorded) && getenv(Gate::ENVIRONMENT) !== '1') {
