@@ -197,10 +197,8 @@ final readonly class AuditProject
 
         $problems = [];
 
-        $explained = $this->plan->explains();
-
         foreach ($locked as $name => $package) {
-            if ($explained && $this->plan->touches($name)) {
+            if ($this->plan->touches($name)) {
                 continue;
             }
 
@@ -216,7 +214,7 @@ final readonly class AuditProject
         }
 
         foreach ($installed as $name => $package) {
-            if (! isset($locked[$name]) && (! $explained || ! $this->plan->touches($name))) {
+            if (! isset($locked[$name]) && ! $this->plan->touches($name)) {
                 $problems[] = new PackageNotLocked($name, $package->version);
             }
         }

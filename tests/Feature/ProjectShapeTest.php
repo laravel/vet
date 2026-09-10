@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
 use Tests\Fixture;
+use Tests\PendingUpdate;
 
 it('reads the vendor directory that composer.json configures', function (): void {
     $fixture = Fixture::open('custom-vendor-dir');
@@ -91,8 +92,15 @@ it('reports the package that provides a name that a monorepo replaces', function
 it('names a package of composer.lock that is not installed, and one that the lock file does not hold', function (): void {
     $fixture = Fixture::open('lock-drift');
 
+    $plan = composerPlanFile([[
+        'package' => 'acme/unrelated',
+        'change' => 'install',
+        'from' => null,
+        'to' => '1.0.0',
+    ]]);
+
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -105,11 +113,37 @@ it('names a package of composer.lock that is not installed, and one that the loc
         ->toContain('The installed tree does not match composer.lock.');
 });
 
+it('reads the lock of a blocked update as the change to review, and names no discrepancy', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TARGET_VERSION);
+
+    try {
+        $status = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('to review (1, worst first)')
+        ->toContain('composer would install these bytes')
+        ->and(str_contains($output, 'is installed at'))->toBeFalse()
+        ->and(str_contains($output, 'does not match composer.lock'))->toBeFalse();
+});
+
 it('names a tree whose version disagrees with composer.lock', function (): void {
     $fixture = Fixture::open('version-drift');
 
+    $plan = composerPlanFile([[
+        'package' => 'acme/unrelated',
+        'change' => 'install',
+        'from' => null,
+        'to' => '1.0.0',
+    ]]);
+
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

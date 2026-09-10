@@ -84,7 +84,6 @@ it('reads the operations that composer wrote to a plan file', function (): void 
     $widget = $plan->of('acme/widget');
 
     expect($plan->operations)->toHaveCount(2)
-        ->and($plan->explains())->toBeTrue()
         ->and($widget?->change)->toBe(ComposerChangeType::Upgrade)
         ->and($widget?->from)->toBe('1.0.0')
         ->and($widget?->to)->toBe('2.0.0')
@@ -108,7 +107,6 @@ it('names an upgrade between composer.lock and the installed tree', function ():
     $widget = $plan->of(PendingUpdate::PACKAGE);
 
     expect($plan->operations)->toHaveCount(1)
-        ->and($plan->explains())->toBeFalse()
         ->and($widget?->change)->toBe(ComposerChangeType::Upgrade)
         ->and($widget?->from)->toBe('1.0.0')
         ->and($widget?->to)->toBe('2.0.0')

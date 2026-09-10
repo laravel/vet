@@ -132,8 +132,15 @@ it('names a tree that disagrees with composer.lock', function (): void {
         $fixture->read('vendor/composer/installed.json'),
     ));
 
+    $plan = composerPlanFile([[
+        'package' => 'acme/unrelated',
+        'change' => 'install',
+        'from' => null,
+        'to' => '1.0.0',
+    ]]);
+
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

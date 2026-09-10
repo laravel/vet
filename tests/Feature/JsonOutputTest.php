@@ -98,8 +98,15 @@ it('writes the status of the package that it audits as json', function (): void 
 it('writes each lock discrepancy as data, and writes no bracket in it', function (): void {
     $fixture = Fixture::open('lock-drift');
 
+    $plan = composerPlanFile([[
+        'package' => 'acme/unrelated',
+        'change' => 'install',
+        'from' => null,
+        'to' => '1.0.0',
+    ]]);
+
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true]);
+        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

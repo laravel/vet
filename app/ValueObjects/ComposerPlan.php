@@ -14,7 +14,6 @@ final readonly class ComposerPlan
      */
     private function __construct(
         public array $operations,
-        private bool $explains = false,
     ) {}
 
     public static function parse(string $output): self
@@ -50,7 +49,7 @@ final readonly class ComposerPlan
             }
         }
 
-        return new self(array_values($operations), true);
+        return new self(array_values($operations));
     }
 
     public static function between(LockFile $lock, ?InstalledRepository $installed): self
@@ -74,11 +73,6 @@ final readonly class ComposerPlan
         }
 
         return new self($operations);
-    }
-
-    public function explains(): bool
-    {
-        return $this->explains;
     }
 
     public function isEmpty(): bool

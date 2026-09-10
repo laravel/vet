@@ -32,42 +32,9 @@ final readonly class Gate
 
     public function hasInstalledTree(): bool
     {
-        return is_file($this->composerPath().'/installed.json');
-    }
+        $vendorDir = $this->vendorDir === '' ? $this->rootPath.'/vendor' : $this->vendorDir;
 
-    public function lockPath(): string
-    {
-        return $this->rootPath.'/composer.lock';
-    }
-
-    public function lockBackupPath(): string
-    {
-        return $this->composerPath().'/vet-lock-backup';
-    }
-
-    public function backupLock(): void
-    {
-        if (! is_file($this->lockPath()) || ! is_dir($this->composerPath())) {
-            return;
-        }
-
-        @copy($this->lockPath(), $this->lockBackupPath());
-    }
-
-    public function restoreLock(): bool
-    {
-        if (! is_file($this->lockBackupPath())) {
-            return false;
-        }
-
-        return @copy($this->lockBackupPath(), $this->lockPath());
-    }
-
-    public function deleteLockBackup(): void
-    {
-        if (is_file($this->lockBackupPath())) {
-            @unlink($this->lockBackupPath());
-        }
+        return is_file($vendorDir.'/composer/installed.json');
     }
 
     /**
@@ -150,12 +117,5 @@ final readonly class Gate
         }
 
         return 'Vet audits an update against the installed tree. This project installs no package yet, so the audit runs after this install.';
-    }
-
-    private function composerPath(): string
-    {
-        $vendorDir = $this->vendorDir === '' ? $this->rootPath.'/vendor' : $this->vendorDir;
-
-        return $vendorDir.'/composer';
     }
 }
