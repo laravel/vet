@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Commands;
 
 use App\Actions\AuditProject;
+use App\Actions\RenderAgentReview;
 use App\Actions\RenderDelta;
+use App\Actions\RenderProjectAudit;
 use App\Actions\ResolveDelta;
+use App\Enums\AuditScreen;
 use App\Enums\AuditStatus;
 use App\Enums\BucketType;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
-use App\Support\Invitation;
 use App\Support\Json;
+use App\ValueObjects\AgentReview;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\ComposerPlan;
 use App\ValueObjects\Delta;
@@ -32,6 +35,7 @@ final class AuditCommand extends Command
         {--path= : The project directory to audit (defaults to the current one)}
         {--bucket= : Limit the delta to one bucket: install-manifest, opaque, runtime-source, inert}
         {--plan= : Audit the operations that this composer plan file holds}
+        {--agent : Hand each delta to your coding agent, and show the verdict it writes}
         {--no-cache : Re-download archives instead of reusing the cache}
         {--json : Emit machine-readable output}';
 
@@ -70,16 +74,6 @@ final class AuditCommand extends Command
             : $this->auditPackage($project, $package);
     }
 
-    private static function statusWeight(AuditStatus $status): int
-    {
-        return match ($status) {
-            AuditStatus::Unknown => 0,
-            AuditStatus::Changed => 1,
-            AuditStatus::Ungranted => 2,
-            AuditStatus::Covered => 3,
-        };
-    }
-
     private function useCache(): bool
     {
         return $this->option('no-cache') !== true;
@@ -100,28 +94,6 @@ final class AuditCommand extends Command
         return $bucket === null || BucketType::tryFrom($bucket) instanceof BucketType;
     }
 
-    private function statusColor(AuditStatus $status): string
-    {
-        return match ($status) {
-            AuditStatus::Unknown, AuditStatus::Changed => 'red',
-            AuditStatus::Ungranted, AuditStatus::Covered => 'yellow',
-        };
-    }
-
-    /**
-     * @param  array<string, PackageAudit>  $failing
-     */
-    private function holdsPending(array $failing): bool
-    {
-        foreach ($failing as $audit) {
-            if ($audit->pending()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private function plan(): ?ComposerPlan
     {
         $path = $this->option('plan');
@@ -136,149 +108,26 @@ final class AuditCommand extends Command
             $auditor = AuditProject::forProject($project, $this->plan(), $this->useCache());
 
             $discrepancies = $auditor->lockDiscrepancies();
-            $report = $auditor->report();
+
+            $screen = new RenderProjectAudit(
+                $this->output,
+                $project,
+                $auditor,
+                $auditor->report(),
+                $this->useCache(),
+                AuditScreen::Installed,
+            );
+
+            $screen->withAgentReviews($this->agentReviews($screen->deltas($this->option('agent') === true)));
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
 
             return self::FAILURE;
         }
 
-        $failing = $report->failing();
-        $reviews = [];
-
-        foreach ($failing as $audit) {
-            $reviews[$audit->package] = $this->review($project, $auditor, $audit);
-        }
-
-        uasort($failing, static fn (PackageAudit $a, PackageAudit $b): int => [
-            self::statusWeight($a->status),
-            $reviews[$b->package]['files'],
-            $a->package,
-        ] <=> [
-            self::statusWeight($b->status),
-            $reviews[$a->package]['files'],
-            $b->package,
-        ]);
-
-        $renderer = new RenderDelta($this->output);
-
-        if ($this->option('json') === true) {
-            $this->output->write(Json::encode([
-                'total' => $report->total(),
-                'covered' => $report->coveredCount(),
-                'percentage' => $report->percentage(),
-                'counts' => $report->counts(),
-                'lock_discrepancies' => $discrepancies,
-                'unaudited' => array_values(array_map(static function (PackageAudit $c) use ($reviews, $renderer): array {
-                    $review = $reviews[$c->package];
-
-                    return [
-                        'package' => $c->package,
-                        'version' => $c->version,
-                        'status' => $c->status->value,
-                        'state' => $c->state->value,
-                        'from' => $c->from,
-                        'dev' => $c->dev,
-                        'files' => $c->files,
-                        'files_to_review' => $review['files'],
-                        'scope' => $review['scope'],
-                        'delta' => $review['delta'] instanceof Delta ? $renderer->toArray($review['delta']) : null,
-                    ];
-                }, $failing)),
-            ]), false, OutputInterface::OUTPUT_RAW);
-
-            return $this->verdict($failing, $discrepancies);
-        }
-
-        $this->newLine();
-
-        foreach ($discrepancies as $discrepancy) {
-            $this->components->error($discrepancy);
-        }
-
-        if ($discrepancies !== []) {
-            $this->components->error('The installed tree does not match composer.lock.');
-        }
-
-        if (! $auditor->trustFile->exists()) {
-            $this->components->warn(sprintf(
-                'No trust file yet. [vet trust] records every installed package in [%s].',
-                $this->relative($project->rootPath, $auditor->trustFile->path),
-            ));
-        }
-
-        if ($failing === []) {
-            $this->components->info(sprintf('All [%d] packages are covered.', $report->total()));
-
-            return $this->verdict($failing, $discrepancies);
-        }
-
-        $this->line(sprintf('  <options=bold>to review</> <fg=gray>(%d, worst first)</>', count($failing)));
-        $this->newLine();
-
-        $endsWithDelta = false;
-
-        foreach ($failing as $audit) {
-            $review = $reviews[$audit->package];
-            $endsWithDelta = $review['delta'] instanceof Delta;
-
-            $this->components->twoColumnDetail(
-                sprintf(
-                    '<fg=%s>%s</> <fg=gray>%s</>%s  <fg=gray>%s</>',
-                    $this->statusColor($audit->status),
-                    $audit->package,
-                    $audit->versions(),
-                    $audit->dev ? ' <fg=gray>(dev)</>' : '',
-                    $audit->reason(),
-                ),
-                $audit->status === AuditStatus::Unknown
-                    ? '<fg=red>bytes not readable</>'
-                    : sprintf(
-                        '<fg=gray>%d files (%s)  ·  %s</>',
-                        $review['files'],
-                        $review['scope'],
-                        Bytes::human($audit->bytes),
-                    ),
-            );
-
-            if ($review['delta'] instanceof Delta) {
-                $this->newLine();
-                $renderer->buckets($review['delta']);
-            }
-        }
-
-        if (! $endsWithDelta) {
-            $this->newLine();
-        }
-
-        $this->components->twoColumnDetail(
-            '<options=bold>audited</>',
-            sprintf('%d / %d  <fg=gray>(%s%%)</>', $report->coveredCount(), $report->total(), $report->percentage()),
-        );
-        $this->newLine();
-
-        $this->components->error($this->output->isVerbose()
-            ? sprintf('[%d] package(s) are not covered. Record them with [vet trust].', count($failing))
-            : sprintf(
-                '[%d] package(s) are not covered. Read every change with [%s], then record them with [vet trust].',
-                count($failing),
-                Invitation::verbose('vet audit -v'),
-            ));
-
-        if ($this->holdsPending($failing)) {
-            $this->components->warn('composer holds those bytes out of vendor/ until you record them. Then run [composer install].');
-        }
-
-        return self::FAILURE;
-    }
-
-    /**
-     * @param  array<string, PackageAudit>  $failing
-     * @param  array<int, string>  $discrepancies
-     */
-    private function verdict(array $failing, array $discrepancies): int
-    {
-        return $failing === [] && $discrepancies === [] ? self::SUCCESS : self::FAILURE;
+        return $this->option('json') === true
+            ? $screen->json($discrepancies)
+            : $screen->render($discrepancies, $this->option('agent') === true);
     }
 
     private function auditPackage(Project $project, string $package): int
@@ -334,6 +183,17 @@ final class AuditCommand extends Command
             }
         }
 
+        $agentDelta = $delta ?? ($this->option('agent') === true ? $auditor->wholeTree($audit) : null);
+
+        try {
+            $agentReviews = $this->agentReviews([$audit->package => $agentDelta]);
+        } catch (VetException $vetException) {
+            $this->components->error($vetException->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $agentReview = $agentReviews[$audit->package] ?? null;
         $covered = $audit->status === AuditStatus::Covered;
 
         if ($this->option('json') === true) {
@@ -349,6 +209,7 @@ final class AuditCommand extends Command
                 'bytes' => $audit->bytes,
                 'path' => $audit->path,
                 'delta' => $delta instanceof Delta ? $renderer->toArray($delta) : null,
+                'agent' => $agentReview?->toArray(),
             ]), false, OutputInterface::OUTPUT_RAW);
 
             return $covered ? self::SUCCESS : self::FAILURE;
@@ -379,6 +240,16 @@ final class AuditCommand extends Command
             $this->relative($project->rootPath, $audit->path ?? ''),
         );
 
+        if ($agentReview instanceof AgentReview) {
+            $this->newLine();
+            (new RenderAgentReview($this->output))->verdict($agentReview);
+        } elseif ($this->option('agent') === true) {
+            $this->newLine();
+            $agentRenderer = new RenderAgentReview($this->output);
+
+            $delta instanceof Delta ? $agentRenderer->noChange() : $agentRenderer->noEarlierTree();
+        }
+
         if ($delta instanceof Delta) {
             $renderer->report($delta, $this->bucket());
         } else {
@@ -394,65 +265,6 @@ final class AuditCommand extends Command
         }
 
         return $covered ? self::SUCCESS : self::FAILURE;
-    }
-
-    /**
-     * @return array{files: int, scope: string, delta: ?Delta}
-     */
-    private function review(Project $project, AuditProject $auditor, PackageAudit $audit): array
-    {
-        if ($audit->status === AuditStatus::Unknown) {
-            return ['files' => 0, 'scope' => 'not readable', 'delta' => null];
-        }
-
-        if ($audit->pending()) {
-            return $this->pendingReview($project, $auditor, $audit);
-        }
-
-        $from = $auditor->trustFile->grantFor($audit->package)?->version;
-
-        if ($from === null) {
-            return $this->wholePackage($audit);
-        }
-
-        try {
-            $delta = ResolveDelta::forProject($project)->resolve(
-                package: $audit->package,
-                from: $from,
-                useCache: $this->useCache(),
-            );
-        } catch (VetException) {
-            return $this->wholePackage($audit);
-        }
-
-        return [
-            'files' => count($delta->changes()),
-            'scope' => $this->scopeOf($delta),
-            'delta' => $delta,
-        ];
-    }
-
-    private function scopeOf(Delta $delta): string
-    {
-        return $delta->comparesPublishedToInstalled()
-            ? sprintf('delta from the published [%s]', $delta->from)
-            : sprintf('delta from [%s]', $delta->from);
-    }
-
-    /**
-     * @return array{files: int, scope: string, delta: ?Delta}
-     */
-    private function pendingReview(Project $project, AuditProject $auditor, PackageAudit $audit): array
-    {
-        $delta = $this->incomingDelta($project, $auditor, $audit);
-
-        return $delta instanceof Delta
-            ? [
-                'files' => count($delta->changes()),
-                'scope' => $this->scopeOf($delta),
-                'delta' => $delta,
-            ]
-            : $this->wholePackage($audit);
     }
 
     private function incomingDelta(Project $project, AuditProject $auditor, PackageAudit $audit): ?Delta
@@ -474,14 +286,6 @@ final class AuditCommand extends Command
         } catch (VetException) {
             return null;
         }
-    }
-
-    /**
-     * @return array{files: int, scope: string, delta: null}
-     */
-    private function wholePackage(PackageAudit $audit): array
-    {
-        return ['files' => $audit->files, 'scope' => 'whole package', 'delta' => null];
     }
 
     private function deltaFrom(PackageAudit $audit): ?string

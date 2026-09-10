@@ -1,0 +1,11 @@
+{
+    "name": "acme/gadget",
+    "description": "A tiny package.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\Gadget\\": "src/"
+        }
+    }
+}

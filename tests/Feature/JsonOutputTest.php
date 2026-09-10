@@ -98,8 +98,8 @@ it('writes the preview plan as json with the exact path of every file', function
 
     expect($plan)->toBeArray();
 
-    /** @var array{packages: array<int, array{delta: mixed}>} $plan */
-    expect(changedPaths($plan['packages'][0]['delta']))->toContain(evilPath())
+    /** @var array{unaudited: array<int, array{delta: mixed}>} $plan */
+    expect(changedPaths($plan['unaudited'][0]['delta']))->toContain(evilPath())
         ->and(str_contains($output, 'src//Evil.php'))->toBeFalse();
 });
 

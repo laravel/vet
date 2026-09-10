@@ -6,6 +6,8 @@ namespace App\Actions;
 
 final class BuildUnifiedDiff
 {
+    public const string REWRITTEN = '@@ file rewritten @@';
+
     private const int MAX_EDIT_DISTANCE = 400;
 
     private const int MAX_CHANGED_LINES = 20_000;
@@ -32,7 +34,7 @@ final class BuildUnifiedDiff
             [$prefix, $suffix] = self::commonEdges($oldLines, $newLines);
 
             return $header.sprintf(
-                "@@ file rewritten @@\n- %d line(s) replaced by %d line(s)\n",
+                self::REWRITTEN."\n- %d line(s) replaced by %d line(s)\n",
                 count($oldLines) - $prefix - $suffix,
                 count($newLines) - $prefix - $suffix,
             );
@@ -224,8 +226,6 @@ final class BuildUnifiedDiff
     }
 
     /**
-     * Groups the edit script into `@@` hunks with the given context.
-     *
      * @param  array<int, array{0: '='|'-'|'+', 1: int, 2: int, 3: string}>  $ops
      */
     private static function hunks(array $ops, int $context): string

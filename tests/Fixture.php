@@ -68,10 +68,22 @@ final readonly class Fixture
         putenv('VET_COMPOSER_BINARY='.$binary);
     }
 
+    public function agent(string $script): void
+    {
+        $binary = dirname($this->rootPath).'/agent';
+
+        file_put_contents($binary, "#!/bin/sh\n".$script."\n");
+
+        chmod($binary, 0o755);
+
+        putenv('VET_AGENT_BINARY='.$binary);
+    }
+
     public function remove(): void
     {
         putenv('VET_CACHE_DIR');
         putenv('VET_COMPOSER_BINARY');
+        putenv('VET_AGENT_BINARY');
 
         $this->delete(dirname($this->rootPath));
     }

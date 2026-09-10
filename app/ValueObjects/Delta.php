@@ -22,6 +22,7 @@ final readonly class Delta
         public InstallSourceType $source,
         private array $changes,
         public ?ManifestChange $manifestChange,
+        public bool $firstInstall,
         public bool $toIsLocalInstall = false,
         public array $notes = [],
     ) {}
@@ -40,6 +41,7 @@ final readonly class Delta
             $this->source,
             $this->changes,
             $this->manifestChange,
+            $this->firstInstall,
             $toIsLocalInstall,
             $notes,
         );

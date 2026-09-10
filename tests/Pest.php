@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\ValueObjects\AgentPrompt;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature', 'Unit');
@@ -22,4 +23,13 @@ function stubBinary(string $script): string
     });
 
     return $path;
+}
+
+/**
+ * @param  array<int, string>  $unread
+ * @param  array<int, string>  $paths
+ */
+function agentPrompt(string $text, array $unread, array $paths): AgentPrompt
+{
+    return new AgentPrompt($text, $unread, $paths);
 }

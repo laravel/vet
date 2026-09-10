@@ -11,6 +11,7 @@ use App\Exceptions\VetException;
 use App\ValueObjects\AuditReport;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\ComposerPlan;
+use App\ValueObjects\Delta;
 use App\ValueObjects\Fingerprint;
 use App\ValueObjects\Grant;
 use App\ValueObjects\InstalledRepository;
@@ -85,6 +86,23 @@ final readonly class AuditProject
         return new AuditReport($results);
     }
 
+    public function reportOfPlan(): AuditReport
+    {
+        $results = [];
+
+        foreach ($this->plan->incoming() as $operation) {
+            if (! $this->installsTree($operation->package)) {
+                continue;
+            }
+
+            $results[$operation->package] = $this->auditOfIncoming($operation);
+        }
+
+        ksort($results, SORT_STRING);
+
+        return new AuditReport($results);
+    }
+
     public function auditOfName(string $name): PackageAudit
     {
         if (! $this->installsTree($name)) {
@@ -96,6 +114,25 @@ final readonly class AuditProject
         return $operation instanceof ComposerOperation && $operation->to !== null
             ? $this->auditOfIncoming($operation)
             : $this->auditOf($this->installed->get($name));
+    }
+
+    public function wholeTree(PackageAudit $audit): ?Delta
+    {
+        if ($audit->status === AuditStatus::Unknown) {
+            return null;
+        }
+
+        $target = $this->treeOf($audit);
+
+        if (! $target instanceof Package) {
+            return null;
+        }
+
+        try {
+            return ResolveDelta::forProject($this->project)->fromNothing($target, $this->useCache);
+        } catch (VetException) {
+            return null;
+        }
     }
 
     public function auditOf(Package $package): PackageAudit
@@ -215,6 +252,17 @@ final readonly class AuditProject
         }
 
         return $problems;
+    }
+
+    private function treeOf(PackageAudit $audit): ?Package
+    {
+        $operation = $this->plan->of($audit->package);
+
+        if ($audit->pending() && $operation instanceof ComposerOperation && $operation->to !== null) {
+            return $this->target($operation, $audit->version, $audit->dev);
+        }
+
+        return $this->installed->has($audit->package) ? $this->installed->get($audit->package) : null;
     }
 
     private function publishedVersion(string $package, string $version): Package

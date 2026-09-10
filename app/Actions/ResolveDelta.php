@@ -92,6 +92,19 @@ final readonly class ResolveDelta
         return $delta->withResolution($toIsLocal, $notes);
     }
 
+    public function fromNothing(Package $target, bool $useCache): Delta
+    {
+        $directory = $target->installPath !== null && is_dir($target->installPath)
+            ? $target->installPath
+            : $this->fetcher->handle($target, $useCache);
+
+        return $this->builder->firstInstall(
+            $target,
+            $directory,
+            $target->installSource ?? InstallSourceType::Dist,
+        );
+    }
+
     public function incoming(Package $target, ?Package $installed, bool $useCache = true): ?Delta
     {
         if (! $installed instanceof Package || $installed->installPath === null || ! is_dir($installed->installPath)) {

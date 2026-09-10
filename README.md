@@ -115,6 +115,47 @@ When the trust file already covers the installed version, the report stays local
 vet audit carbonphp/carbon-doctrine-types --from=3.1.0
 ```
 
+<a name="handing-a-review-to-your-agent"></a>
+### Handing a Review to Your Agent
+
+Reading every delta by hand takes time. The `--agent` option hands each delta to the coding agent already on your machine, and prints the verdict it writes next to the package:
+
+```shell
+vet audit --agent
+```
+
+```
+  to review (3, worst first)
+
+  acme/logger 1.2.0 → 2.0.0  you trust 1.2.0     12 files (delta from 1.2.0)
+    agent  RISK  src/Ship.php reads .env and sends it to an unknown host
+           src/Ship.php  it posts the contents of [.env] to [telemetry.example.com]
+
+  acme/tooling 4.1.0 → 4.2.0  you trust 4.1.0     8 files (delta from 4.1.0)
+    agent  partial  [1] file(s) did not reach the agent. the delta adds two commands
+
+  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0   2 files (delta from 3.1.0)
+    agent  clear  the delta changes two return types
+
+  audited .................................................. 123 / 125 (98.4%)
+```
+
+A verdict is one of four. `clear` means the agent read every byte and found no attack. `RISK` comes with one line for each file the agent names. `partial` means one file never reached the prompt, such as a `.phar` that holds no readable text, so nobody read it. `no verdict` means the answer did not arrive, or it named a file that the delta does not hold.
+
+vet looks for `claude`, then `codex`, then `gemini` on your `PATH`. Name a different one in the `VET_AGENT_BINARY` environment variable, and vet gives it the prompt on standard input.
+
+vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the delta and does nothing else. The delta stands inside a marker that carries a token of the run, and vet checks every file the answer names against the files the delta holds.
+
+A package with no entry in your trust file has no earlier tree to compare against. vet sends its whole tree instead, because that is the package you know least.
+
+The agent reads. You record. A verdict writes nothing to `vet.json`, so `vet trust` stays the moment you decide.
+
+The `preview` command takes the same option, and reads the delta before the bytes reach `vendor/`:
+
+```shell
+vet preview --agent
+```
+
 <a name="the-trust-file"></a>
 ## The Trust File
 

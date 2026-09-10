@@ -12,6 +12,7 @@ use App\ValueObjects\Delta;
 use App\ValueObjects\Manifest;
 use App\ValueObjects\ManifestChange;
 use App\ValueObjects\Package;
+use App\ValueObjects\TreeHash;
 
 final class BuildDelta
 {
@@ -83,6 +84,41 @@ final class BuildDelta
             source: $source,
             changes: $changes,
             manifestChange: $this->manifestChange($fromDirectory, $toDirectory),
+            firstInstall: false,
+        );
+    }
+
+    public function firstInstall(Package $target, string $directory, InstallSourceType $source): Delta
+    {
+        $manifest = Manifest::ofDirectory($directory);
+        $classifier = ClassifyPath::forPackages($target);
+
+        $changes = [];
+
+        foreach ($manifest->entries() as $path => $hash) {
+            $file = $directory.'/'.$path;
+
+            $changes[] = new Change(
+                path: $path,
+                status: ChangeStatus::Added,
+                bucket: $classifier->handle($path, $file),
+                oldHash: null,
+                newHash: $hash,
+                oldFile: null,
+                newFile: $file,
+            );
+        }
+
+        return new Delta(
+            package: $target->name,
+            from: '',
+            to: $target->version,
+            fromHash: TreeHash::fromManifest(''),
+            toHash: $manifest->hash(),
+            source: $source,
+            changes: $changes,
+            manifestChange: null,
+            firstInstall: true,
         );
     }
 
