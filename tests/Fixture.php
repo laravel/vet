@@ -58,7 +58,12 @@ final readonly class Fixture
 
     public function agent(string $script): void
     {
-        $binary = dirname($this->rootPath).'/agent';
+        $this->agentNamed('agent', $script);
+    }
+
+    public function agentNamed(string $name, string $script): void
+    {
+        $binary = dirname($this->rootPath).'/'.$name;
 
         file_put_contents($binary, "#!/bin/sh\n".$script."\n");
 

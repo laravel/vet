@@ -41,6 +41,7 @@ final class VetCommand extends Command
         {packages?* : Audit these packages, as vendor/name}
         {--fresh : Record every package that vendor/ holds today, and start the trust file from them}
         {--agent : Hand each delta to your coding agent, and show the verdict it writes}
+        {--model= : The model that the coding agent uses (defaults to the one of the agent)}
         {--from= : Show the delta from this version rather than the trusted one}
         {--to= : The version to compare to (defaults to the installed one)}
         {--notes= : A note to record alongside the entry}
@@ -102,12 +103,6 @@ final class VetCommand extends Command
         }
 
         return $this->auditProject($project, $auditor);
-    }
-
-    private function asksQuestions(): bool
-    {
-        return $this->input->isInteractive()
-            && ((defined('STDIN') && stream_isatty(STDIN)) || $this->laravel->runningUnitTests());
     }
 
     private function bucket(): ?string

@@ -8,8 +8,10 @@ use App\Actions\BuildAgentPrompt;
 use App\Actions\CacheArtifact;
 use App\Actions\ColdCacheArtifact;
 use App\Actions\ReviewWithAgent;
+use App\Enums\AgentType;
 use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
+use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\Delta;
@@ -19,6 +21,8 @@ use LaravelZero\Framework\Commands\Command as LaravelZeroCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+
+use function Laravel\Prompts\suggest;
 
 abstract class Command extends LaravelZeroCommand
 {
@@ -62,6 +66,8 @@ abstract class Command extends LaravelZeroCommand
             return [];
         }
 
+        $agent = $agent->withModel($this->agentModel($agent));
+
         if ($this->writesProse()) {
             $this->newLine();
             $this->components->info(sprintf(
@@ -72,6 +78,34 @@ abstract class Command extends LaravelZeroCommand
         }
 
         return $agent->handle($prompts);
+    }
+
+    protected function asksQuestions(): bool
+    {
+        return $this->input->isInteractive()
+            && ((defined('STDIN') && stream_isatty(STDIN)) || $this->laravel->runningUnitTests());
+    }
+
+    private function agentModel(ReviewWithAgent $agent): AgentModel
+    {
+        $option = $this->input->hasOption('model') ? $this->option('model') : null;
+
+        if (is_string($option)) {
+            return AgentModel::of($option);
+        }
+
+        $agentType = $agent->type();
+
+        if (! $agentType instanceof AgentType || ! $this->asksQuestions()) {
+            return AgentModel::default();
+        }
+
+        return AgentModel::of(suggest(
+            label: 'Which model do you want the agent to use?',
+            options: $agentType->models(),
+            placeholder: sprintf('Press enter for the default model of [%s].', $agent->name()),
+            hint: 'Type a model name, or pick one from the list.',
+        ));
     }
 
     private function writePromptsWithoutTheSanitizer(OutputInterface $output, OutputFormatterInterface $formatter): void
