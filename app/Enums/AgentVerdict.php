@@ -12,14 +12,14 @@ enum AgentVerdict: string
 
     case Partial = 'partial';
 
-    case Unreadable = 'unreadable';
+    case NoVerdict = 'no-verdict';
 
     public static function read(string $word): self
     {
         return match (mb_strtolower(trim($word))) {
             'clear' => self::Clear,
             'risk' => self::Risk,
-            default => self::Unreadable,
+            default => self::NoVerdict,
         };
     }
 
@@ -29,7 +29,7 @@ enum AgentVerdict: string
             self::Clear => 'clear',
             self::Risk => 'RISK',
             self::Partial => 'partial',
-            self::Unreadable => 'no verdict',
+            self::NoVerdict => 'no verdict',
         };
     }
 
@@ -38,7 +38,7 @@ enum AgentVerdict: string
         return match ($this) {
             self::Clear => 'green',
             self::Risk => 'red',
-            self::Partial, self::Unreadable => 'yellow',
+            self::Partial, self::NoVerdict => 'yellow',
         };
     }
 }

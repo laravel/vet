@@ -29,7 +29,7 @@ it('puts each change of a project in its bucket', function (): void {
         ->toContain('~ composer.json  require');
 });
 
-it('says that nothing outside tests, docs and CI changed', function (): void {
+it('says that no autoload rule, no bin entry and no script points at the files that changed', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
     try {
@@ -40,7 +40,7 @@ it('says that nothing outside tests, docs and CI changed', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('Nothing outside tests, docs and CI changed.');
+        ->and($output)->toContain('No autoload rule, no bin entry and no script of this package points at the files that changed.');
 });
 
 it('renders the key of a manifest that changed, and its source', function (): void {
@@ -356,4 +356,42 @@ it('prints a line that ends with a backslash and closes the color of that line',
     expect($output)
         ->toContain('+// continues \\')
         ->and(str_contains($output, '</>'))->toBeFalse();
+});
+
+it('compares the trusted version to the version that --to names', function (): void {
+    $fixture = Fixture::open('partly-audited');
+
+    try {
+        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+
+        $status = Artisan::call('audit', [
+            'package' => 'acme/widget',
+            '--to' => '1.0.0',
+            '--path' => $fixture->rootPath,
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('delta ([2.0.0] → [1.0.0])');
+});
+
+it('refuses --to when vet holds no trusted version of the package', function (): void {
+    $fixture = Fixture::open('partly-audited');
+
+    try {
+        $status = Artisan::call('audit', [
+            'package' => 'acme/lint',
+            '--to' => '2.0.0',
+            '--path' => $fixture->rootPath,
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('The [--to] option needs [--from], because vet holds no trusted version of [acme/lint].');
 });

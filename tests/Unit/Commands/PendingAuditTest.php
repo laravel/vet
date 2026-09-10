@@ -23,7 +23,7 @@ it('audits the bytes that composer would write, and does not pass them', functio
         ->toContain('install-time manifest');
 });
 
-it('invites the preview command when it audits a plan', function (): void {
+it('invites the audit command when it audits a plan', function (): void {
     $project = PendingUpdate::create();
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
@@ -39,8 +39,7 @@ it('invites the preview command when it audits a plan', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('Read every change with [vet preview -v]')
-        ->and(str_contains($output, 'vet audit -v'))->toBeFalse();
+        ->toContain('Read every change with [vet audit -v]');
 });
 
 it('records the bytes of the next install, while vendor/ holds the old ones', function (): void {

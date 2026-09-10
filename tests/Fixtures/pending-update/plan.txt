@@ -1,7 +1,0 @@
-Loading composer repositories with package information
-Updating dependencies
-Lock file operations: 0 installs, 1 update, 0 removals
-  - Upgrading acme/widget (1.0.0 => 2.0.0)
-Installing dependencies from lock file (including require-dev)
-Package operations: 0 installs, 1 update, 0 removals
-  - Upgrading acme/widget (1.0.0 => 2.0.0)

@@ -9,7 +9,6 @@ use App\Actions\RenderAgentReview;
 use App\Actions\RenderDelta;
 use App\Actions\RenderProjectAudit;
 use App\Actions\ResolveDelta;
-use App\Enums\AuditScreen;
 use App\Enums\AuditStatus;
 use App\Enums\BucketType;
 use App\Exceptions\VetException;
@@ -20,6 +19,7 @@ use App\ValueObjects\AgentReview;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\ComposerPlan;
 use App\ValueObjects\Delta;
+use App\ValueObjects\Grant;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -90,13 +90,6 @@ final class AuditCommand extends Command
         return $bucket === null || BucketType::tryFrom($bucket) instanceof BucketType;
     }
 
-    private function invitation(): Invitation
-    {
-        return $this->option('plan') === null
-            ? AuditScreen::Installed->invitation()
-            : AuditScreen::Planned->invitation();
-    }
-
     private function plan(): ?ComposerPlan
     {
         $path = $this->option('plan');
@@ -117,8 +110,7 @@ final class AuditCommand extends Command
                 $project,
                 $auditor,
                 $auditor->report(),
-                AuditScreen::Installed,
-                $this->invitation(),
+                Invitation::toReadTheInstalledTree(),
             );
 
             $screen->withAgentReviews($this->agentReviews($screen->deltas($this->option('agent') === true)));
@@ -144,8 +136,8 @@ final class AuditCommand extends Command
             return self::FAILURE;
         }
 
-        $requested = $this->option('from') !== null;
-        $renderer = new RenderDelta($this->output, $this->invitation());
+        $requested = $this->option('from') !== null || $this->option('to') !== null;
+        $renderer = new RenderDelta($this->output, Invitation::toReadTheInstalledTree());
         $delta = null;
         $unresolved = null;
 
@@ -157,6 +149,15 @@ final class AuditCommand extends Command
         }
 
         $from = $this->deltaFrom($audit);
+
+        if ($from === null && $this->option('to') !== null) {
+            $this->components->error(sprintf(
+                'The [--to] option needs [--from], because vet holds no trusted version of [%s].',
+                $audit->package,
+            ));
+
+            return self::FAILURE;
+        }
 
         if ($audit->pending() && ! $requested) {
             $delta = $this->incomingDelta($project, $auditor, $audit);
@@ -298,7 +299,15 @@ final class AuditCommand extends Command
             return $requested;
         }
 
-        return $audit->status === AuditStatus::Covered ? null : $audit->grant?->version;
+        if ($audit->status !== AuditStatus::Covered) {
+            return $audit->grant?->version;
+        }
+
+        if ($this->option('to') === null) {
+            return null;
+        }
+
+        return $audit->grant instanceof Grant ? $audit->grant->version : $audit->version;
     }
 
     private function relative(string $root, string $path): string

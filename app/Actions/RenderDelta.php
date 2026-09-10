@@ -206,7 +206,7 @@ final readonly class RenderDelta
         }
 
         if ($delta->isInertOnly()) {
-            $this->components->info('Nothing outside tests, docs and CI changed.');
+            $this->components->info('No autoload rule, no bin entry and no script of this package points at the files that changed.');
 
             return;
         }

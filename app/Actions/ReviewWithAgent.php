@@ -170,7 +170,7 @@ final readonly class ReviewWithAgent
 
     private function unreadable(string $package, string $summary): AgentReview
     {
-        return new AgentReview($package, AgentVerdict::Unreadable, $this->clamp($summary), []);
+        return new AgentReview($package, AgentVerdict::NoVerdict, $this->clamp($summary), []);
     }
 
     private function firstLine(string $output): string

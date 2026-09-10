@@ -87,7 +87,7 @@ final readonly class BuildAgentPrompt
         );
 
         return sprintf(
-            "## %s (%d)\n\nNo autoload rule and no bin entry of this package points at these files, thus this prompt holds no byte of them:\n\n%s\n",
+            "## %s (%d)\n\nNo autoload rule, no bin entry and no script of this package points at these files, thus this prompt holds no byte of them:\n\n%s\n",
             BucketType::Inert->label(),
             count($changes),
             implode("\n", $paths),

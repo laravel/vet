@@ -14,6 +14,15 @@ final readonly class ClassifyPath
         'wasm', 'node', 'jar', 'class', 'pyc', 'bin', 'msi', 'deb', 'rpm',
     ];
 
+    private const array EXECUTABLE_EXTENSIONS = [
+        'sh', 'bash', 'zsh', 'fish', 'bat', 'cmd', 'ps1',
+    ];
+
+    private const array EXECUTABLE_NAMES = [
+        'dockerfile', 'containerfile', 'makefile', 'gnumakefile',
+        'docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml',
+    ];
+
     private const array MEDIA_EXTENSIONS = [
         'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg', 'avif',
         'woff', 'woff2', 'ttf', 'otf', 'eot',
@@ -59,11 +68,48 @@ final readonly class ClassifyPath
             return BucketType::InstallManifest;
         }
 
-        if ($this->isRuntime($path)) {
+        if ($this->isRuntime($path) || $this->isExecutable($path, $file)) {
             return BucketType::RuntimeSource;
         }
 
         return BucketType::Inert;
+    }
+
+    private function isExecutable(string $path, ?string $file): bool
+    {
+        $name = mb_strtolower(basename($path));
+
+        if (in_array($name, self::EXECUTABLE_NAMES, true)) {
+            return true;
+        }
+
+        if (str_starts_with($name, 'dockerfile.') || str_ends_with($name, '.dockerfile')) {
+            return true;
+        }
+
+        if (in_array(mb_strtolower(pathinfo($path, PATHINFO_EXTENSION)), self::EXECUTABLE_EXTENSIONS, true)) {
+            return true;
+        }
+
+        return $this->startsWithShebang($file);
+    }
+
+    private function startsWithShebang(?string $file): bool
+    {
+        if ($file === null || ! is_file($file)) {
+            return false;
+        }
+
+        $handle = @fopen($file, 'rb');
+
+        if ($handle === false) {
+            return false;
+        }
+
+        $head = (string) fread($handle, 2);
+        fclose($handle);
+
+        return $head === '#!';
     }
 
     private function isOpaque(string $path, ?string $file): bool

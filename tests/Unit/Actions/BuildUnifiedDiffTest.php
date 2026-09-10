@@ -35,7 +35,7 @@ it('reads a file that changed within its budget', function (): void {
         ->and(str_contains($diff, 'file rewritten'))->toBeFalse();
 });
 
-it('summarises a file that changed more than it reads', function (): void {
+it('writes every line of a file that changed more than it reads line by line', function (): void {
     $diff = BuildUnifiedDiff::handle(
         joined(numbered('old', 300)),
         joined(numbered('new', 300)),
@@ -44,9 +44,31 @@ it('summarises a file that changed more than it reads', function (): void {
     );
 
     expect($diff)
-        ->toContain('@@ file rewritten @@')
-        ->toContain('- 300 line(s) replaced by 300 line(s)')
-        ->and(str_contains($diff, '-old 1'))->toBeFalse();
+        ->toContain('-old 1')
+        ->toContain('-old 300')
+        ->toContain('+new 1')
+        ->toContain('+new 300')
+        ->and(str_contains($diff, 'file rewritten'))->toBeFalse();
+});
+
+it('writes every line of a file that the delta adds', function (): void {
+    $diff = BuildUnifiedDiff::handle(null, joined(numbered('new', 757)), 'a/f', 'b/f');
+
+    expect($diff)
+        ->toContain('@@ -0,0 +1,757 @@')
+        ->toContain('+new 1')
+        ->toContain('+new 757')
+        ->and(str_contains($diff, 'file rewritten'))->toBeFalse();
+});
+
+it('writes every line of a file that the delta removes', function (): void {
+    $diff = BuildUnifiedDiff::handle(joined(numbered('old', 757)), null, 'a/f', 'b/f');
+
+    expect($diff)
+        ->toContain('@@ -1,757 +0,0 @@')
+        ->toContain('-old 1')
+        ->toContain('-old 757')
+        ->and(str_contains($diff, 'file rewritten'))->toBeFalse();
 });
 
 it('counts the lines of the region that changed, and not the whole file', function (): void {
@@ -54,13 +76,13 @@ it('counts the lines of the region that changed, and not the whole file', functi
     $tail = numbered('tail', 100);
 
     $diff = BuildUnifiedDiff::handle(
-        joined([...$head, ...numbered('old', 500), ...$tail]),
-        joined([...$head, ...numbered('new', 500), ...$tail]),
+        joined([...$head, ...numbered('old', 15_000), ...$tail]),
+        joined([...$head, ...numbered('new', 15_000), ...$tail]),
         'a/f',
         'b/f',
     );
 
-    expect($diff)->toContain('- 500 line(s) replaced by 500 line(s)');
+    expect($diff)->toContain('- 15000 line(s) replaced by 15000 line(s)');
 });
 
 it('reads one changed line of a large file, and names its place', function (): void {

@@ -36,7 +36,6 @@ final readonly class Fixture
 
         $fixture->seedMetadata($source.'/packagist');
         $fixture->seedReleases($source.'/releases');
-        $fixture->seedComposer($source.'/plan.txt');
 
         return $fixture;
     }
@@ -57,17 +56,6 @@ final readonly class Fixture
         return $contents;
     }
 
-    public function composer(string $plan, int $exitCode = 0): void
-    {
-        $binary = dirname($this->rootPath).'/composer';
-
-        file_put_contents($binary, sprintf("#!/bin/sh\ncat <<'PLAN' >&2\n%s\nPLAN\nexit %d\n", $plan, $exitCode));
-
-        chmod($binary, 0o755);
-
-        putenv('VET_COMPOSER_BINARY='.$binary);
-    }
-
     public function agent(string $script): void
     {
         $binary = dirname($this->rootPath).'/agent';
@@ -82,7 +70,6 @@ final readonly class Fixture
     public function remove(): void
     {
         putenv('VET_CACHE_DIR');
-        putenv('VET_COMPOSER_BINARY');
         putenv('VET_AGENT_BINARY');
 
         $this->delete(dirname($this->rootPath));
@@ -208,12 +195,5 @@ final readonly class Fixture
         }
 
         throw new RuntimeException(sprintf('The metadata of the fixture holds no version [%s] of [%s].', $version, $package));
-    }
-
-    private function seedComposer(string $plan): void
-    {
-        if (is_file($plan)) {
-            $this->composer(rtrim((string) file_get_contents($plan), "\n"));
-        }
     }
 }

@@ -17,6 +17,11 @@ final class ControlSafeComponents extends Factory
         return parent::__call($method, array_map(self::readable(...), $parameters));
     }
 
+    public function tip(string $message): void
+    {
+        (new TipLine($this->output))->render('tip', ControlSafe::text($message));
+    }
+
     private static function readable(mixed $parameter): mixed
     {
         if (is_string($parameter)) {

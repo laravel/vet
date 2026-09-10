@@ -159,20 +159,3 @@ it('invites the reader to the agent when the flag is absent', function (): void 
 
     expect($output)->toContain('Hand every change to your coding agent with [vet audit --agent].');
 });
-
-it('hands the plan of the next composer update to the agent', function (): void {
-    $fixture = Fixture::open('pending-update');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"it runs a shell command at install time","findings":[]}\'');
-
-    try {
-        $status = Artisan::call('preview', ['--path' => $fixture->rootPath, '--agent' => true]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('Reading [1] delta(s) with [agent].')
-        ->toContain('agent  RISK  it runs a shell command at install time');
-});

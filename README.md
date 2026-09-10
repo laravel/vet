@@ -150,12 +150,6 @@ A package with no entry in your trust file has no earlier tree to compare agains
 
 The agent reads. You record. A verdict writes nothing to `vet.json`, so `vet trust` stays the moment you decide.
 
-The `preview` command takes the same option, and reads the delta before the bytes reach `vendor/`:
-
-```shell
-vet preview --agent
-```
-
 <a name="the-trust-file"></a>
 ## The Trust File
 

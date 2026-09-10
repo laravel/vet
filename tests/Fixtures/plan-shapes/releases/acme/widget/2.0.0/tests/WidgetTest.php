@@ -1,3 +1,0 @@
-<?php
-
-// The gadget test.

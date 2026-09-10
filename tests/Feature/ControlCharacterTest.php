@@ -49,24 +49,6 @@ it('prints no control character of a version that the lock file holds', function
         ->and(str_contains($output, "\x1b"))->toBeFalse();
 });
 
-it('prints no control character of the output of composer', function (): void {
-    $fixture = Fixture::open('pending-update');
-
-    $fixture->composer("Your requirements could not be resolved.\x1b[2K", 2);
-
-    try {
-        $status = Artisan::call('preview', ['--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('Your requirements could not be resolved.?[2K')
-        ->and(str_contains($output, "\x1b"))->toBeFalse();
-});
-
 it('replaces a control character before a component renders it', function (): void {
     $buffer = new BufferedOutput;
 

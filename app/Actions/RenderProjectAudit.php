@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\AgentVerdict;
-use App\Enums\AuditScreen;
 use App\Enums\AuditStatus;
+use App\Enums\ReviewScope;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
@@ -16,6 +16,7 @@ use App\ValueObjects\AgentReview;
 use App\ValueObjects\AuditReport;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\Delta;
+use App\ValueObjects\LockDiscrepancy;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
 use Illuminate\Console\OutputStyle;
@@ -39,7 +40,7 @@ final class RenderProjectAudit
     private array $failing = [];
 
     /**
-     * @var array<string, array{files: int, scope: string, delta: ?Delta}>
+     * @var array<string, array{files: int, scope: ReviewScope, delta: ?Delta}>
      */
     private array $reviews = [];
 
@@ -53,7 +54,6 @@ final class RenderProjectAudit
         private readonly Project $project,
         private readonly AuditProject $auditor,
         private readonly AuditReport $report,
-        private readonly AuditScreen $screen,
         private readonly Invitation $invitation,
     ) {
         $this->components = new ControlSafeComponents($output);
@@ -104,7 +104,7 @@ final class RenderProjectAudit
     }
 
     /**
-     * @param  array<int, string>  $discrepancies
+     * @param  array<int, LockDiscrepancy>  $discrepancies
      */
     public function json(array $discrepancies): int
     {
@@ -117,7 +117,7 @@ final class RenderProjectAudit
             'covered' => $this->report->coveredCount(),
             'percentage' => $this->report->percentage(),
             'counts' => $this->report->counts(),
-            'lock_discrepancies' => $discrepancies,
+            'lock_discrepancies' => array_map(static fn (LockDiscrepancy $discrepancy): array => $discrepancy->toArray(), $discrepancies),
             'unaudited' => array_values(array_map(static function (PackageAudit $audit) use ($reviews, $renderer, $agentReviews): array {
                 $review = $reviews[$audit->package];
 
@@ -130,7 +130,7 @@ final class RenderProjectAudit
                     'dev' => $audit->dev,
                     'files' => $audit->files,
                     'files_to_review' => $review['files'],
-                    'scope' => $review['scope'],
+                    'scope' => $review['scope']->value,
                     'delta' => $review['delta'] instanceof Delta ? $renderer->toArray($review['delta']) : null,
                     'agent' => ($agentReviews[$audit->package] ?? null)?->toArray(),
                 ];
@@ -141,14 +141,14 @@ final class RenderProjectAudit
     }
 
     /**
-     * @param  array<int, string>  $discrepancies
+     * @param  array<int, LockDiscrepancy>  $discrepancies
      */
     public function render(array $discrepancies, bool $agentAsked): int
     {
         $this->output->newLine();
 
         foreach ($discrepancies as $discrepancy) {
-            $this->components->error($discrepancy);
+            $this->components->error($discrepancy->message());
         }
 
         if ($discrepancies !== []) {
@@ -163,7 +163,7 @@ final class RenderProjectAudit
         }
 
         if ($this->failing === []) {
-            $this->components->info($this->screen->allCovered($this->report->total()));
+            $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
 
             return $this->verdict($discrepancies);
         }
@@ -208,7 +208,7 @@ final class RenderProjectAudit
                     : sprintf(
                         '<fg=gray>%d files (%s)  ·  %s</>',
                         $review['files'],
-                        $review['scope'],
+                        $this->scopeLabel($review),
                         Bytes::human($audit->bytes),
                     ),
             );
@@ -268,30 +268,20 @@ final class RenderProjectAudit
         $this->output->newLine();
 
         $this->components->error($this->output->isVerbose()
-            ? sprintf('[%d] package(s) are not covered. %s', count($this->failing), $this->screen->nextStep())
+            ? sprintf('[%d] package(s) are not covered. Record them with [vet trust].', count($this->failing))
             : sprintf(
-                '[%d] package(s) are not covered. Read every change with [%s]. %s',
+                '[%d] package(s) are not covered. Read every change with [%s]. Record them with [vet trust].',
                 count($this->failing),
                 $this->invitation->command,
-                $this->screen->nextStep(),
             ));
 
         if (! $agentAsked) {
-            $this->components->info(sprintf(
-                'Hand every change to your coding agent with [%s --agent].',
-                $this->screen->command(),
-            ));
-        }
-
-        $notice = $this->screen->pendingNotice();
-
-        if ($notice !== null && $this->holdsPending()) {
-            $this->components->warn($notice);
+            $this->components->tip('Hand every change to your coding agent with [vet audit --agent].');
         }
     }
 
     /**
-     * @param  array<int, string>  $discrepancies
+     * @param  array<int, LockDiscrepancy>  $discrepancies
      */
     private function verdict(array $discrepancies): int
     {
@@ -306,24 +296,13 @@ final class RenderProjectAudit
         };
     }
 
-    private function holdsPending(): bool
-    {
-        foreach ($this->failing as $audit) {
-            if ($audit->pending()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /**
-     * @return array{files: int, scope: string, delta: ?Delta}
+     * @return array{files: int, scope: ReviewScope, delta: ?Delta}
      */
     private function review(PackageAudit $audit): array
     {
         if ($audit->status === AuditStatus::Unknown) {
-            return ['files' => 0, 'scope' => 'not readable', 'delta' => null];
+            return ['files' => 0, 'scope' => ReviewScope::NotReadable, 'delta' => null];
         }
 
         if ($audit->pending()) {
@@ -353,7 +332,7 @@ final class RenderProjectAudit
     }
 
     /**
-     * @return array{files: int, scope: string, delta: ?Delta}
+     * @return array{files: int, scope: ReviewScope, delta: ?Delta}
      */
     private function pendingReview(PackageAudit $audit): array
     {
@@ -388,19 +367,33 @@ final class RenderProjectAudit
         }
     }
 
-    private function scopeOf(Delta $delta): string
+    private function scopeOf(Delta $delta): ReviewScope
     {
-        return $delta->comparesPublishedToInstalled()
+        return $delta->comparesPublishedToInstalled() ? ReviewScope::PublishedDelta : ReviewScope::Delta;
+    }
+
+    /**
+     * @param  array{files: int, scope: ReviewScope, delta: ?Delta}  $review
+     */
+    private function scopeLabel(array $review): string
+    {
+        $delta = $review['delta'];
+
+        if (! $delta instanceof Delta) {
+            return $review['scope'] === ReviewScope::NotReadable ? 'not readable' : 'whole package';
+        }
+
+        return $review['scope'] === ReviewScope::PublishedDelta
             ? sprintf('delta from the published [%s]', $delta->from)
             : sprintf('delta from [%s]', $delta->from);
     }
 
     /**
-     * @return array{files: int, scope: string, delta: null}
+     * @return array{files: int, scope: ReviewScope, delta: null}
      */
     private function wholePackage(PackageAudit $audit): array
     {
-        return ['files' => $audit->files, 'scope' => 'whole package', 'delta' => null];
+        return ['files' => $audit->files, 'scope' => ReviewScope::WholePackage, 'delta' => null];
     }
 
     private function relative(string $path): string

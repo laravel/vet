@@ -82,11 +82,7 @@ final class BuildUnifiedDiff
             return null;
         }
 
-        $middle = self::myers($middleA, $middleB);
-
-        if ($middle === null) {
-            return null;
-        }
+        $middle = self::myers($middleA, $middleB) ?? self::replacement($middleA, $middleB);
 
         $ops = [];
 
@@ -147,8 +143,8 @@ final class BuildUnifiedDiff
         $n = count($a);
         $m = count($b);
 
-        if ($n === 0 && $m === 0) {
-            return [];
+        if ($n === 0 || $m === 0) {
+            return self::replacement($a, $b);
         }
 
         $max = min($n + $m, self::MAX_EDIT_DISTANCE);
@@ -178,6 +174,26 @@ final class BuildUnifiedDiff
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<int, string>  $a
+     * @param  array<int, string>  $b
+     * @return array<int, array{0: '='|'-'|'+', 1: int, 2: int, 3: string}>
+     */
+    private static function replacement(array $a, array $b): array
+    {
+        $ops = [];
+
+        foreach ($a as $x => $line) {
+            $ops[] = ['-', $x, -1, $line];
+        }
+
+        foreach ($b as $y => $line) {
+            $ops[] = ['+', -1, $y, $line];
+        }
+
+        return $ops;
     }
 
     /**

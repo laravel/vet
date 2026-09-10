@@ -15,9 +15,13 @@ use App\ValueObjects\Delta;
 use App\ValueObjects\Fingerprint;
 use App\ValueObjects\Grant;
 use App\ValueObjects\InstalledRepository;
+use App\ValueObjects\LockDiscrepancy;
 use App\ValueObjects\LockFile;
 use App\ValueObjects\Package;
 use App\ValueObjects\PackageAudit;
+use App\ValueObjects\PackageNotInstalled;
+use App\ValueObjects\PackageNotLocked;
+use App\ValueObjects\PackageVersionMismatch;
 use App\ValueObjects\Project;
 use App\ValueObjects\TrustFile;
 
@@ -70,23 +74,6 @@ final readonly class AuditProject
 
             $results[$name] = $this->auditOf($package);
         }
-
-        foreach ($this->plan->incoming() as $operation) {
-            if (! $this->installsTree($operation->package)) {
-                continue;
-            }
-
-            $results[$operation->package] = $this->auditOfIncoming($operation);
-        }
-
-        ksort($results, SORT_STRING);
-
-        return new AuditReport($results);
-    }
-
-    public function reportOfPlan(): AuditReport
-    {
-        $results = [];
 
         foreach ($this->plan->incoming() as $operation) {
             if (! $this->installsTree($operation->package)) {
@@ -211,7 +198,7 @@ final readonly class AuditProject
     }
 
     /**
-     * @return array<int, string> the discrepancies found
+     * @return array<int, LockDiscrepancy> the discrepancies found
      */
     public function lockDiscrepancies(): array
     {
@@ -228,24 +215,19 @@ final readonly class AuditProject
             }
 
             if (! isset($installed[$name])) {
-                $problems[] = sprintf('[%s] is in composer.lock at [%s] but is not installed', $name, $package->version);
+                $problems[] = new PackageNotInstalled($name, $package->version);
 
                 continue;
             }
 
             if ($installed[$name]->version !== $package->version) {
-                $problems[] = sprintf(
-                    '[%s] is installed at [%s] but composer.lock says [%s]',
-                    $name,
-                    $installed[$name]->version,
-                    $package->version,
-                );
+                $problems[] = new PackageVersionMismatch($name, $installed[$name]->version, $package->version);
             }
         }
 
         foreach ($installed as $name => $package) {
             if (! isset($locked[$name]) && (! $explained || ! $this->plan->touches($name))) {
-                $problems[] = sprintf('[%s] is installed at [%s] but is not in composer.lock', $name, $package->version);
+                $problems[] = new PackageNotLocked($name, $package->version);
             }
         }
 

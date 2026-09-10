@@ -78,31 +78,6 @@ it('writes the audit of one package as json with the exact path of every file', 
         ->and(str_contains($output, 'src//Evil.php'))->toBeFalse();
 });
 
-it('writes the preview plan as json with the exact path of every file', function (): void {
-    $fixture = Fixture::open('pending-update');
-
-    $archives = glob($fixture->cachePath.'/archives/acme/widget/2.0.0-*', GLOB_ONLYDIR) ?: [];
-
-    expect($archives)->not->toBeEmpty();
-
-    plantEvilFile($archives[0]);
-
-    try {
-        Artisan::call('preview', ['--path' => $fixture->rootPath, '--json' => true]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    $plan = json_decode($output, true);
-
-    expect($plan)->toBeArray();
-
-    /** @var array{unaudited: array<int, array{delta: mixed}>} $plan */
-    expect(changedPaths($plan['unaudited'][0]['delta']))->toContain(evilPath())
-        ->and(str_contains($output, 'src//Evil.php'))->toBeFalse();
-});
-
 it('writes the status of the package that it audits as json', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
@@ -118,4 +93,44 @@ it('writes the status of the package that it audits as json', function (): void 
 
     expect($audit['status'])->toBe('changed')
         ->and($audit['state'])->toBe('installed');
+});
+
+it('writes each lock discrepancy as data, and writes no bracket in it', function (): void {
+    $fixture = Fixture::open('lock-drift');
+
+    try {
+        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    $report = json_decode($output, true);
+
+    expect($report)->toBeArray();
+
+    /** @var array{lock_discrepancies: array<int, array<string, string>>} $report */
+    expect($report['lock_discrepancies'])
+        ->toContain(['type' => 'not-installed', 'package' => 'acme/ghost', 'locked' => '1.0.0'])
+        ->toContain(['type' => 'not-locked', 'package' => 'acme/extra', 'installed' => '1.0.0']);
+});
+
+it('writes the scope of a review as a machine value', function (): void {
+    $fixture = Fixture::open('partly-audited');
+
+    try {
+        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    $report = json_decode($output, true);
+
+    expect($report)->toBeArray();
+
+    /** @var array{unaudited: array<int, array{package: string, scope: string}>} $report */
+    $scopes = array_column($report['unaudited'], 'scope', 'package');
+
+    expect($scopes)->toBe(['acme/widget' => 'delta', 'acme/lint' => 'whole-package']);
 });

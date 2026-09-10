@@ -20,20 +20,6 @@ final readonly class PendingUpdate
 
     public const string TARGET_VERSION = '2.0.0';
 
-    public const string PLAN = <<<'OUTPUT'
-        Loading composer repositories with package information
-        Updating dependencies
-        Lock file operations: 1 install, 1 update, 1 removal
-          - Removing acme/legacy (0.9.0)
-          - Upgrading acme/widget (1.0.0 => 2.0.0)
-          - Locking acme/gadget (3.0.0)
-        Installing dependencies from lock file (including require-dev)
-        Package operations: 1 install, 1 update, 1 removal
-          - Removing acme/legacy (0.9.0)
-          - Upgrading acme/widget (1.0.0 => 2.0.0)
-          - Installing acme/gadget (3.0.0)
-        OUTPUT;
-
     private const string TRUSTED_REFERENCE = 'aaaa1111';
 
     private const string TARGET_REFERENCE = 'bbbb2222';
@@ -43,7 +29,7 @@ final readonly class PendingUpdate
         public string $cachePath,
     ) {}
 
-    public static function create(string $plan = self::PLAN, int $exitCode = 0): self
+    public static function create(): self
     {
         $base = sys_get_temp_dir().'/vet-'.bin2hex(random_bytes(6));
 
@@ -55,7 +41,6 @@ final readonly class PendingUpdate
         $project->seedComposerFiles();
         $project->lockAt(self::TRUSTED_VERSION, self::TRUSTED_REFERENCE);
         $project->seedTrustFile();
-        $project->seedComposer($plan, $exitCode);
 
         putenv('VET_CACHE_DIR='.$project->cachePath);
 
@@ -127,7 +112,6 @@ final readonly class PendingUpdate
     public function remove(): void
     {
         putenv('VET_CACHE_DIR');
-        putenv('VET_COMPOSER_BINARY');
 
         $base = dirname($this->rootPath);
 
@@ -304,17 +288,6 @@ final readonly class PendingUpdate
             ],
             'require-dev' => (object) [],
         ]));
-    }
-
-    private function seedComposer(string $plan, int $exitCode): void
-    {
-        $path = $this->rootPath.'/composer-stub';
-
-        $this->write($path, sprintf("#!/bin/sh\ncat <<'PLAN' >&2\n%s\nPLAN\nexit %d\n", $plan, $exitCode));
-
-        chmod($path, 0o755);
-
-        putenv('VET_COMPOSER_BINARY='.$path);
     }
 
     private function write(string $path, string $contents): void

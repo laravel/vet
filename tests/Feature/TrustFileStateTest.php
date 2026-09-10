@@ -184,3 +184,43 @@ it('moves the entry of a dev package into require-dev when the user records it a
         ->and($trustFile['require'])->toBe([])
         ->and($trustFile['require-dev'])->toHaveKey('acme/lint');
 });
+
+it('writes the notes of an entry that is already covered', function (): void {
+    $fixture = Fixture::open('partly-audited');
+
+    try {
+        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+
+        $status = Artisan::call('trust', [
+            'packages' => ['acme/widget'],
+            '--notes' => 'Read the phar too.',
+            '--path' => $fixture->rootPath,
+        ]);
+        $trustFile = $fixture->read('vet.json');
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($trustFile)
+        ->toContain('"notes": "Read the phar too."')
+        ->toContain('"version": "2.0.0"');
+});
+
+it('keeps the notes of an entry that is already covered when the user gives no note', function (): void {
+    $fixture = Fixture::open('partly-audited');
+
+    try {
+        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+
+        $status = Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+        $trustFile = $fixture->read('vet.json');
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('[acme/widget] [2.0.0] is already covered')
+        ->and($trustFile)->toContain('"notes": "Reviewed with the team."');
+});

@@ -94,7 +94,7 @@ it('writes no verdict when the agent names a file that the delta does not hold',
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], ['src/Ship.php'])])['acme/widget'];
 
-    expect($review->verdict)->toBe(AgentVerdict::Unreadable)
+    expect($review->verdict)->toBe(AgentVerdict::NoVerdict)
         ->and($review->summary)->toBe('The agent named [src/Invented.php], and this delta holds no such file.');
 });
 
@@ -103,7 +103,7 @@ it('writes no verdict when the agent stops with a failure', function (): void {
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
-    expect($review->verdict)->toBe(AgentVerdict::Unreadable)
+    expect($review->verdict)->toBe(AgentVerdict::NoVerdict)
         ->and($review->summary)->toContain('exit code [3]')
         ->and($review->summary)->toContain('the model is not reachable');
 });
@@ -113,7 +113,7 @@ it('writes no verdict when the agent answers with prose', function (): void {
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
-    expect($review->verdict)->toBe(AgentVerdict::Unreadable)
+    expect($review->verdict)->toBe(AgentVerdict::NoVerdict)
         ->and($review->summary)->toBe('I think it is fine.');
 });
 

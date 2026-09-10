@@ -174,12 +174,21 @@ final class TrustCommand extends Command
 
             if ($audit->status === AuditStatus::Covered) {
                 $this->newLine();
-                $this->components->info(sprintf(
-                    '[%s] [%s] is already covered (%s).',
-                    $audit->package,
-                    $audit->version,
-                    $audit->reason(),
-                ));
+
+                if ($this->option('notes') === null) {
+                    $this->components->info(sprintf(
+                        '[%s] [%s] is already covered (%s).',
+                        $audit->package,
+                        $audit->version,
+                        $audit->reason(),
+                    ));
+
+                    continue;
+                }
+
+                $auditor->trustFile->record($this->grantOf($audit));
+
+                $recorded[$audit->package] = $audit;
 
                 continue;
             }
