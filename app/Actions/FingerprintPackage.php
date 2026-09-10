@@ -35,9 +35,9 @@ final readonly class FingerprintPackage
         );
     }
 
-    public function ofIncoming(Package $target, bool $useCache = true): Fingerprint
+    public function ofIncoming(Package $target): Fingerprint
     {
-        $directory = $this->fetcher->handle($target, $useCache);
+        $directory = $this->fetcher->handle($target);
         $manifest = Manifest::ofDirectory($directory);
 
         return new Fingerprint(

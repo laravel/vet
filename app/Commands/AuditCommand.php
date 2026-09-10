@@ -75,11 +75,6 @@ final class AuditCommand extends Command
             : $this->auditPackage($project, $package);
     }
 
-    private function useCache(): bool
-    {
-        return $this->option('no-cache') !== true;
-    }
-
     private function bucket(): ?string
     {
         $bucket = $this->option('bucket');
@@ -113,7 +108,7 @@ final class AuditCommand extends Command
     private function auditProject(Project $project): int
     {
         try {
-            $auditor = AuditProject::forProject($project, $this->plan(), $this->useCache());
+            $auditor = AuditProject::forProject($project, $this->plan());
 
             $discrepancies = $auditor->lockDiscrepancies();
 
@@ -122,7 +117,6 @@ final class AuditCommand extends Command
                 $project,
                 $auditor,
                 $auditor->report(),
-                $this->useCache(),
                 AuditScreen::Installed,
                 $this->invitation(),
             );
@@ -142,7 +136,7 @@ final class AuditCommand extends Command
     private function auditPackage(Project $project, string $package): int
     {
         try {
-            $auditor = AuditProject::forProject($project, $this->plan(), $this->useCache());
+            $auditor = AuditProject::forProject($project, $this->plan());
             $audit = $auditor->auditOfName($package);
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
@@ -175,7 +169,6 @@ final class AuditCommand extends Command
                     package: $audit->package,
                     from: $from,
                     to: $to ?? ($audit->pending() ? $audit->version : null),
-                    useCache: $this->useCache(),
                 );
             } catch (VetException $vetException) {
                 if ($requested) {
@@ -290,7 +283,6 @@ final class AuditCommand extends Command
             return ResolveDelta::forProject($project)->incoming(
                 target: $auditor->target($operation, $audit->version, $audit->dev),
                 installed: $installed->has($audit->package) ? $installed->get($audit->package) : null,
-                useCache: $this->useCache(),
             );
         } catch (VetException) {
             return null;

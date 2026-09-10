@@ -18,13 +18,13 @@ final readonly class FetchArchive
 
     public static function default(): self
     {
-        return new self(RequestUrl::default(), CacheArtifact::default());
+        return new self(RequestUrl::default(), app(CacheArtifact::class));
     }
 
     /**
      * @return string the directory containing the extracted package tree
      */
-    public function handle(Package $package, bool $useCache = true): string
+    public function handle(Package $package): string
     {
         if ($package->distUrl === null || $package->distUrl === '') {
             throw new FailureException(sprintf(
@@ -40,7 +40,7 @@ final readonly class FetchArchive
 
         $marker = $directory.'.complete';
 
-        if ($useCache && is_file($marker) && is_dir($directory)) {
+        if ($this->cache->has($marker) && is_dir($directory)) {
             return $directory;
         }
 
@@ -49,7 +49,7 @@ final readonly class FetchArchive
 
         $archive = $this->cache->forPackage('downloads', $package->name, $release.'.zip');
 
-        if (! $useCache || ! is_file($archive)) {
+        if (! $this->cache->has($archive)) {
             $this->http->download($package->distUrl, $archive);
         }
 

@@ -36,15 +36,11 @@ final readonly class ResolveDelta
         );
     }
 
-    public function resolve(string $package, ?string $from = null, ?string $to = null, bool $useCache = true): Delta
+    public function resolve(string $package, ?string $from = null, ?string $to = null): Delta
     {
         $installed = $this->installed instanceof InstalledRepository && $this->installed->has($package)
             ? $this->installed->get($package)
             : null;
-
-        if (! $useCache) {
-            $this->packagist->refresh($package);
-        }
 
         $versions = $this->packagist->versions($package);
 
@@ -72,7 +68,7 @@ final readonly class ResolveDelta
         $fromVersion = $fromMetadata->version;
 
         $notes = [];
-        [$toDirectory, $toIsLocal, $source] = $this->toTree($installed, $toMetadata, $to, $useCache, $notes);
+        [$toDirectory, $toIsLocal, $source] = $this->toTree($installed, $toMetadata, $to, $notes);
 
         if ($fromVersion === $toVersion && ! $toIsLocal) {
             throw new FailureException(sprintf('[%s] [%s] and [%s] are the same version.', $package, $fromVersion, $toVersion));
@@ -81,7 +77,7 @@ final readonly class ResolveDelta
         $delta = $this->builder->handle(
             package: $package,
             fromVersion: $fromVersion,
-            fromDirectory: $this->fetcher->handle($fromMetadata, $useCache),
+            fromDirectory: $this->fetcher->handle($fromMetadata),
             fromMetadata: $fromMetadata,
             toVersion: $toVersion,
             toDirectory: $toDirectory,
@@ -92,11 +88,11 @@ final readonly class ResolveDelta
         return $delta->withResolution($toIsLocal, $notes);
     }
 
-    public function fromNothing(Package $target, bool $useCache): Delta
+    public function fromNothing(Package $target): Delta
     {
         $directory = $target->installPath !== null && is_dir($target->installPath)
             ? $target->installPath
-            : $this->fetcher->handle($target, $useCache);
+            : $this->fetcher->handle($target);
 
         return $this->builder->firstInstall(
             $target,
@@ -105,7 +101,7 @@ final readonly class ResolveDelta
         );
     }
 
-    public function incoming(Package $target, ?Package $installed, bool $useCache = true): ?Delta
+    public function incoming(Package $target, ?Package $installed): ?Delta
     {
         if (! $installed instanceof Package || $installed->installPath === null || ! is_dir($installed->installPath)) {
             return null;
@@ -117,7 +113,7 @@ final readonly class ResolveDelta
             fromDirectory: $installed->installPath,
             fromMetadata: $installed,
             toVersion: $target->version,
-            toDirectory: $this->fetcher->handle($target, $useCache),
+            toDirectory: $this->fetcher->handle($target),
             toMetadata: $target,
             source: $installed->installSource ?? InstallSourceType::Dist,
         );
@@ -133,7 +129,6 @@ final readonly class ResolveDelta
         ?Package $installed,
         Package $toMetadata,
         ?string $explicitTo,
-        bool $useCache,
         array &$notes,
     ): array {
         $usable = $explicitTo === null
@@ -143,7 +138,7 @@ final readonly class ResolveDelta
             && is_dir($installed->installPath);
 
         if (! $usable) {
-            return [$this->fetcher->handle($toMetadata, $useCache), false, InstallSourceType::Dist];
+            return [$this->fetcher->handle($toMetadata), false, InstallSourceType::Dist];
         }
 
         /** @var Package $installed */
@@ -155,7 +150,7 @@ final readonly class ResolveDelta
                 $installed->name,
             );
 
-            return [$this->fetcher->handle($toMetadata, $useCache), false, InstallSourceType::Source];
+            return [$this->fetcher->handle($toMetadata), false, InstallSourceType::Source];
         }
 
         /** @var string $path */

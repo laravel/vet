@@ -31,10 +31,9 @@ final readonly class AuditProject
         private LockFile $lock,
         private ComposerPlan $plan,
         private FetchPackageMetadata $packagist,
-        private bool $useCache = true,
     ) {}
 
-    public static function forProject(Project $project, ?ComposerPlan $plan = null, bool $useCache = true): self
+    public static function forProject(Project $project, ?ComposerPlan $plan = null): self
     {
         $installed = InstalledRepository::fromProject($project);
         $lock = LockFile::fromProject($project);
@@ -47,7 +46,6 @@ final readonly class AuditProject
             lock: $lock,
             plan: $plan ?? ComposerPlan::between($lock, $installed),
             packagist: FetchPackageMetadata::default(),
-            useCache: $useCache,
         );
     }
 
@@ -129,7 +127,7 @@ final readonly class AuditProject
         }
 
         try {
-            return ResolveDelta::forProject($this->project)->fromNothing($target, $this->useCache);
+            return ResolveDelta::forProject($this->project)->fromNothing($target);
         } catch (VetException) {
             return null;
         }
@@ -162,7 +160,7 @@ final readonly class AuditProject
 
         try {
             $target = $this->target($operation, $version, $dev);
-            $fingerprint = $this->fingerprinter->ofIncoming($target, $this->useCache);
+            $fingerprint = $this->fingerprinter->ofIncoming($target);
         } catch (VetException $vetException) {
             return new PackageAudit(
                 package: $operation->package,
@@ -267,10 +265,6 @@ final readonly class AuditProject
 
     private function publishedVersion(string $package, string $version): Package
     {
-        if (! $this->useCache) {
-            $this->packagist->refresh($package);
-        }
-
         return $this->packagist->version($package, $version);
     }
 

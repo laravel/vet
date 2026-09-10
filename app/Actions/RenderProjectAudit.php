@@ -53,7 +53,6 @@ final class RenderProjectAudit
         private readonly Project $project,
         private readonly AuditProject $auditor,
         private readonly AuditReport $report,
-        private readonly bool $useCache,
         private readonly AuditScreen $screen,
         private readonly Invitation $invitation,
     ) {
@@ -341,7 +340,6 @@ final class RenderProjectAudit
             $delta = ResolveDelta::forProject($this->project)->resolve(
                 package: $audit->package,
                 from: $from,
-                useCache: $this->useCache,
             );
         } catch (VetException) {
             return $this->wholePackage($audit);
@@ -384,7 +382,6 @@ final class RenderProjectAudit
             return ResolveDelta::forProject($this->project)->incoming(
                 target: $this->auditor->target($operation, $audit->version, $audit->dev),
                 installed: $installed->has($audit->package) ? $installed->get($audit->package) : null,
-                useCache: $this->useCache,
             );
         } catch (VetException) {
             return null;

@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Actions\CacheArtifact;
+use App\Actions\ColdCacheArtifact;
+use App\Actions\DiskCacheArtifact;
 use App\Actions\FetchArchive;
 use App\Actions\RequestUrl;
 use App\Exceptions\FailureException;
@@ -45,7 +46,7 @@ function fetcherServing(string $bytes): FetchArchive
 
     $http = new FakeHttp([FakeHttp::body($bytes)]);
 
-    return new FetchArchive(new RequestUrl('vet-test', [], $http->client), CacheArtifact::default());
+    return new FetchArchive(new RequestUrl('vet-test', [], $http->client), DiskCacheArtifact::default());
 }
 
 afterEach(function (): void {
@@ -56,7 +57,7 @@ it('refuses an archive whose bytes the lock file does not record', function (): 
     $served = (string) file_get_contents(widgetArchive());
     $package = widgetPackage(sha1('the bytes that composer installs'));
 
-    expect(fn (): string => fetcherServing($served)->handle($package, true))
+    expect(fn (): string => fetcherServing($served)->handle($package))
         ->toThrow(FailureException::class, 'Those are not the bytes that composer installs.');
 });
 
@@ -64,7 +65,7 @@ it('reads an archive whose bytes the lock file records', function (): void {
     $served = (string) file_get_contents(widgetArchive());
     $package = widgetPackage(sha1($served));
 
-    $directory = fetcherServing($served)->handle($package, true);
+    $directory = fetcherServing($served)->handle($package);
 
     expect(file_get_contents($directory.'/src/Widget.php'))->toBe("<?php // the widget\n");
 });
@@ -73,7 +74,26 @@ it('reads an archive that the lock file records no checksum for', function (): v
     $served = (string) file_get_contents(widgetArchive());
     $package = widgetPackage('');
 
-    $directory = fetcherServing($served)->handle($package, true);
+    $directory = fetcherServing($served)->handle($package);
 
     expect(file_get_contents($directory.'/src/Widget.php'))->toBe("<?php // the widget\n");
+});
+
+it('reads the bytes again when the user refuses the cache', function (): void {
+    $served = (string) file_get_contents(widgetArchive());
+    $package = widgetPackage(sha1($served));
+
+    putenv('VET_CACHE_DIR='.sys_get_temp_dir().'/vet-fetch-'.bin2hex(random_bytes(6)));
+
+    $http = new FakeHttp([FakeHttp::body($served), FakeHttp::body($served)]);
+
+    $fetcher = new FetchArchive(
+        new RequestUrl('vet-test', [], $http->client),
+        new ColdCacheArtifact(DiskCacheArtifact::default()),
+    );
+
+    $fetcher->handle($package);
+    $fetcher->handle($package);
+
+    expect($http->requests)->toHaveCount(2);
 });

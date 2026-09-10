@@ -34,12 +34,10 @@ final class PreviewCommand extends Command
         $path = $this->option('path');
         assert($path === null || is_string($path));
 
-        $useCache = $this->option('no-cache') !== true;
-
         try {
             $project = Project::locate($path ?? (string) getcwd());
             $plan = PlanComposerUpdate::default()->handle($project->rootPath);
-            $auditor = AuditProject::forProject($project, $plan, $useCache);
+            $auditor = AuditProject::forProject($project, $plan);
 
             $discrepancies = $auditor->lockDiscrepancies();
 
@@ -48,7 +46,6 @@ final class PreviewCommand extends Command
                 $project,
                 $auditor,
                 $auditor->reportOfPlan(),
-                $useCache,
                 AuditScreen::Planned,
                 AuditScreen::Planned->invitation(),
             );

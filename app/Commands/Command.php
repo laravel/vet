@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Commands;
 
 use App\Actions\BuildAgentPrompt;
+use App\Actions\CacheArtifact;
+use App\Actions\ColdCacheArtifact;
 use App\Actions\ReviewWithAgent;
 use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
@@ -28,6 +30,8 @@ abstract class Command extends LaravelZeroCommand
         }
 
         $this->components = new ControlSafeComponents($this->output);
+
+        $this->installColdCache();
     }
 
     /**
@@ -67,6 +71,18 @@ abstract class Command extends LaravelZeroCommand
         }
 
         return $agent->handle($prompts);
+    }
+
+    private function installColdCache(): void
+    {
+        if (! $this->input->hasOption('no-cache') || $this->option('no-cache') !== true) {
+            return;
+        }
+
+        $this->laravel->extend(
+            CacheArtifact::class,
+            static fn (CacheArtifact $cache): CacheArtifact => new ColdCacheArtifact($cache),
+        );
     }
 
     private function writesProse(): bool

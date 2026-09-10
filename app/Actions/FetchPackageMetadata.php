@@ -34,7 +34,7 @@ final class FetchPackageMetadata
 
     public static function default(): self
     {
-        return new self(RequestUrl::default(), CacheArtifact::default());
+        return new self(RequestUrl::default(), app(CacheArtifact::class));
     }
 
     public static function isStable(string $version): bool
@@ -59,16 +59,6 @@ final class FetchPackageMetadata
         return $body === null
             ? $this->download($package)
             : $this->memoized[$package] = $this->parse($package, $body);
-    }
-
-    public function refresh(string $package): void
-    {
-        if (isset($this->downloaded[$package])) {
-            return;
-        }
-
-        $this->assertValidName($package);
-        $this->download($package);
     }
 
     public function version(string $package, string $version): Package

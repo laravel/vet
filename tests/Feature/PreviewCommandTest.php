@@ -242,3 +242,21 @@ it('previews every other package when it cannot read one of them', function (): 
         ->toContain('bytes not readable')
         ->toContain('composer would install [1.1.0] and vet cannot read those bytes');
 });
+
+it('reads packagist again when the user refuses the cache', function (): void {
+    $fixture = Fixture::open('pending-update');
+
+    refuseMetadata();
+
+    try {
+        $status = Artisan::call('preview', ['--path' => $fixture->rootPath, '--no-cache' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('vet cannot read those bytes')
+        ->toContain('https://repo.packagist.org/p2/acme/widget.json');
+});

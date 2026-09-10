@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Actions\CacheArtifact;
+use App\Actions\ColdCacheArtifact;
+use App\Actions\DiskCacheArtifact;
 use App\Actions\FetchPackageMetadata;
 use App\Actions\RequestUrl;
 use App\Exceptions\FailureException;
@@ -31,7 +33,7 @@ function packagistDocument(array $versions): string
     ]);
 }
 
-function cachedPackagist(string $document, FakeHttp $http): FetchPackageMetadata
+function seededCache(string $document): CacheArtifact
 {
     $directory = sys_get_temp_dir().'/vet-'.bin2hex(random_bytes(6));
 
@@ -51,11 +53,24 @@ function cachedPackagist(string $document, FakeHttp $http): FetchPackageMetadata
         }
     });
 
-    $cache = CacheArtifact::default();
+    $cache = DiskCacheArtifact::default();
 
     $cache->put($cache->forPackage('metadata', 'acme/widget', 'index.json'), $document);
 
-    return new FetchPackageMetadata(new RequestUrl('vet (tests)', [], $http->client), $cache);
+    return $cache;
+}
+
+function cachedPackagist(string $document, FakeHttp $http): FetchPackageMetadata
+{
+    return new FetchPackageMetadata(new RequestUrl('vet (tests)', [], $http->client), seededCache($document));
+}
+
+function coldPackagist(string $document, FakeHttp $http): FetchPackageMetadata
+{
+    return new FetchPackageMetadata(
+        new RequestUrl('vet (tests)', [], $http->client),
+        new ColdCacheArtifact(seededCache($document)),
+    );
 }
 
 afterEach(function (): void {
@@ -92,8 +107,7 @@ it('names the versions that packagist knows when it knows no such version', func
 it('reads packagist again when the user refuses the cache', function (): void {
     $http = new FakeHttp([new Response(200, [], packagistDocument(['2.0.0', '1.0.0']))]);
 
-    $packagist = cachedPackagist(packagistDocument(['1.0.0']), $http);
-    $packagist->refresh('acme/widget');
+    $packagist = coldPackagist(packagistDocument(['1.0.0']), $http);
 
     expect(array_keys($packagist->versions('acme/widget')))->toBe(['2.0.0', '1.0.0'])
         ->and($http->requests)->toHaveCount(1);
