@@ -19,6 +19,7 @@ use App\Support\Bytes;
 use App\Support\ControlSafe;
 use App\Support\Invitation;
 use App\Support\Json;
+use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\ComposerPlan;
@@ -152,7 +153,7 @@ final class VetCommand extends Command
             $screen->deltas();
 
             if ($agentAsked) {
-                $screen->withAgentReviews($this->agentReviews($screen->agentDeltas()));
+                $screen->withAgentReviews($this->agentReviews($screen->agentBatch()));
             }
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
@@ -176,8 +177,14 @@ final class VetCommand extends Command
 
         $reviews = $agentAsked ? $screen->agentReviews() : [];
 
-        if (! $agentAsked && $auditor->trustFile->exists() && $this->wantsAgentFirst()) {
-            $reviews = $this->reviewWithAgent($screen);
+        if (! $agentAsked && $auditor->trustFile->exists()) {
+            $batch = $screen->agentBatch();
+
+            if (! $batch->fitsOneRun()) {
+                $screen->renderOverBudgetTip($batch);
+            } elseif ($this->wantsAgentFirst()) {
+                $reviews = $this->reviewWithAgent($screen, $batch);
+            }
         }
 
         return $this->pickPackages($auditor, $screen, $reviews);
@@ -252,10 +259,10 @@ final class VetCommand extends Command
     /**
      * @return array<string, AgentReview>
      */
-    private function reviewWithAgent(RenderProjectAudit $screen): array
+    private function reviewWithAgent(RenderProjectAudit $screen, AgentBatch $batch): array
     {
         try {
-            $reviews = $this->agentReviews($screen->agentDeltas());
+            $reviews = $this->agentReviews($batch);
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
 
@@ -531,7 +538,7 @@ final class VetCommand extends Command
 
         if ($agentAsked) {
             try {
-                $agentReviews = $this->agentReviews([$audit->package => $delta ?? $auditor->wholeTree($audit)]);
+                $agentReviews = $this->agentReviews(AgentBatch::of([$audit->package => $delta ?? $auditor->wholeTree($audit)]));
             } catch (VetException $vetException) {
                 $this->components->error($vetException->getMessage());
 

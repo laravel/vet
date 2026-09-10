@@ -120,6 +120,8 @@ The `--notes` option records a note alongside each entry that the run writes. Th
 
 When the project holds no `vet.json` yet, there is no delta to hand to an agent, so vet skips the first question and shows the list right after the report. Pick the packages you trust today, or press `ctrl+a` to record every one, which is what `--fresh` does without a question.
 
+vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of delta. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
+
 ### Auditing a Single Package
 
 You may audit one package, or a few, by passing their names. vet shows you the tree, and records nothing:
@@ -190,6 +192,8 @@ A verdict is one of four. `clear` means the agent read every byte and found no a
 In a terminal, each verdict sits on its row of the list, and vet picks every `clear` row for you before you read it. One `enter` records the packages the agent cleared, and you read `RISK` before you decide. The first question offers the agent too, so you can ask for it without the option.
 
 The agent runs only when you ask for it. The Composer plugin never asks, and a verdict writes nothing to `vet.json` until you answer the question, so the decision stays yours.
+
+The `--agent` option reads every package in the batch, whatever its size. vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
 
 ### How the Agent Reads
 

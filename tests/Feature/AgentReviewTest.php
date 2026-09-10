@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\ValueObjects\AgentBatch;
 use Illuminate\Support\Facades\Artisan;
 use Tests\Fixture;
+use Tests\StaleProject;
 
 it('hands each delta to the agent, and writes the verdict under the package', function (): void {
     $fixture = Fixture::open('delta-shapes');
@@ -173,6 +175,57 @@ it('invites the reader to a baseline when no trust file exists', function (): vo
     expect($output)->toContain('Record this one as your baseline with [vet --fresh]')
         ->and($output)->not->toContain('[vet --agent]')
         ->and($output)->not->toContain('Read every change with [vet -v]');
+});
+
+it('invites the reader to a few packages at a time when the batch is over the budget', function (): void {
+    $project = StaleProject::amongUngranted(AgentBatch::MAX_PROMPTS);
+
+    try {
+        vet(['--path' => $project->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($output)
+        ->toContain('Hand a few packages at a time to your coding agent with [vet <package> --agent].')
+        ->toContain('One run reads [20] package(s) or 2.0 MB, and this batch holds [21] package(s) and')
+        ->and($output)->not->toContain('[vet --agent]');
+});
+
+it('asks no question about the agent when the batch is over the budget', function (): void {
+    $project = StaleProject::amongUngranted(AgentBatch::MAX_PROMPTS);
+
+    try {
+        command('vet', ['--path' => $project->rootPath])
+            ->expectsOutputToContain('Hand a few packages at a time to your coding agent with [vet <package> --agent].')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->expectsOutputToContain('Recorded nothing.')
+            ->assertExitCode(1)
+            ->run();
+    } finally {
+        $project->remove();
+    }
+});
+
+it('reads the whole batch when the flag names the agent, whatever the budget', function (): void {
+    $project = StaleProject::amongUngranted(AgentBatch::MAX_PROMPTS);
+    $binary = dirname($project->rootPath).'/agent';
+
+    file_put_contents($binary, "#!/bin/sh\ncat > /dev/null\necho '{\"verdict\":\"clear\",\"summary\":\"nothing reaches outside the package\",\"findings\":[]}'\n");
+    chmod($binary, 0o755);
+    putenv('VET_AGENT_BINARY='.$binary);
+
+    try {
+        $status = vet(['--path' => $project->rootPath, '--agent' => true]);
+        $output = Artisan::output();
+    } finally {
+        putenv('VET_AGENT_BINARY');
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('Reading [21] delta(s) with [agent]. The prompts hold ');
 });
 
 it('invites the reader to one package when a trust file holds no earlier tree', function (): void {

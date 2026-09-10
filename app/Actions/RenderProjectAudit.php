@@ -11,6 +11,7 @@ use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
 use App\Support\Invitation;
 use App\Support\Json;
+use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\AuditReport;
 use App\ValueObjects\ComposerOperation;
@@ -79,10 +80,7 @@ final class RenderProjectAudit
         return $deltas;
     }
 
-    /**
-     * @return array<string, ?Delta>
-     */
-    public function agentDeltas(): array
+    public function agentBatch(): AgentBatch
     {
         $deltas = [];
 
@@ -92,7 +90,12 @@ final class RenderProjectAudit
                 : $this->auditor->wholeTree($this->failing[$package]);
         }
 
-        return $deltas;
+        return AgentBatch::of($deltas);
+    }
+
+    public function renderOverBudgetTip(AgentBatch $batch): void
+    {
+        $this->components->tip($this->overBudgetTip($batch));
     }
 
     /**
@@ -222,6 +225,17 @@ final class RenderProjectAudit
             AuditStatus::Ungranted => 2,
             AuditStatus::Covered => 3,
         };
+    }
+
+    private function overBudgetTip(AgentBatch $batch): string
+    {
+        return sprintf(
+            'Hand a few packages at a time to your coding agent with [vet <package> --agent]. One run reads [%d] package(s) or %s, and this batch holds [%d] package(s) and %s.',
+            AgentBatch::MAX_PROMPTS,
+            Bytes::human(AgentBatch::MAX_BYTES),
+            $batch->count(),
+            Bytes::human($batch->bytes()),
+        );
     }
 
     private function collectReviews(): void
@@ -371,11 +385,15 @@ final class RenderProjectAudit
             return 'No earlier tree exists to compare these bytes to. Record this one as your baseline with [vet --fresh], thus the next [composer update] shows a delta.';
         }
 
-        if ($this->holdsDelta()) {
-            return 'Hand every change to your coding agent with [vet --agent].';
+        if (! $this->holdsDelta()) {
+            return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet <package> --agent].';
         }
 
-        return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet <package> --agent].';
+        $batch = $this->agentBatch();
+
+        return $batch->fitsOneRun()
+            ? 'Hand every change to your coding agent with [vet --agent].'
+            : $this->overBudgetTip($batch);
     }
 
     private function holdsDelta(): bool

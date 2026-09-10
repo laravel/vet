@@ -27,23 +27,17 @@ final readonly class StaleProject
     private function __construct(
         public string $rootPath,
         public string $cachePath,
+        private int $ungranted,
     ) {}
 
     public static function create(): self
     {
-        $base = sys_get_temp_dir().'/vet-'.bin2hex(random_bytes(6));
+        return self::seed(0);
+    }
 
-        $project = new self($base.'/project', $base.'/cache');
-
-        $project->seedGrantedTree();
-        $project->seedMetadata();
-        $project->seedInstalledTree();
-        $project->seedComposerFiles();
-        $project->seedTrustFile();
-
-        putenv('VET_CACHE_DIR='.$project->cachePath);
-
-        return $project;
+    public static function amongUngranted(int $count): self
+    {
+        return self::seed($count);
     }
 
     public function remove(): void
@@ -70,6 +64,24 @@ final readonly class StaleProject
         }
 
         rmdir($base);
+    }
+
+    private static function seed(int $ungranted): self
+    {
+        $base = sys_get_temp_dir().'/vet-'.bin2hex(random_bytes(6));
+
+        $project = new self($base.'/project', $base.'/cache', $ungranted);
+
+        $project->seedGrantedTree();
+        $project->seedMetadata();
+        $project->seedInstalledTree();
+        $project->seedUngrantedTrees();
+        $project->seedComposerFiles();
+        $project->seedTrustFile();
+
+        putenv('VET_CACHE_DIR='.$project->cachePath);
+
+        return $project;
     }
 
     private function distUrl(string $version): string
@@ -169,30 +181,95 @@ final readonly class StaleProject
         $this->write($directory.'/src/Widget.php', $this->widget('gadget'));
     }
 
+    private function fillerName(int $index): string
+    {
+        return sprintf('acme/filler-%d', $index);
+    }
+
+    private function fillerManifest(int $index): string
+    {
+        return Json::encode([
+            'name' => $this->fillerName($index),
+            'type' => 'library',
+            'autoload' => ['psr-4' => [sprintf('Acme\\Filler%d\\', $index) => 'src/']],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fillerMetadata(int $index): array
+    {
+        return [
+            'name' => $this->fillerName($index),
+            'version' => '1.0.0',
+            'type' => 'library',
+            'dist' => [
+                'type' => 'zip',
+                'url' => sprintf('https://example.test/acme-filler-%d-1.0.0.zip', $index),
+                'reference' => sprintf('cccc%04d', $index),
+                'shasum' => '',
+            ],
+            'autoload' => [
+                'psr-4' => [sprintf('Acme\\Filler%d\\', $index) => 'src/'],
+            ],
+        ];
+    }
+
+    private function seedUngrantedTrees(): void
+    {
+        for ($index = 1; $index <= $this->ungranted; $index++) {
+            $directory = $this->rootPath.'/vendor/'.$this->fillerName($index);
+
+            $this->write($directory.'/composer.json', $this->fillerManifest($index));
+            $this->write($directory.'/src/Filler.php', sprintf(
+                "<?php\n\ndeclare(strict_types=1);\n\nnamespace Acme\\Filler%d;\n\nfinal class Filler\n{\n}\n",
+                $index,
+            ));
+        }
+    }
+
     private function seedComposerFiles(): void
     {
-        $entry = $this->metadataOf(self::INSTALLED_VERSION, self::INSTALLED_REFERENCE);
+        $entries = [$this->metadataOf(self::INSTALLED_VERSION, self::INSTALLED_REFERENCE)];
+        $installed = [$this->installedEntry($entries[0], self::PACKAGE)];
+        $require = [self::PACKAGE => '^2.0'];
+
+        for ($index = 1; $index <= $this->ungranted; $index++) {
+            $entries[] = $this->fillerMetadata($index);
+            $installed[] = $this->installedEntry($this->fillerMetadata($index), $this->fillerName($index));
+            $require[$this->fillerName($index)] = '^1.0';
+        }
 
         $this->write($this->rootPath.'/composer.json', Json::encode([
             'name' => 'acme/app',
-            'require' => [self::PACKAGE => '^2.0'],
+            'require' => $require,
         ]));
 
         $this->write($this->rootPath.'/composer.lock', Json::encode([
             'content-hash' => 'fixture',
-            'packages' => [$entry],
+            'packages' => $entries,
             'packages-dev' => [],
         ]));
 
         $this->write($this->rootPath.'/vendor/composer/installed.json', Json::encode([
-            'packages' => [[
-                ...$entry,
-                'installation-source' => 'dist',
-                'install-path' => '../acme/widget',
-            ]],
+            'packages' => $installed,
             'dev' => true,
             'dev-package-names' => [],
         ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<string, mixed>
+     */
+    private function installedEntry(array $entry, string $name): array
+    {
+        return [
+            ...$entry,
+            'installation-source' => 'dist',
+            'install-path' => '../'.$name,
+        ];
     }
 
     private function seedTrustFile(): void

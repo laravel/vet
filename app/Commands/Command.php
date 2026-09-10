@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Commands;
 
-use App\Actions\BuildAgentPrompt;
 use App\Actions\CacheArtifact;
 use App\Actions\ColdCacheArtifact;
 use App\Actions\ReviewWithAgent;
+use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
 use App\Support\PickedCountRenderer;
-use App\ValueObjects\AgentPrompt;
+use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentReview;
-use App\ValueObjects\Delta;
 use Laravel\Prompts\MultiSelectPrompt;
 use Laravel\Prompts\Output\ConsoleOutput as PromptOutput;
 use Laravel\Prompts\Prompt;
@@ -42,38 +41,27 @@ abstract class Command extends LaravelZeroCommand
     }
 
     /**
-     * @param  array<string, ?Delta>  $deltas
      * @return array<string, AgentReview>
      */
-    protected function agentReviews(array $deltas): array
+    protected function agentReviews(AgentBatch $batch): array
     {
-        $builder = new BuildAgentPrompt;
-
-        /** @var array<string, AgentPrompt> $prompts */
-        $prompts = [];
-
-        foreach ($deltas as $package => $delta) {
-            if ($delta instanceof Delta && ! $delta->isEmpty()) {
-                $prompts[$package] = $builder->handle($delta);
-            }
-        }
-
         $agent = ReviewWithAgent::default();
 
-        if ($prompts === []) {
+        if ($batch->isEmpty()) {
             return [];
         }
 
         if ($this->writesProse()) {
             $this->newLine();
             $this->components->info(sprintf(
-                'Reading [%d] delta(s) with [%s]. This takes a moment.',
-                count($prompts),
+                'Reading [%d] delta(s) with [%s]. The prompts hold %s. This takes a moment.',
+                $batch->count(),
                 $agent->name(),
+                Bytes::human($batch->bytes()),
             ));
         }
 
-        return $agent->handle($prompts);
+        return $agent->handle($batch->prompts);
     }
 
     private function writePromptsWithoutTheSanitizer(OutputInterface $output, OutputFormatterInterface $formatter): void
