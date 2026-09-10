@@ -159,3 +159,20 @@ it('invites the reader to the agent when the flag is absent', function (): void 
 
     expect($output)->toContain('Hand every change to your coding agent with [vet audit --agent].');
 });
+
+it('puts the verdict of the agent on the row that you pick', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}\'');
+
+    try {
+        command('trust', ['--path' => $fixture->rootPath, '--agent' => true])
+            ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
+            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
+            ->expectsOutputToContain('agent  RISK  [src/Widget.php] renames the widget')
+            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'no')
+            ->assertExitCode(0)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});

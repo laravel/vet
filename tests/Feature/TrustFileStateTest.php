@@ -18,7 +18,7 @@ it('tells the user what to do with a trust file of an older schema', function ()
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('declares schema [2]')
-        ->toContain('Delete the file and run [vet trust] again.');
+        ->toContain('Delete the file and run [vet trust --all] again.');
 });
 
 it('tells the user to record the trust file again when it holds a truncated hash', function (): void {
@@ -35,7 +35,7 @@ it('tells the user to record the trust file again when it holds a truncated hash
         ->and($output)
         ->toContain('declares schema [3]')
         ->toContain('recorded a truncated tree hash')
-        ->toContain('Delete the file and run [vet trust] again.')
+        ->toContain('Delete the file and run [vet trust --all] again.')
         ->and(str_contains($output, 'Malformed tree hash digest'))->toBeFalse();
 });
 
@@ -106,7 +106,7 @@ it('writes the dev package of a baseline in require-dev', function (): void {
     $fixture = Fixture::open('no-trust-file');
 
     try {
-        $status = Artisan::call('trust', ['--path' => $fixture->rootPath]);
+        $status = Artisan::call('trust', ['--all' => true, '--path' => $fixture->rootPath]);
 
         /** @var array{require: array<string, mixed>, require-dev: array<string, mixed>} $trustFile */
         $trustFile = json_decode($fixture->read('vet.json'), true);

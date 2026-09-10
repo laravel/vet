@@ -1,9 +1,6 @@
 # Laravel Vet
 
-<a name="introduction"></a>
-## Introduction
-
-[vet](https://github.com/laravel/vet) is a dependency audit for PHP. It shows you what a `composer update` is about to put into the `vendor/` directory, and lets you **or your agent** review those changes, one by one, before they land.
+Laravel Vet shows you what a `composer update` is about to write into your `vendor/` directory, and records the trees you trust in a `vet.json` file. With vet, you can read each change one package at a time, hand a delta to the coding agent already on your machine, record a note next to your decision, and hold your build to the bytes you have read.
 
 ```
 ❯ composer update
@@ -43,12 +40,11 @@
 
 ```
 
-<a name="installation"></a>
 ## Installation
 
 > **Requires [PHP 8.3+](https://php.net/releases/)**.
 
-You may install vet into your project via the Composer package manager:
+You can install Laravel Vet via Composer:
 
 ```shell
 composer require laravel/vet --dev
@@ -60,13 +56,14 @@ By default, vet commands are invoked using the `./vendor/bin/vet` script that is
 ./vendor/bin/vet audit
 ```
 
-<a name="trusting-your-dependencies"></a>
+Next, you should record the packages you trust today. Until `vet.json` exists, vet has no earlier tree to compare an update against.
+
 ## Trusting Your Dependencies
 
-Before vet can show you what changed, it needs to know what you trust today. The `trust` command lists every installed package with the reason it needs an entry, records the tree on disk, and writes the `vet.json` trust file:
+The `trust` command records the bytes you accept. Pass the `--all` option to record every package that `vendor/` holds today:
 
 ```shell
-vet trust
+vet trust --all
 ```
 
 ```
@@ -80,10 +77,67 @@ vet trust
    INFO  Trusted 125 package(s), and wrote vet.json.
 ```
 
-<a name="auditing-your-dependencies"></a>
+The `--all` option covers the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a tree that `vendor/` does not hold yet, vet leaves that tree alone and asks you to read it:
+
+```
+   ERROR  composer would write 2 package(s) that vendor/ does not hold. Read them with `vet trust`, or run `composer install` first.
+```
+
+### Picking What to Trust
+
+Run the `trust` command with no argument and vet asks you what to record. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in:
+
+```shell
+vet trust
+```
+
+```
+ ┌ Which packages do you trust? ────────────────────────────────┐
+ │ ◼ acme/logger  1.2.0 → 2.0.0  12 files  incoming             │
+ │ ◻ acme/tooling  4.1.0 → 4.2.0  8 files  incoming             │
+ │ ◻ brick/math  0.18.0  31 files  installed                    │
+ └──────────────────────────────────────────────────────────────┘
+```
+
+vet then shows you the delta of each package you picked, one at a time, and asks before it writes the entry:
+
+```
+  acme/logger                                        1.2.0 → 2.0.0
+  hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3a
+  contents                                                 12 files
+  state             composer would write these bytes to vendor/
+
+  ~ src/Ship.php
+  …
+
+ ┌ Do you trust acme/logger 2.0.0? ─────────────────────────────┐
+ │ › Yes                                                        │
+ │   No                                                         │
+ │   Yes, and record a note                                     │
+ └──────────────────────────────────────────────────────────────┘
+
+   INFO  Recorded 1 package(s).
+   INFO  Run composer install to write those bytes to vendor/.
+```
+
+### Trusting a Single Package
+
+You may record one package, or a few, by passing their names to the `trust` command. vet shows you the delta of each tree before it writes the entry:
+
+```shell
+vet trust acme/logger acme/tooling
+```
+
+The `--notes` option records a note alongside the entries, and the `--from` option reads the delta from some other version:
+
+```shell
+vet trust acme/logger --notes="Read with the team on Friday."
+vet trust acme/logger --from=1.0.0
+```
+
 ## Auditing Your Dependencies
 
-Once the trust file exists, run the `audit` command whenever you want to know where you stand. It reports the packages that have no entry:
+Once the trust file exists, the `audit` command tells you where you stand. It reads the tree of every installed package, compares it against your entries, and names the packages that have none:
 
 ```shell
 vet audit
@@ -92,7 +146,8 @@ vet audit
 
 ```
 
-<a name="auditing-a-single-package"></a>
+`audit` is the default command, so `vet` on its own does the same thing. It exits with a non-zero status when a package is not covered, which is what makes it useful in a build.
+
 ### Auditing a Single Package
 
 You may audit one package by passing its name to the `audit` command:
@@ -109,14 +164,31 @@ vet audit symfony/console
   path ................................................ vendor/symfony/console
 ```
 
-When the trust file already covers the installed version, the report stays local and instant. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the delta. If you would like to compare against some other version, you may name it using the `--from` option:
+When the trust file already covers the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the delta. The `--from` and `--to` options compare any two versions:
 
 ```shell
 vet audit carbonphp/carbon-doctrine-types --from=3.1.0
+vet audit carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
 ```
 
-<a name="handing-a-review-to-your-agent"></a>
-### Handing a Review to Your Agent
+### Reading a Delta
+
+vet sorts the files of a delta into four buckets, and shows you the ones that can hurt you first:
+
+| Bucket | What it holds |
+| --- | --- |
+| `install-manifest` | The `composer.json` of the package, which can add a script that runs at install time |
+| `opaque` | Bytes that nobody can read, such as a `.phar` or a compiled library |
+| `runtime-source` | The source that your application autoloads and executes |
+| `inert` | Everything else, such as tests, documentation and images |
+
+The `--bucket` option reads one bucket at a time:
+
+```shell
+vet audit symfony/console --bucket=runtime-source
+```
+
+## Handing a Review to Your Agent
 
 Reading every delta by hand takes time. The `--agent` option hands each delta to the coding agent already on your machine, and prints the verdict it writes next to the package:
 
@@ -142,18 +214,25 @@ vet audit --agent
 
 A verdict is one of four. `clear` means the agent read every byte and found no attack. `RISK` comes with one line for each file the agent names. `partial` means one file never reached the prompt, such as a `.phar` that holds no readable text, so nobody read it. `no verdict` means the answer did not arrive, or it named a file that the delta does not hold.
 
-vet looks for `claude`, then `codex`, then `gemini` on your `PATH`. Name a different one in the `VET_AGENT_BINARY` environment variable, and vet gives it the prompt on standard input.
+The same option works while you record. `vet trust --agent` puts each verdict on the row before you pick the package, so you read `RISK` before you decide:
+
+```shell
+vet trust --agent
+```
+
+The agent runs only when you pass `--agent`. The Composer plugin never passes it, and a verdict writes nothing to `vet.json`, so the decision stays yours.
+
+### How the Agent Reads
+
+vet looks for `claude`, then `codex`, then `gemini` on your `PATH`, and gives it the prompt on standard input. The `VET_AGENT_BINARY` environment variable names a different one.
 
 vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the delta and does nothing else. The delta stands inside a marker that carries a token of the run, and vet checks every file the answer names against the files the delta holds.
 
 A package with no entry in your trust file has no earlier tree to compare against. vet sends its whole tree instead, because that is the package you know least.
 
-The agent reads. You record. A verdict writes nothing to `vet.json`, so `vet trust` stays the moment you decide.
-
-<a name="the-trust-file"></a>
 ## The Trust File
 
-The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. You should commit it. It holds one entry for each package: the version you reviewed, and the hash of the tree you reviewed.
+The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. You should commit it. It holds one entry for each package: the version you read, and the hash of the tree you read:
 
 ```json
 {
@@ -173,10 +252,35 @@ The trust file lives in `vet.json`, at the root of your project, next to `compos
 }
 ```
 
-<a name="continuous-integration"></a>
+The hash covers every file of the tree. When a package ships the same version with different bytes, the entry stops covering it, and vet asks you to read the difference.
+
 ## Continuous Integration
 
 Your build audits your dependencies the moment it installs them. vet ships a Composer plugin, and the plugin runs the audit after every `composer install`, and again before `composer update` writes anything into `vendor/`. There is no step to add.
+
+The `--json` option emits the report for another program to read:
+
+```shell
+vet audit --json
+```
+
+## Configuration
+
+vet reads three environment variables:
+
+```ini
+VET_AGENT_BINARY=
+VET_GITHUB_TOKEN=
+VET_CACHE_DIR=
+```
+
+`VET_AGENT_BINARY` names the coding agent that `--agent` runs. `VET_GITHUB_TOKEN` authenticates the archives that vet downloads from GitHub, and vet falls back to `GITHUB_TOKEN`, to `GH_TOKEN`, and to your Composer authentication file. `VET_CACHE_DIR` holds the archives that vet has already downloaded, and defaults to `vet` inside `$XDG_CACHE_HOME`, or inside `$HOME/.cache`.
+
+Pass the `--no-cache` option to download an archive again instead of reading the cached one:
+
+```shell
+vet audit acme/logger --no-cache
+```
 
 ## Contributing
 
@@ -192,4 +296,4 @@ Please review [our security policy](https://github.com/laravel/vet/security/poli
 
 ## License
 
-The Laravel AI SDK is open-sourced software licensed under the [MIT license](LICENSE.md).
+Laravel Vet is open-sourced software licensed under the [MIT license](LICENSE.md).

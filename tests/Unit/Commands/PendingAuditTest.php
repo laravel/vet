@@ -47,7 +47,10 @@ it('records the bytes of the next install, while vendor/ holds the old ones', fu
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $trusted = Artisan::call('trust', ['--path' => $project->rootPath]);
+        $trusted = Artisan::call('trust', [
+            'packages' => [PendingUpdate::PACKAGE],
+            '--path' => $project->rootPath,
+        ]);
         $trustOutput = Artisan::output();
 
         $trustFile = $project->trustFile();
@@ -79,7 +82,10 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
         $audited = Artisan::call('audit', ['--path' => $project->rootPath]);
         $auditOutput = Artisan::output();
 
-        $trusted = Artisan::call('trust', ['--path' => $project->rootPath]);
+        $trusted = Artisan::call('trust', [
+            'packages' => [PendingUpdate::PACKAGE],
+            '--path' => $project->rootPath,
+        ]);
         $trustOutput = Artisan::output();
 
         $trustFile = $project->trustFile();
@@ -92,7 +98,7 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
         ->and($auditOutput)->toContain('composer would install [1.0.0] again, and its bytes changed')
         ->and($trusted)->toBe(0)
         ->and($trustOutput)
-        ->toContain('Trusted [1] package(s).')
+        ->toContain('Recorded [acme/widget] [1.0.0]')
         ->toContain('Run [composer install] to write those bytes to vendor/.')
         ->and($trustFile)
         ->toContain('"version": "1.0.0"')
@@ -130,7 +136,7 @@ it('names the incoming bytes that it cannot read, and blocks them', function ():
         $status = Artisan::call('audit', ['--path' => $project->rootPath]);
         $output = Artisan::output();
 
-        $trusted = Artisan::call('trust', ['--path' => $project->rootPath]);
+        $trusted = Artisan::call('trust', ['--all' => true, '--path' => $project->rootPath]);
         $trustOutput = Artisan::output();
     } finally {
         $project->remove();
@@ -142,7 +148,7 @@ it('names the incoming bytes that it cannot read, and blocks them', function ():
         ->toContain('vet cannot read those bytes')
         ->toContain('has no dist URL')
         ->and($trusted)->toBe(1)
-        ->and($trustOutput)->toContain('[acme/widget] stays unrecorded');
+        ->and($trustOutput)->toContain('composer would write [1] package(s) that vendor/ does not hold');
 });
 
 it('audits the tree on disk when composer plans nothing', function (): void {

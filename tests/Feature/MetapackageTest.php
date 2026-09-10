@@ -27,7 +27,7 @@ it('records no entry of a metapackage in the baseline', function (): void {
     unlink($fixture->path('vet.json'));
 
     try {
-        $status = Artisan::call('trust', ['--path' => $fixture->rootPath]);
+        $status = Artisan::call('trust', ['--all' => true, '--path' => $fixture->rootPath]);
         $output = Artisan::output();
         $trustFile = $fixture->read('vet.json');
     } finally {

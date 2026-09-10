@@ -3,9 +3,19 @@
 declare(strict_types=1);
 
 use App\ValueObjects\AgentPrompt;
+use Illuminate\Testing\PendingCommand;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature', 'Unit');
+
+/**
+ * @param  array<string, mixed>  $parameters
+ */
+function command(string $name, array $parameters): PendingCommand
+{
+    /** @phpstan-ignore method.notFound */
+    return test()->artisan($name, $parameters);
+}
 
 function stubBinary(string $script): string
 {

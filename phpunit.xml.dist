@@ -16,6 +16,9 @@
             <directory>./tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+    </php>
     <source>
         <include>
             <directory>./app</directory>

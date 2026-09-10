@@ -157,7 +157,7 @@ final class RenderProjectAudit
 
         if (! $this->auditor->trustFile->exists()) {
             $this->components->warn(sprintf(
-                'No trust file yet. [vet trust] records every installed package in [%s].',
+                'No trust file yet. [vet trust --all] records every installed package in [%s].',
                 $this->project->relativePath($this->auditor->trustFile->path),
             ));
         }
