@@ -21,6 +21,15 @@ final class AgentFailedException extends VetException
         return new self('Could not write the answer schema of the agent to a temporary file.');
     }
 
+    public static function noModelFlag(string $binary): self
+    {
+        return new self(sprintf(
+            'Could not pass a model to [%s]. Name one of [%s] in [VET_AGENT_BINARY], or drop the model.',
+            $binary,
+            implode('], [', array_column(AgentType::cases(), 'value')),
+        ));
+    }
+
     public static function notExecutable(string $binary): self
     {
         return new self(sprintf(

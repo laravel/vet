@@ -5,11 +5,12 @@ declare(strict_types=1);
 use App\Actions\ReviewWithAgent;
 use App\Enums\AgentVerdict;
 use App\Exceptions\AgentFailedException;
+use App\ValueObjects\AgentModel;
 
 it('reads the verdict, the summary and the findings that the agent writes', function (): void {
     $agent = new ReviewWithAgent(stubBinary(
         'cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/Ship.php] sends the contents of .env to an unknown host","findings":[{"path":"src/Ship.php","reason":"it posts .env to a host"}]}\'',
-    ));
+    ), AgentModel::default());
 
     $reviews = $agent->handle(['acme/widget' => agentPrompt('the delta of acme/widget', [], ['src/Ship.php'])]);
 
@@ -24,7 +25,7 @@ it('gives the prompt to the agent on its standard input', function (): void {
 
     $agent = new ReviewWithAgent(stubBinary(
         'cat > '.escapeshellarg($written)."\n".'echo \'{"verdict":"clear","summary":"nothing","findings":[]}\'',
-    ));
+    ), AgentModel::default());
 
     $agent->handle(['acme/widget' => agentPrompt('the prompt of acme/widget', [], [])]);
 
@@ -37,7 +38,7 @@ it('gives the prompt to the agent on its standard input', function (): void {
 it('reads one verdict for each package of the prompts', function (): void {
     $agent = new ReviewWithAgent(stubBinary(
         'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}\'',
-    ));
+    ), AgentModel::default());
 
     $reviews = $agent->handle([
         'acme/widget' => agentPrompt('one', [], []),
@@ -54,7 +55,7 @@ it('reads one verdict for each package of the prompts', function (): void {
 it('reads the answer that stands inside a fence', function (): void {
     $agent = new ReviewWithAgent(stubBinary(
         'cat > /dev/null'."\n".'printf \'Here is my answer:\n```json\n{"verdict":"clear","summary":"two return types changed","findings":[]}\n```\n\'',
-    ));
+    ), AgentModel::default());
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
@@ -65,7 +66,7 @@ it('reads the answer that stands inside a fence', function (): void {
 it('writes a partial verdict when the prompt holds no byte of a file', function (): void {
     $agent = new ReviewWithAgent(stubBinary(
         'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta changes two return types","findings":[]}\'',
-    ));
+    ), AgentModel::default());
 
     $review = $agent->handle([
         'acme/widget' => agentPrompt('the delta', ['src/vendor.phar'], ['src/vendor.phar']),
@@ -78,7 +79,7 @@ it('writes a partial verdict when the prompt holds no byte of a file', function 
 it('keeps a risk verdict when the prompt holds no byte of a file', function (): void {
     $agent = new ReviewWithAgent(stubBinary(
         'cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"it runs a shell command","findings":[]}\'',
-    ));
+    ), AgentModel::default());
 
     $review = $agent->handle([
         'acme/widget' => agentPrompt('the delta', ['src/vendor.phar'], ['src/vendor.phar']),
@@ -90,7 +91,7 @@ it('keeps a risk verdict when the prompt holds no byte of a file', function (): 
 it('writes no verdict when the agent names a file that the delta does not hold', function (): void {
     $agent = new ReviewWithAgent(stubBinary(
         'cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"it reads a secret","findings":[{"path":"src/Invented.php","reason":"it reads .env"}]}\'',
-    ));
+    ), AgentModel::default());
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], ['src/Ship.php'])])['acme/widget'];
 
@@ -99,7 +100,7 @@ it('writes no verdict when the agent names a file that the delta does not hold',
 });
 
 it('writes no verdict when the agent stops with a failure', function (): void {
-    $agent = new ReviewWithAgent(stubBinary("cat > /dev/null\necho 'the model is not reachable' >&2\nexit 3"));
+    $agent = new ReviewWithAgent(stubBinary("cat > /dev/null\necho 'the model is not reachable' >&2\nexit 3"), AgentModel::default());
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
@@ -109,7 +110,7 @@ it('writes no verdict when the agent stops with a failure', function (): void {
 });
 
 it('writes no verdict when the agent answers with prose', function (): void {
-    $agent = new ReviewWithAgent(stubBinary("cat > /dev/null\necho 'I think it is fine.'"));
+    $agent = new ReviewWithAgent(stubBinary("cat > /dev/null\necho 'I think it is fine.'"), AgentModel::default());
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
@@ -118,7 +119,7 @@ it('writes no verdict when the agent answers with prose', function (): void {
 });
 
 it('names the binary that it cannot run', function (): void {
-    (new ReviewWithAgent('agent-that-is-not-installed'))->handle(['acme/widget' => agentPrompt('the delta', [], [])]);
+    (new ReviewWithAgent('agent-that-is-not-installed', AgentModel::default()))->handle(['acme/widget' => agentPrompt('the delta', [], [])]);
 })->throws(AgentFailedException::class, 'Could not run [agent-that-is-not-installed].');
 
 it('finds the agent that the environment names', function (): void {

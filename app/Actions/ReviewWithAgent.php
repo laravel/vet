@@ -8,6 +8,7 @@ use App\Enums\AgentType;
 use App\Enums\AgentVerdict;
 use App\Exceptions\AgentFailedException;
 use App\ValueObjects\AgentAnswer;
+use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
@@ -24,6 +25,7 @@ final readonly class ReviewWithAgent
 
     public function __construct(
         private string $binary,
+        private AgentModel $model,
     ) {}
 
     public static function default(): self
@@ -31,23 +33,37 @@ final readonly class ReviewWithAgent
         $binary = getenv('VET_AGENT_BINARY');
 
         if (is_string($binary) && $binary !== '') {
-            return new self($binary);
+            return new self($binary, AgentModel::default());
         }
 
         $finder = new ExecutableFinder;
 
         foreach (AgentType::cases() as $agentType) {
             if ($finder->find($agentType->value) !== null) {
-                return new self($agentType->value);
+                return new self($agentType->value, AgentModel::default());
             }
         }
 
         throw AgentFailedException::missing();
     }
 
+    public function withModel(AgentModel $model): self
+    {
+        if (! $model->isDefault() && ! $this->type() instanceof AgentType) {
+            throw AgentFailedException::noModelFlag($this->binary);
+        }
+
+        return new self($this->binary, $model);
+    }
+
     public function name(): string
     {
         return basename($this->binary);
+    }
+
+    public function type(): ?AgentType
+    {
+        return AgentType::of($this->binary);
     }
 
     /**
@@ -72,8 +88,8 @@ final readonly class ReviewWithAgent
      */
     private function review(string $executable, string $schemaFile, array $prompts): array
     {
-        $agentType = AgentType::of($this->binary);
-        $arguments = $agentType instanceof AgentType ? $agentType->arguments($schemaFile) : [];
+        $agentType = $this->type();
+        $arguments = $agentType instanceof AgentType ? $agentType->arguments($schemaFile, $this->model) : [];
 
         $queue = $prompts;
         $reviews = [];

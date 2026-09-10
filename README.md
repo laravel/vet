@@ -191,6 +191,25 @@ A verdict is one of four. `clear` means the agent read every byte and found no a
 
 In a terminal, each verdict sits on its row of the list, and vet picks every `clear` row for you before you read it. One `enter` records the packages the agent cleared, and you read `RISK` before you decide. The first question offers the agent too, so you can ask for it without the option.
 
+Before the agent reads, vet asks which model it uses. Pick one from the list, type a name, or press `enter` to keep the default model of the agent:
+
+```
+ ┌ Which model do you want the agent to use? ───────────────────┐
+ │ Press enter for the default model of [claude].               │
+ ├──────────────────────────────────────────────────────────────┤
+ │ fable                                                        │
+ │ opus                                                         │
+ │ sonnet                                                       │
+ │ haiku                                                        │
+ └──────────────────────────────────────────────────────────────┘
+```
+
+The `--model` option gives the answer without the question, which is what a script needs:
+
+```shell
+vet --agent --model=opus
+```
+
 The agent runs only when you ask for it. The Composer plugin never asks, and a verdict writes nothing to `vet.json` until you answer the question, so the decision stays yours.
 
 The `--agent` option reads every package in the batch, whatever its size. vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.

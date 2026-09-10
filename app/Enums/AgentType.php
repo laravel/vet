@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Enums;
 
 use App\ValueObjects\AgentAnswer;
+use App\ValueObjects\AgentModel;
 
 enum AgentType: string
 {
@@ -22,7 +23,36 @@ enum AgentType: string
     /**
      * @return array<int, string>
      */
-    public function arguments(string $schemaFile): array
+    public function arguments(string $schemaFile, AgentModel $model): array
+    {
+        return [...$this->flags($schemaFile), ...$model->arguments()];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function models(): array
+    {
+        return match ($this) {
+            self::Claude => ['fable', 'opus', 'sonnet', 'haiku'],
+            self::Codex => ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.3-codex-spark'],
+            self::Gemini => ['gemini-3.1-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'],
+        };
+    }
+
+    public function answerOf(string $output): string
+    {
+        return match ($this) {
+            self::Claude => $this->envelope($output, ['structured_output', 'result']),
+            self::Gemini => $this->envelope($output, ['response']),
+            self::Codex => $output,
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function flags(string $schemaFile): array
     {
         return match ($this) {
             self::Claude => [
@@ -42,15 +72,6 @@ enum AgentType: string
                 '--output-format', 'json',
                 '--approval-mode', 'plan',
             ],
-        };
-    }
-
-    public function answerOf(string $output): string
-    {
-        return match ($this) {
-            self::Claude => $this->envelope($output, ['structured_output', 'result']),
-            self::Gemini => $this->envelope($output, ['response']),
-            self::Codex => $output,
         };
     }
 

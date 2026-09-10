@@ -259,3 +259,94 @@ it('puts the verdict of the agent on the row that you pick', function (): void {
         $fixture->remove();
     }
 });
+
+it('asks which model the agent uses before it reads, and passes the answer to the agent', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $written = sys_get_temp_dir().'/vet-arguments-'.bin2hex(random_bytes(6));
+    $fixture->agentNamed('claude', 'echo "$@" > '.escapeshellarg($written)."\n".'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
+            ->expectsQuestion('Which model do you want the agent to use?', 'opus')
+            ->expectsOutputToContain('Reading [1] delta(s) with [claude].')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+
+        $arguments = (string) file_get_contents($written);
+    } finally {
+        @unlink($written);
+        $fixture->remove();
+    }
+
+    expect($arguments)->toContain('--print')
+        ->toContain('--model opus');
+});
+
+it('passes the model of the option to the agent without a question', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $written = sys_get_temp_dir().'/vet-arguments-'.bin2hex(random_bytes(6));
+    $fixture->agentNamed('claude', 'echo "$@" > '.escapeshellarg($written)."\n".'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true, '--model' => 'sonnet'])
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+
+        $arguments = (string) file_get_contents($written);
+    } finally {
+        @unlink($written);
+        $fixture->remove();
+    }
+
+    expect($arguments)->toContain('--model sonnet');
+});
+
+it('keeps the default model of the agent when you press enter', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $written = sys_get_temp_dir().'/vet-arguments-'.bin2hex(random_bytes(6));
+    $fixture->agentNamed('claude', 'echo "$@" > '.escapeshellarg($written)."\n".'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+
+        $arguments = (string) file_get_contents($written);
+    } finally {
+        @unlink($written);
+        $fixture->remove();
+    }
+
+    expect($arguments)->not->toContain('--model');
+});
+
+it('asks no model when the agent is not one that vet knows', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
+            ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
+it('refuses a model for an agent that vet does not know', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing","findings":[]}\'');
+
+    try {
+        $status = vet(['--path' => $fixture->rootPath, '--agent' => true, '--model' => 'opus']);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('Could not pass a model to [')
+        ->toContain('Name one of [claude], [codex], [gemini] in [VET_AGENT_BINARY], or drop the model.');
+});
