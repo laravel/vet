@@ -9,6 +9,7 @@ use App\Actions\RenderAgentReview;
 use App\Actions\RenderDelta;
 use App\Actions\RenderProjectAudit;
 use App\Actions\ResolveDelta;
+use App\Composer\Gate;
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
 use App\Enums\BucketType;
@@ -229,7 +230,7 @@ final class VetCommand extends Command
         $this->newLine();
         $this->announceRecorded($recorded);
 
-        if ($this->holdsPending($recorded)) {
+        if ($this->holdsPending($recorded) && getenv(Gate::ENVIRONMENT) !== '1') {
             $this->components->info('Run [composer install] to write those bytes to vendor/.');
         }
 

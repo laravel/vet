@@ -109,9 +109,15 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
 
         $process = new Process($command, $gate->rootPath, $gate->environment());
         $process->setTimeout(null);
-        $process->run(static function (string $type, string $buffer) use ($io): void {
-            $io->writeRaw($buffer, false);
-        });
+
+        if ($io->isInteractive() && Process::isTtySupported()) {
+            $process->setTty(true);
+            $process->run();
+        } else {
+            $process->run(static function (string $type, string $buffer) use ($io): void {
+                $io->writeRaw($buffer, false);
+            });
+        }
 
         if (! $process->isSuccessful()) {
             throw new ScriptExecutionException(
