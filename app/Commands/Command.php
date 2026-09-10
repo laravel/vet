@@ -10,9 +10,11 @@ use App\Actions\ColdCacheArtifact;
 use App\Actions\ReviewWithAgent;
 use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
+use App\Support\PickedCountRenderer;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\Delta;
+use Laravel\Prompts\MultiSelectPrompt;
 use Laravel\Prompts\Output\ConsoleOutput as PromptOutput;
 use Laravel\Prompts\Prompt;
 use LaravelZero\Framework\Commands\Command as LaravelZeroCommand;
@@ -81,6 +83,9 @@ abstract class Command extends LaravelZeroCommand
             $output->isDecorated(),
             $formatter,
         ));
+
+        Prompt::addTheme('vet', [MultiSelectPrompt::class => PickedCountRenderer::class]);
+        Prompt::theme('vet');
     }
 
     private function installColdCache(): void
