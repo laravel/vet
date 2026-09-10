@@ -160,11 +160,15 @@ it('names a package that composer.lock holds and the tree does not', function ()
     }
 
     $ghost = $plan->of('acme/ghost');
+    $extra = $plan->of('acme/extra');
 
     expect($ghost?->change)->toBe(ComposerChangeType::Install)
         ->and($ghost?->from)->toBeNull()
         ->and($ghost?->to)->toBe('1.0.0')
-        ->and($plan->touches('acme/extra'))->toBeFalse();
+        ->and($extra?->change)->toBe(ComposerChangeType::Remove)
+        ->and($extra?->from)->toBe('1.0.0')
+        ->and($extra?->to)->toBeNull()
+        ->and($plan->incoming())->toHaveCount(1);
 });
 
 it('holds no operation when the tree matches composer.lock', function (): void {

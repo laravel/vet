@@ -152,7 +152,7 @@ final class RenderProjectAudit
         }
 
         if ($discrepancies !== []) {
-            $this->components->error('The installed tree does not match composer.lock.');
+            $this->components->error('The installed tree does not match composer.lock. Run [composer install] to install what composer.lock holds.');
         }
 
         if (! $this->auditor->trustFile->exists()) {

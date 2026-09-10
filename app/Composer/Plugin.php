@@ -21,13 +21,16 @@ use Symfony\Component\Process\Process;
 
 final class Plugin implements EventSubscriberInterface, PluginInterface
 {
+    private const int BEFORE_THE_REVERT_MARK_OF_COMPOSER = 20000;
+
     /**
-     * @return array<string, string>
+     * @return array<string, string|array<int, array{0: string, 1: int}>>
      */
     public static function getSubscribedEvents(): array
     {
         return [
-            InstallerEvents::PRE_OPERATIONS_EXEC => 'gate',
+            InstallerEvents::PRE_OPERATIONS_EXEC => [['gate', self::BEFORE_THE_REVERT_MARK_OF_COMPOSER]],
+            ScriptEvents::PRE_UPDATE_CMD => 'snapshot',
             ScriptEvents::POST_INSTALL_CMD => 'audit',
             ScriptEvents::POST_UPDATE_CMD => 'audit',
         ];
@@ -77,15 +80,29 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
 
         try {
             $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated(), $planPath));
+        } catch (ScriptExecutionException $exception) {
+            if ($gate->restoreLock()) {
+                $io->writeError('<comment>Vet restored [composer.lock] to the content that it had before this command.</comment>');
+            }
+
+            throw $exception;
         } finally {
             $gate->deletePlan($planPath);
+            $gate->deleteLockBackup();
         }
+    }
+
+    public function snapshot(Event $event): void
+    {
+        $this->gateOf($event->getComposer())->backupLock();
     }
 
     public function audit(Event $event): void
     {
         $io = $event->getIO();
         $gate = $this->gateOf($event->getComposer());
+
+        $gate->deleteLockBackup();
 
         $notice = $gate->baselineNotice();
 

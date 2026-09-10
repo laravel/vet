@@ -56,13 +56,20 @@ final readonly class ComposerPlan
     public static function between(LockFile $lock, ?InstalledRepository $installed): self
     {
         $current = $installed instanceof InstalledRepository ? $installed->all() : [];
+        $locked = $lock->packages();
         $operations = [];
 
-        foreach ($lock->packages() as $name => $locked) {
-            $operation = self::operationFor($locked, $current[$name] ?? null);
+        foreach ($locked as $name => $package) {
+            $operation = self::operationFor($package, $current[$name] ?? null);
 
             if ($operation instanceof ComposerOperation) {
                 $operations[] = $operation;
+            }
+        }
+
+        foreach ($current as $name => $package) {
+            if (! isset($locked[$name])) {
+                $operations[] = self::removalOf($package);
             }
         }
 
@@ -105,6 +112,16 @@ final readonly class ComposerPlan
             static fn (ComposerOperation $operation): bool => $operation->change !== ComposerChangeType::Remove
                 && $operation->to !== null,
         ));
+    }
+
+    private static function removalOf(Package $installed): ComposerOperation
+    {
+        return new ComposerOperation(
+            package: $installed->name,
+            change: ComposerChangeType::Remove,
+            from: $installed->version,
+            to: null,
+        );
     }
 
     private static function operationFor(Package $locked, ?Package $installed): ?ComposerOperation
