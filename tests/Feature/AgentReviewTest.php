@@ -160,6 +160,35 @@ it('invites the reader to the agent when the flag is absent', function (): void 
     expect($output)->toContain('Hand every change to your coding agent with [vet audit --agent].');
 });
 
+it('invites the reader to a baseline when no trust file exists', function (): void {
+    $fixture = Fixture::open('no-trust-file');
+
+    try {
+        Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)->toContain('Record this one as your baseline with [vet trust --all]')
+        ->and($output)->not->toContain('[vet audit --agent]')
+        ->and($output)->not->toContain('Read every change with [vet audit -v]');
+});
+
+it('invites the reader to one package when a trust file holds no earlier tree', function (): void {
+    $fixture = Fixture::open('partly-audited');
+
+    try {
+        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)->toContain('Hand one whole package to your coding agent with [vet audit <package> --agent].');
+});
+
 it('puts the verdict of the agent on the row that you pick', function (): void {
     $fixture = Fixture::open('stale-project');
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}\'');

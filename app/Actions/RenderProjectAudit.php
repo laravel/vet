@@ -267,17 +267,46 @@ final class RenderProjectAudit
         );
         $this->output->newLine();
 
-        $this->components->error($this->output->isVerbose()
-            ? sprintf('[%d] package(s) are not covered. Record them with [vet trust].', count($this->failing))
-            : sprintf(
+        $this->components->error($this->readsEveryChange()
+            ? sprintf(
                 '[%d] package(s) are not covered. Read every change with [%s]. Record them with [vet trust].',
                 count($this->failing),
                 $this->invitation->command,
-            ));
+            )
+            : sprintf('[%d] package(s) are not covered. Record them with [vet trust].', count($this->failing)));
 
         if (! $agentAsked) {
-            $this->components->tip('Hand every change to your coding agent with [vet audit --agent].');
+            $this->components->tip($this->tip());
         }
+    }
+
+    private function readsEveryChange(): bool
+    {
+        return ! $this->output->isVerbose() && $this->holdsDelta();
+    }
+
+    private function tip(): string
+    {
+        if (! $this->auditor->trustFile->exists()) {
+            return 'No earlier tree exists to compare these bytes to. Record this one as your baseline with [vet trust --all], thus the next [composer update] shows a delta.';
+        }
+
+        if ($this->holdsDelta()) {
+            return 'Hand every change to your coding agent with [vet audit --agent].';
+        }
+
+        return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet audit <package> --agent].';
+    }
+
+    private function holdsDelta(): bool
+    {
+        foreach ($this->reviews as $review) {
+            if ($review->delta instanceof Delta) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
