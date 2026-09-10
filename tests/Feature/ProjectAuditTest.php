@@ -10,7 +10,7 @@ it('covers every package of an audited project, and reaches no network', functio
     $fixture = Fixture::open('audited-project');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -24,7 +24,7 @@ it('reports one package of an audited project without a delta', function (): voi
     $fixture = Fixture::open('audited-project');
 
     try {
-        $status = Artisan::call('audit', ['package' => 'acme/widget', '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -43,7 +43,7 @@ it('renders the four buckets of a stale project, worst first', function (): void
     $fixture = Fixture::open('stale-project');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -69,7 +69,7 @@ it('renders the source of each change of a stale project with -v', function (): 
     $fixture = Fixture::open('stale-project');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '-v' => true]);
+        $status = vet(['--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -87,7 +87,7 @@ it('asks for a baseline when the project holds no trust file', function (): void
     $fixture = Fixture::open('no-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -108,7 +108,7 @@ it('reports a changed package before an ungranted one', function (): void {
     $fixture = Fixture::open('partly-audited');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -140,7 +140,7 @@ it('names a tree that disagrees with composer.lock', function (): void {
     ]]);
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--plan' => $plan]);
+        $status = vet(['--path' => $fixture->rootPath, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -154,7 +154,7 @@ it('orders each package by the count of files that its review costs', function (
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -176,7 +176,7 @@ it('invites the audit command when composer runs the audit of the installed tree
     putenv(Gate::ENVIRONMENT.'=1');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         putenv(Gate::ENVIRONMENT);
@@ -185,7 +185,7 @@ it('invites the audit command when composer runs the audit of the installed tree
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('… and 18 more, with [vet audit -v]')
-        ->toContain('with [vet audit -v]')
+        ->toContain('… and 18 more, with [vet -v]')
+        ->toContain('with [vet -v]')
         ->and(str_contains($output, 'composer update -v'))->toBeFalse();
 });

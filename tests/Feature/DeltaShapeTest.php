@@ -9,7 +9,7 @@ it('puts each change of a project in its bucket', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -33,7 +33,7 @@ it('says that no autoload rule, no bin entry and no script points at the files t
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        $status = Artisan::call('audit', ['package' => 'acme/inert-only', '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/inert-only'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -47,7 +47,7 @@ it('renders the key of a manifest that changed, and its source', function (): vo
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/manifest-only', '--path' => $fixture->rootPath]);
+        vet(['packages' => ['acme/manifest-only'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -64,7 +64,7 @@ it('prints no source of an opaque artifact, and warns that it cannot be read', f
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/opaque', '--path' => $fixture->rootPath, '-v' => true]);
+        vet(['packages' => ['acme/opaque'], '--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -80,7 +80,7 @@ it('treats a media file as a readable change rather than an opaque artifact', fu
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/media', '--path' => $fixture->rootPath]);
+        vet(['packages' => ['acme/media'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -103,7 +103,7 @@ it('prints no control character of a file that a package changed', function (): 
     );
 
     try {
-        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath, '-v' => true]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -118,7 +118,7 @@ it('prints no source of a file that holds no readable source', function (): void
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/media', '--path' => $fixture->rootPath, '-v' => true]);
+        vet(['packages' => ['acme/media'], '--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -137,7 +137,7 @@ it('marks a file that arrived, a file that left and a file that changed', functi
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -153,7 +153,7 @@ it('stops at five paths and invites the source of the rest', function (): void {
     $fixture = Fixture::open('wide-delta');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -165,7 +165,7 @@ it('stops at five paths and invites the source of the rest', function (): void {
         ->toContain('runtime source (23)')
         ->toContain('+ src/Rule01.php')
         ->toContain('+ src/Rule05.php')
-        ->toContain('… and 18 more, with [vet audit -v]')
+        ->toContain('… and 18 more, with [vet -v]')
         ->and(str_contains($output, 'src/Rule06.php'))->toBeFalse();
 });
 
@@ -173,7 +173,7 @@ it('shows every path when the user asks for the source', function (): void {
     $fixture = Fixture::open('wide-delta');
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath, '-v' => true]);
+        vet(['--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -188,7 +188,7 @@ it('reports a change of a line ending as a change', function (): void {
     $fixture = Fixture::open('line-endings');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -205,7 +205,7 @@ it('reads every file of a package that autoloads its own root as runtime source'
     $fixture = Fixture::open('root-autoload');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -224,7 +224,7 @@ it('reads the files, the classmap and the psr-0 roots of a package as runtime so
     $fixture = Fixture::open('autoload-shapes');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -245,8 +245,8 @@ it('limits the delta to the bucket that the user names', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', [
-            'package' => 'acme/media',
+        vet([
+            'packages' => ['acme/media'],
             '--bucket' => 'inert',
             '--path' => $fixture->rootPath,
         ]);
@@ -266,8 +266,8 @@ it('compares the two versions that the user names', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        $status = Artisan::call('audit', [
-            'package' => 'acme/moved',
+        $status = vet([
+            'packages' => ['acme/moved'],
             '--from' => '1.0.0',
             '--to' => '2.0.0',
             '--path' => $fixture->rootPath,
@@ -287,8 +287,8 @@ it('refuses a delta between one version and itself', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        $status = Artisan::call('audit', [
-            'package' => 'acme/moved',
+        $status = vet([
+            'packages' => ['acme/moved'],
             '--from' => '2.0.0',
             '--to' => '2.0.0',
             '--path' => $fixture->rootPath,
@@ -308,7 +308,7 @@ it('prints the exact path of a file whose name holds a space and a character out
     file_put_contents($fixture->path('vendor/acme/moved/src/日本語 file.php'), "<?php\n\nfinal class Translated {}\n");
 
     try {
-        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -323,8 +323,8 @@ it('names the buckets that the option accepts when the user names another', func
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        $status = Artisan::call('audit', [
-            'package' => 'acme/media',
+        $status = vet([
+            'packages' => ['acme/media'],
             '--bucket' => 'runtime',
             '--path' => $fixture->rootPath,
         ]);
@@ -347,7 +347,7 @@ it('prints a line that ends with a backslash and closes the color of that line',
     );
 
     try {
-        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath, '-v' => true]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -362,10 +362,10 @@ it('compares the trusted version to the version that --to names', function (): v
     $fixture = Fixture::open('partly-audited');
 
     try {
-        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
 
-        $status = Artisan::call('audit', [
-            'package' => 'acme/widget',
+        $status = vet([
+            'packages' => ['acme/widget'],
             '--to' => '1.0.0',
             '--path' => $fixture->rootPath,
         ]);
@@ -382,8 +382,8 @@ it('refuses --to when vet holds no trusted version of the package', function ():
     $fixture = Fixture::open('partly-audited');
 
     try {
-        $status = Artisan::call('audit', [
-            'package' => 'acme/lint',
+        $status = vet([
+            'packages' => ['acme/lint'],
             '--to' => '2.0.0',
             '--path' => $fixture->rootPath,
         ]);

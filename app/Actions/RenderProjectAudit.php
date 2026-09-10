@@ -64,35 +64,51 @@ final class RenderProjectAudit
     /**
      * @return array<string, ?Delta>
      */
-    public function deltas(bool $agentAsked): array
+    public function deltas(): array
     {
-        $this->failing = $this->report->failing();
-
-        foreach ($this->failing as $audit) {
-            $this->reviews[$audit->package] = $this->review($audit);
+        if ($this->reviews === []) {
+            $this->collectReviews();
         }
-
-        $reviews = $this->reviews;
-
-        uasort($this->failing, static fn (PackageAudit $a, PackageAudit $b): int => [
-            self::statusWeight($a->status),
-            $reviews[$b->package]->files,
-            $a->package,
-        ] <=> [
-            self::statusWeight($b->status),
-            $reviews[$a->package]->files,
-            $b->package,
-        ]);
 
         $deltas = [];
 
         foreach ($this->reviews as $package => $review) {
-            $deltas[$package] = $review->delta instanceof Delta || ! $agentAsked
-                ? $review->delta
+            $deltas[$package] = $review->delta;
+        }
+
+        return $deltas;
+    }
+
+    /**
+     * @return array<string, ?Delta>
+     */
+    public function agentDeltas(): array
+    {
+        $deltas = [];
+
+        foreach ($this->deltas() as $package => $delta) {
+            $deltas[$package] = $delta instanceof Delta
+                ? $delta
                 : $this->auditor->wholeTree($this->failing[$package]);
         }
 
         return $deltas;
+    }
+
+    /**
+     * @return array<string, PackageAudit>
+     */
+    public function failing(): array
+    {
+        return $this->failing;
+    }
+
+    /**
+     * @return array<string, AgentReview>
+     */
+    public function agentReviews(): array
+    {
+        return $this->agentReviews;
     }
 
     /**
@@ -101,6 +117,18 @@ final class RenderProjectAudit
     public function withAgentReviews(array $agentReviews): void
     {
         $this->agentReviews = $agentReviews;
+    }
+
+    public function renderAgentReviews(): void
+    {
+        $this->output->newLine();
+
+        foreach ($this->failing as $audit) {
+            $this->renderRow($audit, $this->reviews[$audit->package]);
+            $this->renderAgent($audit, $this->reviews[$audit->package]->delta, true);
+        }
+
+        $this->output->newLine();
     }
 
     /**
@@ -155,12 +183,7 @@ final class RenderProjectAudit
             $this->components->error('The installed tree does not match composer.lock. Run [composer install] to install what composer.lock holds.');
         }
 
-        if (! $this->auditor->trustFile->exists()) {
-            $this->components->warn(sprintf(
-                'No trust file yet. [vet trust --all] records every installed package in [%s].',
-                $this->project->relativePath($this->auditor->trustFile->path),
-            ));
-        }
+        $this->renderBaselineWarning();
 
         if ($this->failing === []) {
             $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
@@ -169,9 +192,26 @@ final class RenderProjectAudit
         }
 
         $this->renderFailing($agentAsked);
+        $this->renderAudited();
         $this->renderVerdict($agentAsked);
 
         return self::FAILURE;
+    }
+
+    public function renderReport(bool $agentAsked): void
+    {
+        $this->output->newLine();
+
+        $this->renderBaselineWarning();
+
+        if ($this->failing === []) {
+            $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
+
+            return;
+        }
+
+        $this->renderFailing($agentAsked);
+        $this->renderAudited();
     }
 
     private static function statusWeight(AuditStatus $status): int
@@ -184,6 +224,39 @@ final class RenderProjectAudit
         };
     }
 
+    private function collectReviews(): void
+    {
+        $this->failing = $this->report->failing();
+
+        foreach ($this->failing as $audit) {
+            $this->reviews[$audit->package] = $this->review($audit);
+        }
+
+        $reviews = $this->reviews;
+
+        uasort($this->failing, static fn (PackageAudit $a, PackageAudit $b): int => [
+            self::statusWeight($a->status),
+            $reviews[$b->package]->files,
+            $a->package,
+        ] <=> [
+            self::statusWeight($b->status),
+            $reviews[$a->package]->files,
+            $b->package,
+        ]);
+    }
+
+    private function renderBaselineWarning(): void
+    {
+        if ($this->auditor->trustFile->exists()) {
+            return;
+        }
+
+        $this->components->warn(sprintf(
+            'No trust file yet. [vet --fresh] records every installed package in [%s].',
+            $this->project->relativePath($this->auditor->trustFile->path),
+        ));
+    }
+
     private function renderFailing(bool $agentAsked): void
     {
         $this->output->writeln(sprintf('  <options=bold>to review</> <fg=gray>(%d, worst first)</>', count($this->failing)));
@@ -194,25 +267,7 @@ final class RenderProjectAudit
         foreach ($this->failing as $audit) {
             $review = $this->reviews[$audit->package];
 
-            $this->components->twoColumnDetail(
-                sprintf(
-                    '<fg=%s>%s</> <fg=gray>%s</>%s  <fg=gray>%s</>',
-                    $this->statusColor($audit->status),
-                    $audit->package,
-                    $audit->versions(),
-                    $audit->dev ? ' <fg=gray>(dev)</>' : '',
-                    $audit->reason(),
-                ),
-                $audit->status === AuditStatus::Unknown
-                    ? '<fg=red>bytes not readable</>'
-                    : sprintf(
-                        '<fg=gray>%d files (%s)  ·  %s</>',
-                        $review->files,
-                        $review->label(),
-                        Bytes::human($audit->bytes),
-                    ),
-            );
-
+            $this->renderRow($audit, $review);
             $this->renderAgent($audit, $review->delta, $agentAsked);
 
             $endsWithDelta = $review->delta instanceof Delta && $this->readsDelta($audit->package, $agentAsked);
@@ -226,6 +281,28 @@ final class RenderProjectAudit
         if (! $endsWithDelta) {
             $this->output->newLine();
         }
+    }
+
+    private function renderRow(PackageAudit $audit, PackageReview $review): void
+    {
+        $this->components->twoColumnDetail(
+            sprintf(
+                '<fg=%s>%s</> <fg=gray>%s</>%s  <fg=gray>%s</>',
+                $this->statusColor($audit->status),
+                $audit->package,
+                $audit->versions(),
+                $audit->dev ? ' <fg=gray>(dev)</>' : '',
+                $audit->reason(),
+            ),
+            $audit->status === AuditStatus::Unknown
+                ? '<fg=red>bytes not readable</>'
+                : sprintf(
+                    '<fg=gray>%d files (%s)  ·  %s</>',
+                    $review->files,
+                    $review->label(),
+                    Bytes::human($audit->bytes),
+                ),
+        );
     }
 
     private function readsDelta(string $package, bool $agentAsked): bool
@@ -254,7 +331,7 @@ final class RenderProjectAudit
         }
     }
 
-    private function renderVerdict(bool $agentAsked): void
+    private function renderAudited(): void
     {
         $this->components->twoColumnDetail(
             '<options=bold>audited</>',
@@ -266,14 +343,17 @@ final class RenderProjectAudit
             ),
         );
         $this->output->newLine();
+    }
 
+    private function renderVerdict(bool $agentAsked): void
+    {
         $this->components->error($this->readsEveryChange()
             ? sprintf(
-                '[%d] package(s) are not covered. Read every change with [%s]. Record them with [vet trust].',
+                '[%d] package(s) are not covered. Read every change with [%s]. Run [vet] in a terminal to record the ones that you trust.',
                 count($this->failing),
                 $this->invitation->command,
             )
-            : sprintf('[%d] package(s) are not covered. Record them with [vet trust].', count($this->failing)));
+            : sprintf('[%d] package(s) are not covered. Run [vet] in a terminal to record the ones that you trust.', count($this->failing)));
 
         if (! $agentAsked) {
             $this->components->tip($this->tip());
@@ -288,14 +368,14 @@ final class RenderProjectAudit
     private function tip(): string
     {
         if (! $this->auditor->trustFile->exists()) {
-            return 'No earlier tree exists to compare these bytes to. Record this one as your baseline with [vet trust --all], thus the next [composer update] shows a delta.';
+            return 'No earlier tree exists to compare these bytes to. Record this one as your baseline with [vet --fresh], thus the next [composer update] shows a delta.';
         }
 
         if ($this->holdsDelta()) {
-            return 'Hand every change to your coding agent with [vet audit --agent].';
+            return 'Hand every change to your coding agent with [vet --agent].';
         }
 
-        return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet audit <package> --agent].';
+        return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet <package> --agent].';
     }
 
     private function holdsDelta(): bool

@@ -57,7 +57,7 @@ final readonly class ResolveDelta
 
         if ($fromVersion === null) {
             throw new FailureException(sprintf(
-                '[%s@%s] has no earlier release to compare against. Pass an explicit version: [vet audit %s <from>].',
+                '[%s@%s] has no earlier release to compare against. Pass an explicit version: [vet %s --from=<version>].',
                 $package,
                 $toVersion,
                 $package,

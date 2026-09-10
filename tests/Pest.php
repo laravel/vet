@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\ValueObjects\AgentPrompt;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Testing\PendingCommand;
 use Tests\TestCase;
 
@@ -58,4 +59,23 @@ function stubBinary(string $script): string
 function agentPrompt(string $text, array $unread, array $paths): AgentPrompt
 {
     return new AgentPrompt($text, $unread, $paths);
+}
+
+/**
+ * @param  array<string, mixed>  $parameters
+ */
+function vet(array $parameters): int
+{
+    return Artisan::call('vet', [...$parameters, '--no-interaction' => true]);
+}
+
+/**
+ * @param  array<string, mixed>  $parameters
+ */
+function trust(string $package, string $version, array $parameters): PendingCommand
+{
+    return command('vet', $parameters)
+        ->expectsQuestion('How do you want to read these packages?', 'pick')
+        ->expectsQuestion('Which packages do you trust?', [$package])
+        ->expectsQuestion(sprintf('Do you trust [%s] [%s]?', $package, $version), 'yes');
 }

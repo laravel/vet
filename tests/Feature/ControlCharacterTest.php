@@ -15,7 +15,7 @@ it('prints no control character of a path that a package holds', function (): vo
     file_put_contents($fixture->path("vendor/acme/opaque/builds/ev\x1b[2Kil.so"), "\0binary\n");
 
     try {
-        Artisan::call('audit', ['package' => 'acme/opaque', '--path' => $fixture->rootPath, '-v' => true]);
+        vet(['packages' => ['acme/opaque'], '--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -38,7 +38,7 @@ it('prints no control character of a version that the lock file holds', function
     }
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

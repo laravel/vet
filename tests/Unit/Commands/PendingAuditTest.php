@@ -10,7 +10,7 @@ it('audits the bytes that composer would write, and does not pass them', functio
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $status = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $status = vet(['--path' => $project->rootPath]);
         $output = Artisan::output();
     } finally {
         $project->remove();
@@ -28,7 +28,7 @@ it('invites the audit command when it audits a plan', function (): void {
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $status = Artisan::call('audit', [
+        $status = vet([
             '--path' => $project->rootPath,
             '--plan' => $project->planFile(),
         ]);
@@ -39,7 +39,7 @@ it('invites the audit command when it audits a plan', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('Read every change with [vet audit -v]');
+        ->toContain('Read every change with [vet -v]');
 });
 
 it('records the bytes of the next install, while vendor/ holds the old ones', function (): void {
@@ -47,17 +47,16 @@ it('records the bytes of the next install, while vendor/ holds the old ones', fu
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $trusted = Artisan::call('trust', [
-            'packages' => [PendingUpdate::PACKAGE],
-            '--path' => $project->rootPath,
-        ]);
-        $trustOutput = Artisan::output();
+        trust(PendingUpdate::PACKAGE, PendingUpdate::TARGET_VERSION, ['--path' => $project->rootPath])
+            ->expectsOutputToContain('Run [composer install] to write those bytes to vendor/.')
+            ->assertExitCode(0)
+            ->run();
 
         $trustFile = $project->trustFile();
         $targetHash = $project->targetHash();
         $installed = (string) file_get_contents($project->installedFile());
 
-        $audited = Artisan::call('audit', [
+        $audited = vet([
             '--path' => $project->rootPath,
             '--plan' => $project->planFile(),
         ]);
@@ -65,9 +64,7 @@ it('records the bytes of the next install, while vendor/ holds the old ones', fu
         $project->remove();
     }
 
-    expect($trusted)->toBe(0)
-        ->and($trustOutput)->toContain('Run [composer install] to write those bytes to vendor/.')
-        ->and($trustFile)
+    expect($trustFile)
         ->toContain('"version": "2.0.0"')
         ->toContain($targetHash)
         ->and($installed)->toContain("return 'widget';")
@@ -79,14 +76,14 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
     $project->lockAt(PendingUpdate::TRUSTED_VERSION);
 
     try {
-        $audited = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $audited = vet(['--path' => $project->rootPath]);
         $auditOutput = Artisan::output();
 
-        $trusted = Artisan::call('trust', [
-            'packages' => [PendingUpdate::PACKAGE],
-            '--path' => $project->rootPath,
-        ]);
-        $trustOutput = Artisan::output();
+        trust(PendingUpdate::PACKAGE, PendingUpdate::TRUSTED_VERSION, ['--path' => $project->rootPath])
+            ->expectsOutputToContain('Recorded [acme/widget] [1.0.0]')
+            ->expectsOutputToContain('Run [composer install] to write those bytes to vendor/.')
+            ->assertExitCode(0)
+            ->run();
 
         $trustFile = $project->trustFile();
         $rebuiltHash = $project->rebuiltHash();
@@ -96,10 +93,6 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
 
     expect($audited)->toBe(1)
         ->and($auditOutput)->toContain('composer would install [1.0.0] again, and its bytes changed')
-        ->and($trusted)->toBe(0)
-        ->and($trustOutput)
-        ->toContain('Recorded [acme/widget] [1.0.0]')
-        ->toContain('Run [composer install] to write those bytes to vendor/.')
         ->and($trustFile)
         ->toContain('"version": "1.0.0"')
         ->toContain($rebuiltHash);
@@ -110,7 +103,7 @@ it('shows the delta of the incoming bytes against the installed tree', function 
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $status = Artisan::call('trust', [
+        $status = vet([
             'packages' => [PendingUpdate::PACKAGE],
             '--path' => $project->rootPath,
             '-v' => true,
@@ -120,9 +113,10 @@ it('shows the delta of the incoming bytes against the installed tree', function 
         $project->remove();
     }
 
-    expect($status)->toBe(0)
+    expect($status)->toBe(1)
         ->and($output)
         ->toContain('composer would write these bytes to vendor/')
+        ->toContain('Record these bytes with [vet].')
         ->toContain('src/Widget.php')
         ->toContain("return 'gadget';")
         ->toContain('bin/widget.phar');
@@ -133,10 +127,10 @@ it('names the incoming bytes that it cannot read, and blocks them', function ():
     $project->lockWithoutDist('2.0.0');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $status = vet(['--path' => $project->rootPath]);
         $output = Artisan::output();
 
-        $trusted = Artisan::call('trust', ['--all' => true, '--path' => $project->rootPath]);
+        $trusted = vet(['--fresh' => true, '--path' => $project->rootPath]);
         $trustOutput = Artisan::output();
     } finally {
         $project->remove();
@@ -155,7 +149,7 @@ it('audits the tree on disk when composer plans nothing', function (): void {
     $project = PendingUpdate::create();
 
     try {
-        $status = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $status = vet(['--path' => $project->rootPath]);
         $output = Artisan::output();
     } finally {
         $project->remove();

@@ -9,7 +9,7 @@ it('tells the user what to do with a trust file of an older schema', function ()
     $fixture = Fixture::open('legacy-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -18,14 +18,14 @@ it('tells the user what to do with a trust file of an older schema', function ()
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('declares schema [2]')
-        ->toContain('Delete the file and run [vet trust --all] again.');
+        ->toContain('Delete the file and run [vet --fresh] again.');
 });
 
 it('tells the user to record the trust file again when it holds a truncated hash', function (): void {
     $fixture = Fixture::open('truncated-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -35,7 +35,7 @@ it('tells the user to record the trust file again when it holds a truncated hash
         ->and($output)
         ->toContain('declares schema [3]')
         ->toContain('recorded a truncated tree hash')
-        ->toContain('Delete the file and run [vet trust --all] again.')
+        ->toContain('Delete the file and run [vet --fresh] again.')
         ->and(str_contains($output, 'Malformed tree hash digest'))->toBeFalse();
 });
 
@@ -43,7 +43,7 @@ it('names the entry that holds no hash', function (): void {
     $fixture = Fixture::open('broken-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -57,7 +57,7 @@ it('ignores an entry of a package that the project does not install', function (
     $fixture = Fixture::open('orphan-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -71,14 +71,14 @@ it('keeps the notes of an entry that the user records again', function (): void 
     $fixture = Fixture::open('partly-audited');
 
     try {
-        $status = Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+
         $trustFile = $fixture->read('vet.json');
     } finally {
         $fixture->remove();
     }
 
-    expect($status)->toBe(0)
-        ->and($trustFile)
+    expect($trustFile)
         ->toContain('"notes": "Reviewed with the team."')
         ->toContain('"version": "2.0.0"');
 });
@@ -87,18 +87,14 @@ it('replaces the notes of an entry when the user gives --notes', function (): vo
     $fixture = Fixture::open('partly-audited');
 
     try {
-        $status = Artisan::call('trust', [
-            'packages' => ['acme/widget'],
-            '--notes' => 'Read the phar too.',
-            '--path' => $fixture->rootPath,
-        ]);
+        trust('acme/widget', '2.0.0', ['--notes' => 'Read the phar too.', '--path' => $fixture->rootPath])->run();
+
         $trustFile = $fixture->read('vet.json');
     } finally {
         $fixture->remove();
     }
 
-    expect($status)->toBe(0)
-        ->and($trustFile)->toContain('"notes": "Read the phar too."')
+    expect($trustFile)->toContain('"notes": "Read the phar too."')
         ->and(str_contains($trustFile, 'Reviewed with the team.'))->toBeFalse();
 });
 
@@ -106,7 +102,7 @@ it('writes the dev package of a baseline in require-dev', function (): void {
     $fixture = Fixture::open('no-trust-file');
 
     try {
-        $status = Artisan::call('trust', ['--all' => true, '--path' => $fixture->rootPath]);
+        $status = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
 
         /** @var array{require: array<string, mixed>, require-dev: array<string, mixed>} $trustFile */
         $trustFile = json_decode($fixture->read('vet.json'), true);
@@ -123,7 +119,7 @@ it('names the schema that a trust file of a later build declares', function (): 
     $fixture = Fixture::open('future-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -133,14 +129,14 @@ it('names the schema that a trust file of a later build declares', function (): 
         ->and($output)
         ->toContain('declares schema [99]')
         ->toContain('this build of vet reads schema [4]')
-        ->and(str_contains($output, 'Delete the file and run `vet trust` again.'))->toBeFalse();
+        ->and(str_contains($output, 'Delete the file and run `vet --fresh` again.'))->toBeFalse();
 });
 
 it('names the tree hash algorithm that this build does not read', function (): void {
     $fixture = Fixture::open('unknown-hash-algorithm');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -156,7 +152,7 @@ it('names the trust file that holds no valid json', function (): void {
     $fixture = Fixture::open('invalid-trust-file');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -172,7 +168,7 @@ it('moves the entry of a dev package into require-dev when the user records it a
     $fixture = Fixture::open('dev-section-drift');
 
     try {
-        $status = Artisan::call('trust', ['packages' => ['acme/lint'], '--path' => $fixture->rootPath]);
+        trust('acme/lint', '1.0.0', ['--path' => $fixture->rootPath])->run();
 
         /** @var array{require: array<string, mixed>, require-dev: array<string, mixed>} $trustFile */
         $trustFile = json_decode($fixture->read('vet.json'), true);
@@ -180,8 +176,7 @@ it('moves the entry of a dev package into require-dev when the user records it a
         $fixture->remove();
     }
 
-    expect($status)->toBe(0)
-        ->and($trustFile['require'])->toBe([])
+    expect($trustFile['require'])->toBe([])
         ->and($trustFile['require-dev'])->toHaveKey('acme/lint');
 });
 
@@ -189,9 +184,9 @@ it('writes the notes of an entry that is already covered', function (): void {
     $fixture = Fixture::open('partly-audited');
 
     try {
-        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
 
-        $status = Artisan::call('trust', [
+        $status = vet([
             'packages' => ['acme/widget'],
             '--notes' => 'Read the phar too.',
             '--path' => $fixture->rootPath,
@@ -211,9 +206,9 @@ it('keeps the notes of an entry that is already covered when the user gives no n
     $fixture = Fixture::open('partly-audited');
 
     try {
-        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
 
-        $status = Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
         $trustFile = $fixture->read('vet.json');
     } finally {

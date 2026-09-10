@@ -10,7 +10,7 @@ it('reads the vendor directory that composer.json configures', function (): void
     $fixture = Fixture::open('custom-vendor-dir');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -24,7 +24,7 @@ it('says that a tree came from --prefer-source rather than report a change of by
     $fixture = Fixture::open('source-install');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -40,7 +40,7 @@ it('reports the whole package when the dist of the granted version cannot be fet
     $fixture = Fixture::open('no-dist');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -56,8 +56,8 @@ it('fails when the user asks for a delta of a version that holds no dist', funct
     $fixture = Fixture::open('no-dist');
 
     try {
-        $status = Artisan::call('audit', [
-            'package' => 'acme/widget',
+        $status = vet([
+            'packages' => ['acme/widget'],
             '--from' => '1.0.0',
             '--path' => $fixture->rootPath,
         ]);
@@ -74,7 +74,7 @@ it('reports the package that provides a name that a monorepo replaces', function
     $fixture = Fixture::open('monorepo-replace');
 
     try {
-        $status = Artisan::call('audit', ['package' => 'acme/widget', '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -100,7 +100,7 @@ it('names a package of composer.lock that is not installed, and one that the loc
     ]]);
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--plan' => $plan]);
+        $status = vet(['--path' => $fixture->rootPath, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -118,7 +118,7 @@ it('reads the lock of a blocked update as the change to review, and names no dis
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $status = Artisan::call('audit', ['--path' => $project->rootPath]);
+        $status = vet(['--path' => $project->rootPath]);
         $output = Artisan::output();
     } finally {
         $project->remove();
@@ -143,7 +143,7 @@ it('names a tree whose version disagrees with composer.lock', function (): void 
     ]]);
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--plan' => $plan]);
+        $status = vet(['--path' => $fixture->rootPath, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -157,7 +157,7 @@ it('asks for composer install when the project installs no package', function ()
     $fixture = Fixture::open('empty-vendor');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -173,7 +173,7 @@ it('names the lock file that the project holds no', function (): void {
     $fixture = Fixture::open('no-lock');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -187,7 +187,7 @@ it('names the installed package list that the project holds no', function (): vo
     $fixture = Fixture::open('no-installed-json');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -203,7 +203,7 @@ it('fails on a directory that holds no composer.json', function (): void {
     mkdir($directory, 0o777, true);
 
     try {
-        $status = Artisan::call('audit', ['--path' => $directory]);
+        $status = vet(['--path' => $directory]);
         $output = Artisan::output();
     } finally {
         rmdir($directory);
@@ -221,7 +221,7 @@ it('refuses to hash a package directory that holds no file', function (): void {
     rmdir($fixture->path('vendor/acme/lint/src'));
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -240,7 +240,7 @@ it('names the package directory that the installed package list points at and ve
     rmdir($fixture->path('vendor/acme/lint'));
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -262,7 +262,7 @@ it('names the installed package that records no install path', function (): void
     ));
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -276,7 +276,7 @@ it('names the package that the user asks for and the project does not install', 
     $fixture = Fixture::open('audited-project');
 
     try {
-        $status = Artisan::call('audit', ['package' => 'acme/ghost', '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/ghost'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -293,7 +293,7 @@ it('reads a package that ships a symlink to a file that the tree holds no', func
     symlink('../../../gone/CHANGELOG.md', $fixture->path('vendor/acme/widget/README.md'));
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '-v' => true]);
+        $status = vet(['--path' => $fixture->rootPath, '-v' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

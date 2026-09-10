@@ -34,7 +34,7 @@ it('writes the audit report as json with the exact path of every file', function
     plantEvilFile($fixture->path('vendor/acme/opaque'));
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true]);
+        vet(['--path' => $fixture->rootPath, '--json' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -63,7 +63,7 @@ it('writes the audit of one package as json with the exact path of every file', 
     plantEvilFile($fixture->path('vendor/acme/opaque'));
 
     try {
-        Artisan::call('audit', ['package' => 'acme/opaque', '--path' => $fixture->rootPath, '--json' => true]);
+        vet(['packages' => ['acme/opaque'], '--path' => $fixture->rootPath, '--json' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -82,7 +82,7 @@ it('writes the status of the package that it audits as json', function (): void 
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath, '--json' => true]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--json' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -106,7 +106,7 @@ it('writes each lock discrepancy as data, and writes no bracket in it', function
     ]]);
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true, '--plan' => $plan]);
+        vet(['--path' => $fixture->rootPath, '--json' => true, '--plan' => $plan]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -126,7 +126,7 @@ it('writes the scope of a review as a machine value', function (): void {
     $fixture = Fixture::open('partly-audited');
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath, '--json' => true]);
+        vet(['--path' => $fixture->rootPath, '--json' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

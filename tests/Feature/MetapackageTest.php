@@ -10,7 +10,7 @@ it('covers a project that installs a metapackage, and reads no bytes of it', fun
     $fixture = Fixture::open('metapackage-project');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        $status = vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -27,7 +27,7 @@ it('records no entry of a metapackage in the baseline', function (): void {
     unlink($fixture->path('vet.json'));
 
     try {
-        $status = Artisan::call('trust', ['--all' => true, '--path' => $fixture->rootPath]);
+        $status = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
         $output = Artisan::output();
         $trustFile = $fixture->read('vet.json');
     } finally {
@@ -45,7 +45,7 @@ it('fails when the user names a metapackage', function (): void {
     $fixture = Fixture::open('metapackage-project');
 
     try {
-        $status = Artisan::call('audit', ['package' => 'acme/advisories', '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/advisories'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -75,7 +75,7 @@ it('reads no bytes of a metapackage that composer would install', function (): v
     ]));
 
     try {
-        $status = Artisan::call('audit', [
+        $status = vet([
             '--path' => $fixture->rootPath,
             '--plan' => $fixture->path('plan.json'),
         ]);

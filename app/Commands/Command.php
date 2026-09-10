@@ -13,7 +13,10 @@ use App\Support\ControlSafeFormatter;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\Delta;
+use Laravel\Prompts\Output\ConsoleOutput as PromptOutput;
+use Laravel\Prompts\Prompt;
 use LaravelZero\Framework\Commands\Command as LaravelZeroCommand;
+use Symfony\Component\Console\Formatter\OutputFormatterInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -27,6 +30,8 @@ abstract class Command extends LaravelZeroCommand
 
         if (! $formatter instanceof ControlSafeFormatter) {
             $output->setFormatter(new ControlSafeFormatter($formatter));
+
+            $this->writePromptsWithoutTheSanitizer($output, $formatter);
         }
 
         $this->components = new ControlSafeComponents($this->output);
@@ -40,10 +45,6 @@ abstract class Command extends LaravelZeroCommand
      */
     protected function agentReviews(array $deltas): array
     {
-        if ($this->option('agent') !== true) {
-            return [];
-        }
-
         $builder = new BuildAgentPrompt;
 
         /** @var array<string, AgentPrompt> $prompts */
@@ -71,6 +72,15 @@ abstract class Command extends LaravelZeroCommand
         }
 
         return $agent->handle($prompts);
+    }
+
+    private function writePromptsWithoutTheSanitizer(OutputInterface $output, OutputFormatterInterface $formatter): void
+    {
+        Prompt::setOutput(new PromptOutput(
+            $output->getVerbosity(),
+            $output->isDecorated(),
+            $formatter,
+        ));
     }
 
     private function installColdCache(): void

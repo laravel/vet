@@ -10,7 +10,7 @@ it('hands each delta to the agent, and writes the verdict under the package', fu
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/New.php] writes a path outside the package","findings":[]}\'');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--agent' => true]);
+        $status = vet(['--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -27,7 +27,7 @@ it('writes each finding of the agent under the verdict', function (): void {
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/New.php] runs a shell command","findings":[{"path":"src/New.php","reason":"it calls [exec]"}]}\'');
 
     try {
-        Artisan::call('audit', ['acme/moved', '--path' => $fixture->rootPath, '--agent' => true]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -41,7 +41,7 @@ it('writes no verdict when the agent names a file that the delta does not hold',
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"it reads a secret","findings":[{"path":"src/Invented.php","reason":"it reads .env"}]}\'');
 
     try {
-        Artisan::call('audit', ['acme/moved', '--path' => $fixture->rootPath, '--agent' => true]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -55,7 +55,7 @@ it('writes a partial verdict when the prompt holds no byte of an opaque artifact
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}\'');
 
     try {
-        Artisan::call('audit', ['acme/opaque', '--path' => $fixture->rootPath, '--agent' => true]);
+        vet(['packages' => ['acme/opaque'], '--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -72,7 +72,7 @@ it('gives the agent the package, the versions and the source of each change', fu
     $fixture->agent('cat >> '.escapeshellarg($written)."\n".'echo \'{"verdict":"clear","summary":"nothing","findings":[]}\'');
 
     try {
-        Artisan::call('audit', ['package' => 'acme/moved', '--path' => $fixture->rootPath, '--agent' => true]);
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--agent' => true]);
         $prompt = (string) file_get_contents($written);
     } finally {
         unlink($written);
@@ -93,7 +93,7 @@ it('writes the verdict of the agent in the json', function (): void {
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}\'');
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath, '--agent' => true, '--json' => true]);
+        vet(['--path' => $fixture->rootPath, '--agent' => true, '--json' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -118,7 +118,7 @@ it('hands the whole tree to the agent when vet holds no earlier tree', function 
     $fixture->agent('cat >> '.escapeshellarg($written)."\n".'echo \'{"verdict":"clear","summary":"this tree reaches outside nothing","findings":[]}\'');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--agent' => true]);
+        $status = vet(['--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
         $prompt = (string) file_get_contents($written);
     } finally {
@@ -137,7 +137,7 @@ it('names the agent that it cannot run', function (): void {
     putenv('VET_AGENT_BINARY=agent-that-is-not-installed');
 
     try {
-        $status = Artisan::call('audit', ['--path' => $fixture->rootPath, '--agent' => true]);
+        $status = vet(['--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -151,42 +151,43 @@ it('invites the reader to the agent when the flag is absent', function (): void 
     $fixture = Fixture::open('delta-shapes');
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
     }
 
-    expect($output)->toContain('Hand every change to your coding agent with [vet audit --agent].');
+    expect($output)->toContain('Hand every change to your coding agent with [vet --agent].');
 });
 
 it('invites the reader to a baseline when no trust file exists', function (): void {
     $fixture = Fixture::open('no-trust-file');
 
     try {
-        Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
     }
 
-    expect($output)->toContain('Record this one as your baseline with [vet trust --all]')
-        ->and($output)->not->toContain('[vet audit --agent]')
-        ->and($output)->not->toContain('Read every change with [vet audit -v]');
+    expect($output)->toContain('Record this one as your baseline with [vet --fresh]')
+        ->and($output)->not->toContain('[vet --agent]')
+        ->and($output)->not->toContain('Read every change with [vet -v]');
 });
 
 it('invites the reader to one package when a trust file holds no earlier tree', function (): void {
     $fixture = Fixture::open('partly-audited');
 
     try {
-        Artisan::call('trust', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
-        Artisan::call('audit', ['--path' => $fixture->rootPath]);
+        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+
+        vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
     }
 
-    expect($output)->toContain('Hand one whole package to your coding agent with [vet audit <package> --agent].');
+    expect($output)->toContain('Hand one whole package to your coding agent with [vet <package> --agent].');
 });
 
 it('puts the verdict of the agent on the row that you pick', function (): void {
@@ -194,12 +195,12 @@ it('puts the verdict of the agent on the row that you pick', function (): void {
     $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}\'');
 
     try {
-        command('trust', ['--path' => $fixture->rootPath, '--agent' => true])
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
             ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->expectsOutputToContain('agent  RISK  [src/Widget.php] renames the widget')
             ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'no')
-            ->assertExitCode(0)
+            ->assertExitCode(1)
             ->run();
     } finally {
         $fixture->remove();

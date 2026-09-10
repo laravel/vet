@@ -35,7 +35,7 @@ it('runs the audit in color when the project holds a trust file and the binary',
     $gate = gateProject(trustFile: true, binary: true);
 
     expect($gate->command(verbose: false, decorated: true, planPath: null))
-        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', 'audit', '--ansi'])
+        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi'])
         ->and($gate->baselineNotice())->toBeNull();
 });
 
@@ -43,7 +43,7 @@ it('passes the verbosity of composer to the audit', function (): void {
     $gate = gateProject(trustFile: true, binary: true);
 
     expect($gate->command(verbose: true, decorated: true, planPath: null))
-        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', 'audit', '--ansi', '-v']);
+        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi', '-v']);
 });
 
 it('tells the audit that composer runs it', function (): void {
@@ -55,7 +55,7 @@ it('asks for a baseline rather than fail a project that holds no trust file', fu
     $gate = gateProject(trustFile: false, binary: true);
 
     expect($gate->command(verbose: false, decorated: true, planPath: null))->toBeNull()
-        ->and($gate->baselineNotice())->toContain('vet trust');
+        ->and($gate->baselineNotice())->toContain('vet --fresh');
 });
 
 it('does nothing when the binary is gone', function (): void {
@@ -86,7 +86,7 @@ it('gives the audit the plan that composer holds', function (): void {
 
     expect($path)->toBeString()
         ->and($gate->command(verbose: false, decorated: true, planPath: $path))
-        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', 'audit', '--ansi', '--plan='.$path]);
+        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi', '--plan='.$path]);
 
     $plan = ComposerPlan::fromFile((string) $path);
 
@@ -136,5 +136,5 @@ it('runs the audit without color when composer writes no color', function (): vo
     $gate = gateProject(trustFile: true, binary: true);
 
     expect($gate->command(verbose: false, decorated: false, planPath: null))
-        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', 'audit', '--no-ansi']);
+        ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--no-ansi']);
 });

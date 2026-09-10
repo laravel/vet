@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Commands\AuditCommand;
+use App\Commands\VetCommand;
 use Illuminate\Console\Scheduling\ScheduleFinishCommand;
 use Illuminate\Console\Scheduling\ScheduleListCommand;
 use Illuminate\Console\Scheduling\ScheduleRunCommand;
@@ -25,7 +25,7 @@ return [
     |
     */
 
-    'default' => AuditCommand::class,
+    'default' => VetCommand::class,
 
     /*
     |--------------------------------------------------------------------------

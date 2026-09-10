@@ -48,7 +48,7 @@ final readonly class Gate
             return null;
         }
 
-        $command = [PHP_BINARY, $binary, 'audit', $decorated ? '--ansi' : '--no-ansi'];
+        $command = [PHP_BINARY, $binary, $decorated ? '--ansi' : '--no-ansi'];
 
         if ($planPath !== null) {
             $command[] = '--plan='.$planPath;
@@ -107,7 +107,7 @@ final readonly class Gate
             return null;
         }
 
-        return 'Vet has no trust file in this project yet. Run [vet trust --all] to record what you trust today.';
+        return 'Vet has no trust file in this project yet. Run [vet --fresh] to record what you trust today.';
     }
 
     public function firstInstallNotice(): ?string

@@ -36,7 +36,7 @@ Laravel Vet shows you what a `composer update` is about to write into your `vend
 
   audited .................................................. 124 / 125 (99.2%)
 
-   ERROR  1 package(s) are not covered. Read every change with `composer update -v`, then record them with `vet trust`.
+   ERROR  1 package(s) are not covered. Read every change with `composer update -v`. Run `vet` in a terminal to record the ones that you trust.
 
 ```
 
@@ -50,20 +50,20 @@ You can install Laravel Vet via Composer:
 composer require laravel/vet --dev
 ```
 
-By default, vet commands are invoked using the `./vendor/bin/vet` script that is included with the package:
+By default, vet is invoked using the `./vendor/bin/vet` script that is included with the package:
 
 ```shell
-./vendor/bin/vet audit
+./vendor/bin/vet
 ```
 
-Next, you should record the packages you trust today. Until `vet.json` exists, vet has no earlier tree to compare an update against.
+vet has one command. It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the uncovered packages you trust. Until `vet.json` exists, vet has no earlier tree to compare an update against, so the first step is to record the packages you trust today.
 
-## Trusting Your Dependencies
+## Recording Your Baseline
 
-The `trust` command records the bytes you accept. Pass the `--all` option to record every package that `vendor/` holds today:
+The `--fresh` option records every package that `vendor/` holds today, and writes `vet.json` for the first time:
 
 ```shell
-vet trust --all
+vet --fresh
 ```
 
 ```
@@ -77,21 +77,35 @@ vet trust --all
    INFO  Trusted 125 package(s), and wrote vet.json.
 ```
 
-The `--all` option covers the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a tree that `vendor/` does not hold yet, vet leaves that tree alone and asks you to read it:
+The `--fresh` option covers the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a tree that `vendor/` does not hold yet, vet leaves that tree alone and asks you to read it:
 
 ```
-   ERROR  composer would write 2 package(s) that vendor/ does not hold. Read them with `vet trust`, or run `composer install` first.
+   ERROR  composer would write 2 package(s) that vendor/ does not hold. Run `vet` in a terminal to read them, or run `composer install` first.
 ```
+
+## Auditing Your Dependencies
+
+Once the trust file exists, `vet` tells you where you stand. It reads the tree of every installed package, compares it against your entries, and names the packages that have none:
+
+```shell
+vet
+
+   INFO  All 125 packages are covered.
+
+```
+
+vet exits with a non-zero status when a package is not covered, which is what makes it useful in a build. Without a terminal, in your CI or inside the Composer plugin, the report is all that vet writes.
 
 ### Picking What to Trust
 
-Run the `trust` command with no argument and vet asks you what to record. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in:
-
-```shell
-vet trust
-```
+In a terminal, vet follows the report with a question. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in. Press the space bar to pick a package, and `ctrl+a` to pick every package:
 
 ```
+ ┌ How do you want to read these packages? ─────────────────────┐
+ │ › Pick them, and read each delta                             │
+ │   Hand every delta to your coding agent first                │
+ └──────────────────────────────────────────────────────────────┘
+
  ┌ Which packages do you trust? ────────────────────────────────┐
  │ ◼ acme/logger  1.2.0 → 2.0.0  12 files  incoming             │
  │ ◻ acme/tooling  4.1.0 → 4.2.0  8 files  incoming             │
@@ -102,10 +116,12 @@ vet trust
 vet then shows you the delta of each package you picked, one at a time, and asks before it writes the entry:
 
 ```
-  acme/logger                                        1.2.0 → 2.0.0
-  hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3a
-  contents                                                 12 files
+  acme/logger ....................................... 1.2.0 → 2.0.0
   state             composer would write these bytes to vendor/
+  hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3a
+  source ..................................................... dist
+  contents ......................................... 12 files, 41.2 KB
+  path ......................................... vendor/acme/logger
 
   ~ src/Ship.php
   …
@@ -120,55 +136,30 @@ vet then shows you the delta of each package you picked, one at a time, and asks
    INFO  Run composer install to write those bytes to vendor/.
 ```
 
-### Trusting a Single Package
-
-You may record one package, or a few, by passing their names to the `trust` command. vet shows you the delta of each tree before it writes the entry:
-
-```shell
-vet trust acme/logger acme/tooling
-```
-
-The `--notes` option records a note alongside the entries, and the `--from` option reads the delta from some other version:
-
-```shell
-vet trust acme/logger --notes="Read with the team on Friday."
-vet trust acme/logger --from=1.0.0
-```
-
-## Auditing Your Dependencies
-
-Once the trust file exists, the `audit` command tells you where you stand. It reads the tree of every installed package, compares it against your entries, and names the packages that have none:
-
-```shell
-vet audit
-
-   INFO  All 125 packages are covered.
-
-```
-
-`audit` is the default command, so `vet` on its own does the same thing. It exits with a non-zero status when a package is not covered, which is what makes it useful in a build.
+The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
 
 ### Auditing a Single Package
 
-You may audit one package by passing its name to the `audit` command:
+You may audit one package, or a few, by passing their names. vet shows you the tree, and records nothing:
 
 ```shell
-vet audit symfony/console
+vet acme/logger acme/tooling
 ```
 
 ```
-  symfony/console .................................................... v7.4.18
+  acme/logger ....................................... 1.2.0 → 2.0.0
   hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3aac307c63cfe0
-  source ................................................................ dist
-  contents ............................................... 140 files, 619.4 KB
-  path ................................................ vendor/symfony/console
+  source ..................................................... dist
+  contents ......................................... 12 files, 41.2 KB
+  path ......................................... vendor/acme/logger
 ```
 
-When the trust file already covers the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the delta. The `--from` and `--to` options compare any two versions:
+When the trust file already covers the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the delta. The `--from` and `--to` options compare any two versions, and the `--notes` option writes a note on the entry of a package that you already trust:
 
 ```shell
-vet audit carbonphp/carbon-doctrine-types --from=3.1.0
-vet audit carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
+vet carbonphp/carbon-doctrine-types --from=3.1.0
+vet carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
+vet acme/logger --notes="Read with the team on Friday."
 ```
 
 ### Reading a Delta
@@ -185,7 +176,7 @@ vet sorts the files of a delta into four buckets, and shows you the ones that ca
 The `--bucket` option reads one bucket at a time:
 
 ```shell
-vet audit symfony/console --bucket=runtime-source
+vet symfony/console --bucket=runtime-source
 ```
 
 ## Handing a Review to Your Agent
@@ -193,7 +184,7 @@ vet audit symfony/console --bucket=runtime-source
 Reading every delta by hand takes time. The `--agent` option hands each delta to the coding agent already on your machine, and prints the verdict it writes next to the package:
 
 ```shell
-vet audit --agent
+vet --agent
 ```
 
 ```
@@ -214,13 +205,9 @@ vet audit --agent
 
 A verdict is one of four. `clear` means the agent read every byte and found no attack. `RISK` comes with one line for each file the agent names. `partial` means one file never reached the prompt, such as a `.phar` that holds no readable text, so nobody read it. `no verdict` means the answer did not arrive, or it named a file that the delta does not hold.
 
-The same option works while you record. `vet trust --agent` puts each verdict on the row before you pick the package, so you read `RISK` before you decide:
+In a terminal, each verdict sits on its row of the list, and vet picks every `clear` row for you before you read it. One `enter` records the packages the agent cleared, and you read `RISK` before you decide. The first question offers the agent too, so you can ask for it without the option.
 
-```shell
-vet trust --agent
-```
-
-The agent runs only when you pass `--agent`. The Composer plugin never passes it, and a verdict writes nothing to `vet.json`, so the decision stays yours.
+The agent runs only when you ask for it. The Composer plugin never asks, and a verdict writes nothing to `vet.json` until you answer the question, so the decision stays yours.
 
 ### How the Agent Reads
 
@@ -261,7 +248,7 @@ Your build audits your dependencies the moment it installs them. vet ships a Com
 The `--json` option emits the report for another program to read:
 
 ```shell
-vet audit --json
+vet --json
 ```
 
 ## Configuration
@@ -279,7 +266,7 @@ VET_CACHE_DIR=
 Pass the `--no-cache` option to download an archive again instead of reading the cached one:
 
 ```shell
-vet audit acme/logger --no-cache
+vet acme/logger --no-cache
 ```
 
 ## Contributing
