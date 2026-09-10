@@ -232,7 +232,7 @@ final readonly class BuildAgentPrompt
         if ($change->bucket === BucketType::Opaque) {
             $unread[] = $change->path;
 
-            return $head."\nvet cannot read these bytes as text, so this prompt does not hold them.\n";
+            return $head."\nVet cannot read these bytes as text, so this prompt does not hold them.\n";
         }
 
         return $head.$this->manifest($delta, $change).$this->patch($change, $unread);
@@ -264,7 +264,7 @@ final readonly class BuildAgentPrompt
         if ($old === false || $new === false) {
             $unread[] = $change->path;
 
-            return "\nvet cannot read these bytes, so this prompt does not hold them.\n";
+            return "\nVet cannot read these bytes, so this prompt does not hold them.\n";
         }
 
         if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {

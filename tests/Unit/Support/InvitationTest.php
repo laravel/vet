@@ -2,21 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Composer\Gate;
 use App\Support\Invitation;
 
-afterEach(function (): void {
-    putenv(Gate::ENVIRONMENT);
+it('invites the preview command to read a plan', function (): void {
+    expect(Invitation::toReadThePlan()->command)->toBe('vet preview -v');
 });
 
-it('invites the command of vet outside composer', function (): void {
-    expect(Invitation::verbose())->toBe('-v')
-        ->and(Invitation::verbose('vet audit -v'))->toBe('vet audit -v');
-});
-
-it('invites the verbose flag of composer inside composer', function (): void {
-    putenv(Gate::ENVIRONMENT.'=1');
-
-    expect(Invitation::verbose())->toBe('composer update -v')
-        ->and(Invitation::verbose('vet audit -v'))->toBe('composer update -v');
+it('invites the audit command to read the installed tree', function (): void {
+    expect(Invitation::toReadTheInstalledTree()->command)->toBe('vet audit -v');
 });

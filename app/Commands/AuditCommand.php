@@ -14,6 +14,7 @@ use App\Enums\AuditStatus;
 use App\Enums\BucketType;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
+use App\Support\Invitation;
 use App\Support\Json;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\ComposerOperation;
@@ -94,6 +95,13 @@ final class AuditCommand extends Command
         return $bucket === null || BucketType::tryFrom($bucket) instanceof BucketType;
     }
 
+    private function invitation(): Invitation
+    {
+        return $this->option('plan') === null
+            ? AuditScreen::Installed->invitation()
+            : AuditScreen::Planned->invitation();
+    }
+
     private function plan(): ?ComposerPlan
     {
         $path = $this->option('plan');
@@ -116,6 +124,7 @@ final class AuditCommand extends Command
                 $auditor->report(),
                 $this->useCache(),
                 AuditScreen::Installed,
+                $this->invitation(),
             );
 
             $screen->withAgentReviews($this->agentReviews($screen->deltas($this->option('agent') === true)));
@@ -142,13 +151,13 @@ final class AuditCommand extends Command
         }
 
         $requested = $this->option('from') !== null;
-        $renderer = new RenderDelta($this->output);
+        $renderer = new RenderDelta($this->output, $this->invitation());
         $delta = null;
         $unresolved = null;
 
         if ($audit->status === AuditStatus::Unknown) {
             $this->newLine();
-            $this->components->error($audit->cause ?? 'vet cannot read those bytes.');
+            $this->components->error($audit->cause ?? 'Vet cannot read those bytes.');
 
             return self::FAILURE;
         }

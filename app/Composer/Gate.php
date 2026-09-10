@@ -107,7 +107,7 @@ final readonly class Gate
             return null;
         }
 
-        return 'vet has no trust file in this project yet. Run [vet trust] to record what you trust today.';
+        return 'Vet has no trust file in this project yet. Run [vet trust] to record what you trust today.';
     }
 
     public function firstInstallNotice(): ?string
@@ -116,6 +116,6 @@ final readonly class Gate
             return null;
         }
 
-        return 'vet audits an update against the installed tree. This project installs no package yet, so the audit runs after this install.';
+        return 'Vet audits an update against the installed tree. This project installs no package yet, so the audit runs after this install.';
     }
 }

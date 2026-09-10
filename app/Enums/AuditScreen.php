@@ -4,11 +4,21 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Support\Invitation;
+
 enum AuditScreen: string
 {
     case Installed = 'installed';
 
     case Planned = 'planned';
+
+    public function invitation(): Invitation
+    {
+        return match ($this) {
+            self::Installed => Invitation::toReadTheInstalledTree(),
+            self::Planned => Invitation::toReadThePlan(),
+        };
+    }
 
     public function command(): string
     {

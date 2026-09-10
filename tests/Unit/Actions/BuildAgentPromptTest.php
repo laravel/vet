@@ -123,7 +123,7 @@ it('names an opaque artifact and reads none of its bytes', function (): void {
 
     expect($prompt->unread)->toBe(['bin/tool.phar'])
         ->and($prompt->text)
-        ->toContain('vet cannot read these bytes as text')
+        ->toContain('Vet cannot read these bytes as text')
         ->toContain('This prompt holds no byte of [1] file(s): [bin/tool.phar]');
 });
 

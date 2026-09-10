@@ -50,6 +50,7 @@ final class PreviewCommand extends Command
                 $auditor->reportOfPlan(),
                 $useCache,
                 AuditScreen::Planned,
+                AuditScreen::Planned->invitation(),
             );
 
             $screen->withAgentReviews($this->agentReviews($screen->deltas($this->option('agent') === true)));

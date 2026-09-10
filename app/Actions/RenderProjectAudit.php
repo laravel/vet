@@ -55,9 +55,10 @@ final class RenderProjectAudit
         private readonly AuditReport $report,
         private readonly bool $useCache,
         private readonly AuditScreen $screen,
+        private readonly Invitation $invitation,
     ) {
         $this->components = new ControlSafeComponents($output);
-        $this->renderer = new RenderDelta($output);
+        $this->renderer = new RenderDelta($output, $invitation);
         $this->agentRenderer = new RenderAgentReview($output);
     }
 
@@ -272,7 +273,7 @@ final class RenderProjectAudit
             : sprintf(
                 '[%d] package(s) are not covered. Read every change with [%s]. %s',
                 count($this->failing),
-                Invitation::verbose($this->screen->command().' -v'),
+                $this->invitation->command,
                 $this->screen->nextStep(),
             ));
 

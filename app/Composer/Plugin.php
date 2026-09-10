@@ -115,7 +115,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
 
         if (! $process->isSuccessful()) {
             throw new ScriptExecutionException(
-                'vet found packages that your trust file does not cover.',
+                'Vet found packages that your trust file does not cover.',
                 $process->getExitCode() ?? 1,
             );
         }

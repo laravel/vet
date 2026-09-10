@@ -163,7 +163,7 @@ it('orders each package by the count of files that its review costs', function (
         ->toBe(['acme/inert-only', 'acme/moved', 'acme/media', 'acme/opaque', 'acme/manifest-only']);
 });
 
-it('asks for the verbose flag of composer when composer runs the audit', function (): void {
+it('invites the audit command when composer runs the audit of the installed tree', function (): void {
     $fixture = Fixture::open('wide-delta');
 
     putenv(Gate::ENVIRONMENT.'=1');
@@ -178,7 +178,7 @@ it('asks for the verbose flag of composer when composer runs the audit', functio
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('… and 18 more, with composer update -v')
-        ->toContain('with [composer update -v]')
-        ->and(str_contains($output, 'vet audit -v'))->toBeFalse();
+        ->toContain('… and 18 more, with [vet audit -v]')
+        ->toContain('with [vet audit -v]')
+        ->and(str_contains($output, 'composer update -v'))->toBeFalse();
 });

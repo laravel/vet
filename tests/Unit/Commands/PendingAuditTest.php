@@ -20,8 +20,27 @@ it('audits the bytes that composer would write, and does not pass them', functio
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
         ->toContain('composer would install these bytes; you trust [1.0.0]')
-        ->toContain('install-time manifest')
-        ->toContain('composer holds those bytes out of vendor/ until you record them');
+        ->toContain('install-time manifest');
+});
+
+it('invites the preview command when it audits a plan', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TARGET_VERSION);
+
+    try {
+        $status = Artisan::call('audit', [
+            '--path' => $project->rootPath,
+            '--plan' => $project->planFile(),
+        ]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('Read every change with [vet preview -v]')
+        ->and(str_contains($output, 'vet audit -v'))->toBeFalse();
 });
 
 it('records the bytes of the next install, while vendor/ holds the old ones', function (): void {

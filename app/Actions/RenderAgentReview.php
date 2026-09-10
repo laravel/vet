@@ -41,12 +41,12 @@ final readonly class RenderAgentReview
 
     public function noChange(): void
     {
-        $this->notSent('this delta holds no change, so vet sent nothing.');
+        $this->notSent('This delta holds no change, so vet sent nothing.');
     }
 
     public function noEarlierTree(): void
     {
-        $this->notSent('vet cannot read the bytes of this package, so it sent nothing.');
+        $this->notSent('Vet cannot read the bytes of this package, so it sent nothing.');
     }
 
     private function finding(AgentFinding $agentFinding): void
