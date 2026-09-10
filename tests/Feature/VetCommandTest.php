@@ -141,7 +141,7 @@ it('records the package that you pick, and the delta that you read', function ()
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsOutputToContain('to review (1, worst first)')
-            ->expectsQuestion('How do you want to read these packages?', 'pick')
+            ->expectsQuestion('How do you want to review these packages?', 'manual')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->expectsOutputToContain('~ src/Widget.php')
             ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
@@ -161,7 +161,7 @@ it('fails when you pick nothing', function (): void {
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to read these packages?', 'pick')
+            ->expectsQuestion('How do you want to review these packages?', 'manual')
             ->expectsQuestion('Which packages do you trust?', [])
             ->expectsOutputToContain('Recorded nothing.')
             ->assertExitCode(1)
@@ -176,7 +176,7 @@ it('fails when you record one package of two, because the other stays uncovered'
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to read these packages?', 'pick')
+            ->expectsQuestion('How do you want to review these packages?', 'manual')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
             ->assertExitCode(1)
@@ -197,7 +197,7 @@ it('records the note that you give', function (): void {
 
     try {
         command('vet', ['--notes' => 'I read every line.', '--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to read these packages?', 'pick')
+            ->expectsQuestion('How do you want to review these packages?', 'manual')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->assertExitCode(0)
             ->run();
@@ -218,7 +218,7 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to read these packages?', 'agent')
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
             ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
             ->expectsOutputToContain('agent  partial  [1] file(s) did not reach the agent. the delta renames one method')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
@@ -262,13 +262,13 @@ it('rejects --fresh when the user also names a package', function (): void {
         ->and($output)->toContain('The [--fresh] option takes no package. Run [vet --fresh] or [vet <package>].');
 });
 
-it('shows the selector at once when the project holds no trust file', function (): void {
+it('skips the question about the agent when the project holds no trust file', function (): void {
     $fixture = Fixture::open('no-trust-file');
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsOutputToContain('No trust file yet. Pick the packages that you trust today, and vet writes them to [vet.json].')
-            ->doesntExpectOutputToContain('to review')
+            ->expectsOutputToContain('No trust file yet. [vet --fresh] records every installed package in [vet.json].')
+            ->expectsOutputToContain('to review (2, worst first)')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget', 'acme/lint'])
             ->expectsOutputToContain('Recorded [2] package(s).')
             ->assertExitCode(0)

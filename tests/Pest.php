@@ -75,6 +75,6 @@ function vet(array $parameters): int
 function trust(string $package, array $parameters): PendingCommand
 {
     return command('vet', $parameters)
-        ->expectsQuestion('How do you want to read these packages?', 'pick')
+        ->expectsQuestion('How do you want to review these packages?', 'manual')
         ->expectsQuestion('Which packages do you trust?', [$package]);
 }

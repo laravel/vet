@@ -167,16 +167,6 @@ final class VetCommand extends Command
             return $screen->render($discrepancies, $agentAsked);
         }
 
-        if (! $auditor->trustFile->exists()) {
-            $this->newLine();
-            $this->components->warn(sprintf(
-                'No trust file yet. Pick the packages that you trust today, and vet writes them to [%s].',
-                $project->relativePath($auditor->trustFile->path),
-            ));
-
-            return $this->pickPackages($auditor, $screen, $agentAsked ? $screen->agentReviews() : []);
-        }
-
         $screen->renderReport($agentAsked);
 
         if ($screen->failing() === []) {
@@ -185,7 +175,7 @@ final class VetCommand extends Command
 
         $reviews = $agentAsked ? $screen->agentReviews() : [];
 
-        if (! $agentAsked && $this->wantsAgentFirst()) {
+        if (! $agentAsked && $auditor->trustFile->exists() && $this->wantsAgentFirst()) {
             $reviews = $this->reviewWithAgent($screen);
         }
 
@@ -249,12 +239,12 @@ final class VetCommand extends Command
     private function wantsAgentFirst(): bool
     {
         return select(
-            label: 'How do you want to read these packages?',
+            label: 'How do you want to review these packages?',
             options: [
-                'pick' => 'Pick them, and read each delta',
-                'agent' => 'Hand every delta to your coding agent first',
+                'manual' => 'Manually, and pick the packages that I trust',
+                'agent' => 'Automatically, with my coding agent reading the changes first',
             ],
-            default: 'pick',
+            default: 'manual',
         ) === 'agent';
     }
 

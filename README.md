@@ -101,9 +101,9 @@ vet exits with a non-zero status when a package is not covered, which is what ma
 In a terminal, vet follows the report with a question. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in. Press the space bar to pick a package, `ctrl+a` to pick every package, and enter to record the ones that you picked. The delta of each package sits in the report above the list, so you read first and pick second:
 
 ```
- ┌ How do you want to read these packages? ─────────────────────┐
- │ › Pick them, and read each delta                             │
- │   Hand every delta to your coding agent first                │
+ ┌ How do you want to review these packages? ───────────────────┐
+ │ › Manually, and pick the packages that I trust               │
+ │   Automatically, with my coding agent reading the changes first│
  └──────────────────────────────────────────────────────────────┘
 
  ┌ Which packages do you trust? ────────────────────────────────┐
@@ -118,7 +118,7 @@ In a terminal, vet follows the report with a question. Every package without an 
 
 The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
 
-When the project holds no `vet.json` yet, there is no earlier tree to show, so vet skips the report and shows the list at once. Pick the packages you trust today, or press `ctrl+a` to record every one, which is what `--fresh` does without a question.
+When the project holds no `vet.json` yet, there is no delta to hand to an agent, so vet skips the first question and shows the list right after the report. Pick the packages you trust today, or press `ctrl+a` to record every one, which is what `--fresh` does without a question.
 
 ### Auditing a Single Package
 
