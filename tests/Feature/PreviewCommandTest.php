@@ -267,6 +267,6 @@ it('previews every other package when it cannot read one of them', function (): 
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('~ src/Widget.php')
-        ->toContain('vet could not read this change')
+        ->toContain('Vet could not read this change')
         ->toContain('[1] package(s) of this plan cannot be read: [acme/private].');
 });

@@ -108,18 +108,11 @@ final class AuditCommand extends Command
         };
     }
 
-    /**
-     * @param  array<string, PackageAudit>  $failing
-     */
-    private function holdsPending(array $failing): bool
+    private function invitation(): Invitation
     {
-        foreach ($failing as $audit) {
-            if ($audit->pending()) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->option('plan') === null
+            ? Invitation::toReadTheInstalledTree()
+            : Invitation::toReadThePlan();
     }
 
     private function plan(): ?ComposerPlan
@@ -160,7 +153,7 @@ final class AuditCommand extends Command
             $b->package,
         ]);
 
-        $renderer = new RenderDelta($this->output);
+        $renderer = new RenderDelta($this->output, $this->invitation());
 
         if ($this->option('json') === true) {
             $this->output->write(Json::encode([
@@ -262,12 +255,8 @@ final class AuditCommand extends Command
             : sprintf(
                 '[%d] package(s) are not covered. Read every change with [%s], then record them with [vet trust].',
                 count($failing),
-                Invitation::verbose('vet audit -v'),
+                $this->invitation()->command,
             ));
-
-        if ($this->holdsPending($failing)) {
-            $this->components->warn('composer holds those bytes out of vendor/ until you record them. Then run [composer install].');
-        }
 
         return self::FAILURE;
     }
@@ -293,13 +282,13 @@ final class AuditCommand extends Command
         }
 
         $requested = $this->option('from') !== null;
-        $renderer = new RenderDelta($this->output);
+        $renderer = new RenderDelta($this->output, $this->invitation());
         $delta = null;
         $unresolved = null;
 
         if ($audit->status === AuditStatus::Unknown) {
             $this->newLine();
-            $this->components->error($audit->cause ?? 'vet cannot read those bytes.');
+            $this->components->error($audit->cause ?? 'Vet cannot read those bytes.');
 
             return self::FAILURE;
         }

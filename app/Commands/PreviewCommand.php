@@ -99,7 +99,7 @@ final class PreviewCommand extends Command
                         useCache: $this->option('no-cache') !== true,
                     );
                 } catch (VetException $vetException) {
-                    $note = sprintf('vet could not read this change: %s', $vetException->getMessage());
+                    $note = sprintf('Vet could not read this change: %s', $vetException->getMessage());
                 }
             }
 
@@ -167,7 +167,7 @@ final class PreviewCommand extends Command
             return self::SUCCESS;
         }
 
-        $renderer = new RenderDelta($this->output);
+        $renderer = new RenderDelta($this->output, Invitation::toReadThePlan());
 
         $this->line(sprintf('  <options=bold>to review</> <fg=gray>(%d, worst first)</>', count($reviews)));
         $this->newLine();
@@ -212,7 +212,7 @@ final class PreviewCommand extends Command
             : sprintf(
                 '[%d] package(s) change. Read every change with [%s], then run [composer update].',
                 count($reviews),
-                Invitation::verbose('vet preview -v'),
+                Invitation::toReadThePlan()->command,
             ));
 
         return self::SUCCESS;
@@ -240,7 +240,7 @@ final class PreviewCommand extends Command
      */
     private function renderJson(array $reviews): int
     {
-        $renderer = new RenderDelta($this->output);
+        $renderer = new RenderDelta($this->output, Invitation::toReadThePlan());
 
         $this->output->write(Json::encode([
             'operations' => count($reviews),

@@ -165,7 +165,7 @@ it('stops at five paths and invites the source of the rest', function (): void {
         ->toContain('runtime source (23)')
         ->toContain('+ src/Rule01.php')
         ->toContain('+ src/Rule05.php')
-        ->toContain('… and 18 more, with -v')
+        ->toContain('… and 18 more, with [vet audit -v]')
         ->and(str_contains($output, 'src/Rule06.php'))->toBeFalse();
 });
 

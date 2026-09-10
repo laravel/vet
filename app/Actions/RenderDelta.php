@@ -21,6 +21,7 @@ final readonly class RenderDelta
 
     public function __construct(
         private OutputStyle $output,
+        private Invitation $invitation,
     ) {
         $this->components = new ControlSafeComponents($output);
     }
@@ -123,9 +124,9 @@ final readonly class RenderDelta
 
             if ($hidden > 0) {
                 $this->output->writeln(sprintf(
-                    '    <fg=gray>… and %d more, with %s</>',
+                    '    <fg=gray>… and %d more, with [%s]</>',
                     $hidden,
-                    Invitation::verbose(),
+                    $this->invitation->command,
                 ));
             }
 
@@ -216,7 +217,7 @@ final readonly class RenderDelta
             $this->components->info(sprintf(
                 '[%d] change(s) are not shown. Read them with [%s].',
                 $hidden,
-                Invitation::verbose(),
+                $this->invitation->command,
             ));
         }
     }

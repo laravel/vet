@@ -10,6 +10,7 @@ use App\Actions\ResolveDelta;
 use App\Enums\AuditStatus;
 use App\Exceptions\FailureException;
 use App\Exceptions\VetException;
+use App\Support\Invitation;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\Delta;
 use App\ValueObjects\Grant;
@@ -166,7 +167,7 @@ final class TrustCommand extends Command
 
             if ($audit->status === AuditStatus::Unknown) {
                 $this->newLine();
-                $this->components->error($audit->cause ?? 'vet cannot read those bytes.');
+                $this->components->error($audit->cause ?? 'Vet cannot read those bytes.');
 
                 return self::FAILURE;
             }
@@ -188,7 +189,7 @@ final class TrustCommand extends Command
             $delta = $this->delta($auditor, $project, $audit);
 
             if ($delta instanceof Delta) {
-                (new RenderDelta($this->output))->report($delta);
+                (new RenderDelta($this->output, Invitation::toReadTheInstalledTree()))->report($delta);
             } else {
                 $this->newLine();
                 $this->components->warn(sprintf('Review the tree at [%s] before you trust it.', $audit->path ?? ''));

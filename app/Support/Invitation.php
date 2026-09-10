@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Composer\Gate;
-
 final readonly class Invitation
 {
-    public static function verbose(string $command = '-v'): string
+    private function __construct(
+        public string $command,
+    ) {}
+
+    public static function toReadThePlan(): self
     {
-        return self::insideComposer() ? 'composer update -v' : $command;
+        return new self('vet preview -v');
     }
 
-    private static function insideComposer(): bool
+    public static function toReadTheInstalledTree(): self
     {
-        return getenv(Gate::ENVIRONMENT) === '1';
+        return new self('vet audit -v');
     }
 }
