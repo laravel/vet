@@ -71,7 +71,7 @@ it('keeps the notes of an entry that the user records again', function (): void 
     $fixture = Fixture::open('partly-audited');
 
     try {
-        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
 
         $trustFile = $fixture->read('vet.json');
     } finally {
@@ -87,7 +87,7 @@ it('replaces the notes of an entry when the user gives --notes', function (): vo
     $fixture = Fixture::open('partly-audited');
 
     try {
-        trust('acme/widget', '2.0.0', ['--notes' => 'Read the phar too.', '--path' => $fixture->rootPath])->run();
+        trust('acme/widget', ['--notes' => 'Read the phar too.', '--path' => $fixture->rootPath])->run();
 
         $trustFile = $fixture->read('vet.json');
     } finally {
@@ -168,7 +168,7 @@ it('moves the entry of a dev package into require-dev when the user records it a
     $fixture = Fixture::open('dev-section-drift');
 
     try {
-        trust('acme/lint', '1.0.0', ['--path' => $fixture->rootPath])->run();
+        trust('acme/lint', ['--path' => $fixture->rootPath])->run();
 
         /** @var array{require: array<string, mixed>, require-dev: array<string, mixed>} $trustFile */
         $trustFile = json_decode($fixture->read('vet.json'), true);
@@ -184,7 +184,7 @@ it('writes the notes of an entry that is already covered', function (): void {
     $fixture = Fixture::open('partly-audited');
 
     try {
-        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
 
         $status = vet([
             'packages' => ['acme/widget'],
@@ -206,7 +206,7 @@ it('keeps the notes of an entry that is already covered when the user gives no n
     $fixture = Fixture::open('partly-audited');
 
     try {
-        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
 
         $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();

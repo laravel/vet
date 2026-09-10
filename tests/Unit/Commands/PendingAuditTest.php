@@ -47,7 +47,7 @@ it('records the bytes of the next install, while vendor/ holds the old ones', fu
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        trust(PendingUpdate::PACKAGE, PendingUpdate::TARGET_VERSION, ['--path' => $project->rootPath])
+        trust(PendingUpdate::PACKAGE, ['--path' => $project->rootPath])
             ->expectsOutputToContain('Run [composer install] to write those bytes to vendor/.')
             ->assertExitCode(0)
             ->run();
@@ -79,7 +79,7 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
         $audited = vet(['--path' => $project->rootPath]);
         $auditOutput = Artisan::output();
 
-        trust(PendingUpdate::PACKAGE, PendingUpdate::TRUSTED_VERSION, ['--path' => $project->rootPath])
+        trust(PendingUpdate::PACKAGE, ['--path' => $project->rootPath])
             ->expectsOutputToContain('Recorded [acme/widget] [1.0.0]')
             ->expectsOutputToContain('Run [composer install] to write those bytes to vendor/.')
             ->assertExitCode(0)

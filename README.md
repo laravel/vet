@@ -98,7 +98,7 @@ vet exits with a non-zero status when a package is not covered, which is what ma
 
 ### Picking What to Trust
 
-In a terminal, vet follows the report with a question. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in. Press the space bar to pick a package, and `ctrl+a` to pick every package:
+In a terminal, vet follows the report with a question. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in. Press the space bar to pick a package, `ctrl+a` to pick every package, and enter to record the ones that you picked. The delta of each package sits in the report above the list, so you read first and pick second:
 
 ```
  ┌ How do you want to read these packages? ─────────────────────┐
@@ -111,32 +111,14 @@ In a terminal, vet follows the report with a question. Every package without an 
  │ ◻ acme/tooling  4.1.0 → 4.2.0  8 files  incoming             │
  │ ◻ brick/math  0.18.0  31 files  installed                    │
  └──────────────────────────────────────────────────────────────┘
-```
-
-vet then shows you the delta of each package you picked, one at a time, and asks before it writes the entry:
-
-```
-  acme/logger ....................................... 1.2.0 → 2.0.0
-  state             composer would write these bytes to vendor/
-  hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3a
-  source ..................................................... dist
-  contents ......................................... 12 files, 41.2 KB
-  path ......................................... vendor/acme/logger
-
-  ~ src/Ship.php
-  …
-
- ┌ Do you trust acme/logger 2.0.0? ─────────────────────────────┐
- │ › Yes                                                        │
- │   No                                                         │
- │   Yes, and record a note                                     │
- └──────────────────────────────────────────────────────────────┘
 
    INFO  Recorded 1 package(s).
    INFO  Run composer install to write those bytes to vendor/.
 ```
 
-The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
+The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
+
+When the project holds no `vet.json` yet, there is no earlier tree to show, so vet skips the report and shows the list at once. Pick the packages you trust today, or press `ctrl+a` to record every one, which is what `--fresh` does without a question.
 
 ### Auditing a Single Package
 

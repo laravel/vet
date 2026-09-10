@@ -10,7 +10,7 @@ it('records the review of one package, and turns the gate green', function (): v
     $fixture = Fixture::open('stale-project');
 
     try {
-        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])
+        trust('acme/widget', ['--path' => $fixture->rootPath])
             ->expectsOutputToContain('~ src/Widget.php')
             ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
             ->assertExitCode(0)
@@ -144,7 +144,6 @@ it('records the package that you pick, and the delta that you read', function ()
             ->expectsQuestion('How do you want to read these packages?', 'pick')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->expectsOutputToContain('~ src/Widget.php')
-            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'yes')
             ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
             ->assertExitCode(0)
             ->run();
@@ -155,26 +154,6 @@ it('records the package that you pick, and the delta that you read', function ()
     }
 
     expect($trustFile)->toContain('"version": "2.0.0"');
-});
-
-it('fails when you answer no, because the package stays uncovered', function (): void {
-    $fixture = Fixture::open('stale-project');
-
-    try {
-        command('vet', ['--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to read these packages?', 'pick')
-            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
-            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'no')
-            ->expectsOutputToContain('Recorded nothing.')
-            ->assertExitCode(1)
-            ->run();
-
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($trustFile)->toContain('"version": "1.0.0"');
 });
 
 it('fails when you pick nothing', function (): void {
@@ -199,7 +178,6 @@ it('fails when you record one package of two, because the other stays uncovered'
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to read these packages?', 'pick')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
-            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'yes')
             ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
             ->assertExitCode(1)
             ->run();
@@ -214,15 +192,13 @@ it('fails when you record one package of two, because the other stays uncovered'
         ->and(str_contains($trustFile, 'acme/lint'))->toBeFalse();
 });
 
-it('records the note that you write', function (): void {
+it('records the note that you give', function (): void {
     $fixture = Fixture::open('stale-project');
 
     try {
-        command('vet', ['--path' => $fixture->rootPath])
+        command('vet', ['--notes' => 'I read every line.', '--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to read these packages?', 'pick')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
-            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'notes')
-            ->expectsQuestion('The note that vet records', 'I read every line.')
             ->assertExitCode(0)
             ->run();
 
@@ -246,7 +222,6 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
             ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
             ->expectsOutputToContain('agent  partial  [1] file(s) did not reach the agent. the delta renames one method')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
-            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'yes')
             ->assertExitCode(0)
             ->run();
 
@@ -285,4 +260,26 @@ it('rejects --fresh when the user also names a package', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)->toContain('The [--fresh] option takes no package. Run [vet --fresh] or [vet <package>].');
+});
+
+it('shows the selector at once when the project holds no trust file', function (): void {
+    $fixture = Fixture::open('no-trust-file');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath])
+            ->expectsOutputToContain('No trust file yet. Pick the packages that you trust today, and vet writes them to [vet.json].')
+            ->doesntExpectOutputToContain('to review')
+            ->expectsQuestion('Which packages do you trust?', ['acme/widget', 'acme/lint'])
+            ->expectsOutputToContain('Recorded [2] package(s).')
+            ->assertExitCode(0)
+            ->run();
+
+        $trustFile = $fixture->read('vet.json');
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($trustFile)
+        ->toContain('"acme/widget"')
+        ->toContain('"acme/lint"');
 });

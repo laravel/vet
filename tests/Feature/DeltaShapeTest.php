@@ -362,7 +362,7 @@ it('compares the trusted version to the version that --to names', function (): v
     $fixture = Fixture::open('partly-audited');
 
     try {
-        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
 
         $status = vet([
             'packages' => ['acme/widget'],

@@ -179,7 +179,7 @@ it('invites the reader to one package when a trust file holds no earlier tree', 
     $fixture = Fixture::open('partly-audited');
 
     try {
-        trust('acme/widget', '2.0.0', ['--path' => $fixture->rootPath])->run();
+        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
 
         vet(['--path' => $fixture->rootPath]);
         $output = Artisan::output();
@@ -197,9 +197,9 @@ it('puts the verdict of the agent on the row that you pick', function (): void {
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
             ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
-            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->expectsOutputToContain('agent  RISK  [src/Widget.php] renames the widget')
-            ->expectsQuestion('Do you trust [acme/widget] [2.0.0]?', 'no')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->expectsOutputToContain('Recorded nothing.')
             ->assertExitCode(1)
             ->run();
     } finally {

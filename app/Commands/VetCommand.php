@@ -31,7 +31,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\select;
-use function Laravel\Prompts\text;
 
 final class VetCommand extends Command
 {
@@ -168,16 +167,35 @@ final class VetCommand extends Command
             return $screen->render($discrepancies, $agentAsked);
         }
 
+        if (! $auditor->trustFile->exists()) {
+            $this->newLine();
+            $this->components->warn(sprintf(
+                'No trust file yet. Pick the packages that you trust today, and vet writes them to [%s].',
+                $project->relativePath($auditor->trustFile->path),
+            ));
+
+            return $this->pickPackages($auditor, $screen, $agentAsked ? $screen->agentReviews() : []);
+        }
+
         $screen->renderReport($agentAsked);
 
         if ($screen->failing() === []) {
             return self::SUCCESS;
         }
 
-        return $this->pickPackages($project, $auditor, $screen, $agentAsked);
+        $reviews = $agentAsked ? $screen->agentReviews() : [];
+
+        if (! $agentAsked && $this->wantsAgentFirst()) {
+            $reviews = $this->reviewWithAgent($screen);
+        }
+
+        return $this->pickPackages($auditor, $screen, $reviews);
     }
 
-    private function pickPackages(Project $project, AuditProject $auditor, RenderProjectAudit $screen, bool $agentAsked): int
+    /**
+     * @param  array<string, AgentReview>  $reviews
+     */
+    private function pickPackages(AuditProject $auditor, RenderProjectAudit $screen, array $reviews): int
     {
         $failing = new Collection($screen->failing());
 
@@ -187,23 +205,17 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        $reviews = $agentAsked ? $screen->agentReviews() : [];
-
-        if (! $agentAsked && $this->wantsAgentFirst()) {
-            $reviews = $this->reviewWithAgent($screen);
-        }
-
         $picked = new Collection(multiselect(
             label: 'Which packages do you trust?',
             options: $this->choices($readable, $reviews),
             default: $this->clearPackages($readable, $reviews),
             scroll: 10,
-            hint: 'Press the space bar to pick a package, ctrl+a to pick every package, and enter to read the ones that you picked.',
+            hint: 'Press the space bar to pick a package, ctrl+a to pick every package, and enter to record the ones that you picked.',
         ));
 
-        $recorded = $this->readAndRecord($project, $auditor, $readable->filter(
+        $recorded = $readable->filter(
             static fn (PackageAudit $audit): bool => $picked->contains($audit->package),
-        ), $screen->deltas(), $reviews);
+        );
 
         if ($recorded->isEmpty()) {
             $this->newLine();
@@ -213,6 +225,10 @@ final class VetCommand extends Command
         }
 
         try {
+            foreach ($recorded as $audit) {
+                $auditor->trustFile->record($this->grantOf($audit));
+            }
+
             $auditor->trustFile->save();
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
@@ -273,72 +289,6 @@ final class VetCommand extends Command
             ->keys()
             ->values()
             ->all();
-    }
-
-    /**
-     * @param  Collection<string, PackageAudit>  $picked
-     * @param  array<string, ?Delta>  $deltas
-     * @param  array<string, AgentReview>  $reviews
-     * @return Collection<string, PackageAudit>
-     */
-    private function readAndRecord(
-        Project $project,
-        AuditProject $auditor,
-        Collection $picked,
-        array $deltas,
-        array $reviews,
-    ): Collection {
-        /** @var Collection<string, PackageAudit> $recorded */
-        $recorded = new Collection;
-
-        foreach ($picked as $audit) {
-            $this->renderSubject($project, $audit);
-
-            $review = $reviews[$audit->package] ?? null;
-
-            if ($review instanceof AgentReview) {
-                $this->newLine();
-                (new RenderAgentReview($this->output))->verdict($review);
-            }
-
-            $delta = $deltas[$audit->package] ?? null;
-
-            if ($delta instanceof Delta) {
-                (new RenderDelta($this->output, Invitation::toReadTheInstalledTree()))->report($delta);
-            } else {
-                $this->newLine();
-                $this->components->warn(sprintf('Review the tree at [%s] before you trust it.', $audit->path ?? ''));
-            }
-
-            if ($this->confirmTrust($auditor, $audit)) {
-                $recorded->put($audit->package, $audit);
-            }
-        }
-
-        return $recorded;
-    }
-
-    private function confirmTrust(AuditProject $auditor, PackageAudit $audit): bool
-    {
-        $answer = select(
-            label: sprintf(
-                'Do you trust [%s] [%s]?',
-                ControlSafe::text($audit->package),
-                ControlSafe::text($audit->version),
-            ),
-            options: ['yes' => 'Yes', 'no' => 'No', 'notes' => 'Yes, and record a note'],
-            default: 'yes',
-        );
-
-        if ($answer === 'no') {
-            return false;
-        }
-
-        $auditor->trustFile->record($answer === 'notes'
-            ? $this->grantWithNotes($audit, text(label: 'The note that vet records', required: true))
-            : $this->grantOf($audit));
-
-        return true;
     }
 
     /**
@@ -744,17 +694,6 @@ final class VetCommand extends Command
             hash: $this->hashOf($audit),
             dev: $audit->dev,
             notes: $notes ?? $audit->grant?->notes,
-        );
-    }
-
-    private function grantWithNotes(PackageAudit $audit, string $notes): Grant
-    {
-        return new Grant(
-            package: $audit->package,
-            version: $audit->version,
-            hash: $this->hashOf($audit),
-            dev: $audit->dev,
-            notes: $notes,
         );
     }
 
