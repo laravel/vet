@@ -148,16 +148,16 @@ final readonly class RenderDelta
             '    <fg=%s>%s</> %s%s',
             $color,
             $change->status->symbol(),
-            $this->escape($change->path),
-            $annotation === null ? '' : sprintf('  <fg=gray>%s</>', $this->escape($annotation)),
+            OutputFormatter::escape($change->path),
+            $annotation === null ? '' : sprintf('  <fg=gray>%s</>', OutputFormatter::escape($annotation)),
         ));
 
         if ($change->bucket === BucketType::InstallManifest && $delta->manifestChange instanceof ManifestChange) {
             foreach ($delta->manifestChange->changedKeys() as $key) {
                 $this->output->writeln(sprintf(
                     '        <fg=gray>%s:</> %s',
-                    $this->escape($key),
-                    $this->escape($delta->manifestChange->render($key)),
+                    OutputFormatter::escape($key),
+                    OutputFormatter::escape($delta->manifestChange->render($key)),
                 ));
             }
         }
@@ -183,10 +183,10 @@ final readonly class RenderDelta
 
         foreach (array_slice(explode("\n", rtrim($diff, "\n")), 2) as $line) {
             $this->output->writeln('      '.match (true) {
-                str_starts_with($line, '+') => sprintf('<fg=green>%s</>', $this->escape($line)),
-                str_starts_with($line, '-') => sprintf('<fg=red>%s</>', $this->escape($line)),
-                str_starts_with($line, '@@') => sprintf('<fg=cyan>%s</>', $this->escape($line)),
-                default => sprintf('<fg=gray>%s</>', $this->escape($line)),
+                str_starts_with($line, '+') => sprintf('<fg=green>%s</>', OutputFormatter::escape($line)),
+                str_starts_with($line, '-') => sprintf('<fg=red>%s</>', OutputFormatter::escape($line)),
+                str_starts_with($line, '@@') => sprintf('<fg=cyan>%s</>', OutputFormatter::escape($line)),
+                default => sprintf('<fg=gray>%s</>', OutputFormatter::escape($line)),
             });
         }
 
@@ -247,12 +247,5 @@ final readonly class RenderDelta
     private function holdsNoSource(?string $contents): bool
     {
         return $contents !== null && str_contains($contents, "\0");
-    }
-
-    private function escape(string $line): string
-    {
-        return OutputFormatter::escapeTrailingBackslash(
-            str_replace(['<', '>'], ['\\<', '\\>'], $line),
-        );
     }
 }

@@ -92,7 +92,7 @@ final class FetchPackageMetadata
 
         $index = false;
 
-        foreach ([$version, 'v'.$version, ltrim($version, 'v')] as $candidate) {
+        foreach ($this->aliasesOf($version) as $candidate) {
             $found = array_search($candidate, $versions, true);
 
             if ($found !== false) {
@@ -118,11 +118,19 @@ final class FetchPackageMetadata
     }
 
     /**
+     * @return array<int, string>
+     */
+    private function aliasesOf(string $version): array
+    {
+        return [$version, 'v'.$version, ltrim($version, 'v')];
+    }
+
+    /**
      * @param  array<string, Package>  $versions
      */
     private function find(array $versions, string $version): ?Package
     {
-        foreach ([$version, 'v'.$version, ltrim($version, 'v')] as $candidate) {
+        foreach ($this->aliasesOf($version) as $candidate) {
             if (isset($versions[$candidate])) {
                 return $versions[$candidate];
             }

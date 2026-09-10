@@ -76,13 +76,7 @@ final readonly class ManifestChange
 
     public function touchesExecution(): bool
     {
-        foreach ($this->changedKeys as $key) {
-            if (in_array($key, self::EXECUTION_KEYS, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_intersect($this->changedKeys, self::EXECUTION_KEYS) !== [];
     }
 
     public function render(string $key): string

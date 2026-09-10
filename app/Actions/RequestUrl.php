@@ -10,6 +10,7 @@ use App\Support\Path;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\RequestOptions;
+use Illuminate\Support\Facades\File;
 use Psr\Http\Message\ResponseInterface;
 
 final readonly class RequestUrl
@@ -59,7 +60,9 @@ final readonly class RequestUrl
     {
         $directory = dirname($destination);
 
-        if (! is_dir($directory) && ! @mkdir($directory, 0o777, true) && ! is_dir($directory)) {
+        File::ensureDirectoryExists($directory);
+
+        if (! File::isDirectory($directory)) {
             throw FetchFailedException::transport($url, sprintf('could not create the directory [%s].', $directory));
         }
 

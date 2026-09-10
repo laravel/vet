@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Support\Str;
+
 final class Path
 {
     public static function join(string ...$segments): string
@@ -49,6 +51,11 @@ final class Path
         }
 
         return $prefix.($isAbsolute ? '/' : '').implode('/', $segments);
+    }
+
+    public static function relativeTo(string $path, string $root): string
+    {
+        return Str::chopStart($path, $root.'/');
     }
 
     public static function toRelativeForm(string $path): string

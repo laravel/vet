@@ -240,7 +240,7 @@ final class AuditCommand extends Command
         );
         $this->components->twoColumnDetail(
             'path',
-            $this->relative($project->rootPath, $audit->path ?? ''),
+            $project->relativePath($audit->path ?? ''),
         );
 
         if ($agentReview instanceof AgentReview) {
@@ -308,10 +308,5 @@ final class AuditCommand extends Command
         }
 
         return $audit->grant instanceof Grant ? $audit->grant->version : $audit->version;
-    }
-
-    private function relative(string $root, string $path): string
-    {
-        return str_starts_with($path, $root.'/') ? mb_substr($path, mb_strlen($root) + 1) : $path;
     }
 }

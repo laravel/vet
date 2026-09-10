@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
-use App\Enums\ReviewScope;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
@@ -18,6 +17,7 @@ use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\Delta;
 use App\ValueObjects\LockDiscrepancy;
 use App\ValueObjects\PackageAudit;
+use App\ValueObjects\PackageReview;
 use App\ValueObjects\Project;
 use Illuminate\Console\OutputStyle;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -40,7 +40,7 @@ final class RenderProjectAudit
     private array $failing = [];
 
     /**
-     * @var array<string, array{files: int, scope: ReviewScope, delta: ?Delta}>
+     * @var array<string, PackageReview>
      */
     private array $reviews = [];
 
@@ -76,19 +76,19 @@ final class RenderProjectAudit
 
         uasort($this->failing, static fn (PackageAudit $a, PackageAudit $b): int => [
             self::statusWeight($a->status),
-            $reviews[$b->package]['files'],
+            $reviews[$b->package]->files,
             $a->package,
         ] <=> [
             self::statusWeight($b->status),
-            $reviews[$a->package]['files'],
+            $reviews[$a->package]->files,
             $b->package,
         ]);
 
         $deltas = [];
 
         foreach ($this->reviews as $package => $review) {
-            $deltas[$package] = $review['delta'] instanceof Delta || ! $agentAsked
-                ? $review['delta']
+            $deltas[$package] = $review->delta instanceof Delta || ! $agentAsked
+                ? $review->delta
                 : $this->auditor->wholeTree($this->failing[$package]);
         }
 
@@ -129,9 +129,9 @@ final class RenderProjectAudit
                     'from' => $audit->from,
                     'dev' => $audit->dev,
                     'files' => $audit->files,
-                    'files_to_review' => $review['files'],
-                    'scope' => $review['scope']->value,
-                    'delta' => $review['delta'] instanceof Delta ? $renderer->toArray($review['delta']) : null,
+                    'files_to_review' => $review->files,
+                    'scope' => $review->scope->value,
+                    'delta' => $review->delta instanceof Delta ? $renderer->toArray($review->delta) : null,
                     'agent' => ($agentReviews[$audit->package] ?? null)?->toArray(),
                 ];
             }, $this->failing)),
@@ -158,7 +158,7 @@ final class RenderProjectAudit
         if (! $this->auditor->trustFile->exists()) {
             $this->components->warn(sprintf(
                 'No trust file yet. [vet trust] records every installed package in [%s].',
-                $this->relative($this->auditor->trustFile->path),
+                $this->project->relativePath($this->auditor->trustFile->path),
             ));
         }
 
@@ -207,19 +207,19 @@ final class RenderProjectAudit
                     ? '<fg=red>bytes not readable</>'
                     : sprintf(
                         '<fg=gray>%d files (%s)  ·  %s</>',
-                        $review['files'],
-                        $this->scopeLabel($review),
+                        $review->files,
+                        $review->label(),
                         Bytes::human($audit->bytes),
                     ),
             );
 
-            $this->renderAgent($audit, $review['delta'], $agentAsked);
+            $this->renderAgent($audit, $review->delta, $agentAsked);
 
-            $endsWithDelta = $review['delta'] instanceof Delta && $this->readsDelta($audit->package, $agentAsked);
+            $endsWithDelta = $review->delta instanceof Delta && $this->readsDelta($audit->package, $agentAsked);
 
             if ($endsWithDelta) {
                 $this->output->newLine();
-                $this->renderer->buckets($review['delta']);
+                $this->renderer->buckets($review->delta);
             }
         }
 
@@ -296,13 +296,10 @@ final class RenderProjectAudit
         };
     }
 
-    /**
-     * @return array{files: int, scope: ReviewScope, delta: ?Delta}
-     */
-    private function review(PackageAudit $audit): array
+    private function review(PackageAudit $audit): PackageReview
     {
         if ($audit->status === AuditStatus::Unknown) {
-            return ['files' => 0, 'scope' => ReviewScope::NotReadable, 'delta' => null];
+            return PackageReview::unreadable();
         }
 
         if ($audit->pending()) {
@@ -312,7 +309,7 @@ final class RenderProjectAudit
         $from = $this->auditor->trustFile->grantFor($audit->package)?->version;
 
         if ($from === null) {
-            return $this->wholePackage($audit);
+            return PackageReview::ofWholePackage($audit->files);
         }
 
         try {
@@ -321,30 +318,19 @@ final class RenderProjectAudit
                 from: $from,
             );
         } catch (VetException) {
-            return $this->wholePackage($audit);
+            return PackageReview::ofWholePackage($audit->files);
         }
 
-        return [
-            'files' => count($delta->changes()),
-            'scope' => $this->scopeOf($delta),
-            'delta' => $delta,
-        ];
+        return PackageReview::ofDelta($delta);
     }
 
-    /**
-     * @return array{files: int, scope: ReviewScope, delta: ?Delta}
-     */
-    private function pendingReview(PackageAudit $audit): array
+    private function pendingReview(PackageAudit $audit): PackageReview
     {
         $delta = $this->incomingDelta($audit);
 
         return $delta instanceof Delta
-            ? [
-                'files' => count($delta->changes()),
-                'scope' => $this->scopeOf($delta),
-                'delta' => $delta,
-            ]
-            : $this->wholePackage($audit);
+            ? PackageReview::ofDelta($delta)
+            : PackageReview::ofWholePackage($audit->files);
     }
 
     private function incomingDelta(PackageAudit $audit): ?Delta
@@ -365,41 +351,5 @@ final class RenderProjectAudit
         } catch (VetException) {
             return null;
         }
-    }
-
-    private function scopeOf(Delta $delta): ReviewScope
-    {
-        return $delta->comparesPublishedToInstalled() ? ReviewScope::PublishedDelta : ReviewScope::Delta;
-    }
-
-    /**
-     * @param  array{files: int, scope: ReviewScope, delta: ?Delta}  $review
-     */
-    private function scopeLabel(array $review): string
-    {
-        $delta = $review['delta'];
-
-        if (! $delta instanceof Delta) {
-            return $review['scope'] === ReviewScope::NotReadable ? 'not readable' : 'whole package';
-        }
-
-        return $review['scope'] === ReviewScope::PublishedDelta
-            ? sprintf('delta from the published [%s]', $delta->from)
-            : sprintf('delta from [%s]', $delta->from);
-    }
-
-    /**
-     * @return array{files: int, scope: ReviewScope, delta: null}
-     */
-    private function wholePackage(PackageAudit $audit): array
-    {
-        return ['files' => $audit->files, 'scope' => ReviewScope::WholePackage, 'delta' => null];
-    }
-
-    private function relative(string $path): string
-    {
-        $root = $this->project->rootPath;
-
-        return str_starts_with($path, $root.'/') ? mb_substr($path, mb_strlen($root) + 1) : $path;
     }
 }

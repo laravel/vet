@@ -17,6 +17,7 @@ use App\ValueObjects\Grant;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
 use App\ValueObjects\TreeHash;
+use Illuminate\Support\Collection;
 
 final class TrustCommand extends Command
 {
@@ -84,8 +85,9 @@ final class TrustCommand extends Command
         $this->renderTargets($targets);
 
         $created = ! $auditor->trustFile->exists();
-        $unreadable = array_filter($targets, static fn (PackageAudit $audit): bool => ! $audit->hash instanceof TreeHash);
-        $recorded = array_filter($targets, static fn (PackageAudit $audit): bool => $audit->hash instanceof TreeHash);
+
+        [$recorded, $unreadable] = (new Collection($targets))
+            ->partition(static fn (PackageAudit $audit): bool => $audit->hash instanceof TreeHash);
 
         try {
             foreach ($recorded as $audit) {
@@ -103,10 +105,10 @@ final class TrustCommand extends Command
         $this->components->info($created
             ? sprintf(
                 'Trusted [%d] package(s), and wrote [%s].',
-                count($recorded),
-                $this->relative($project->rootPath, $auditor->trustFile->path),
+                $recorded->count(),
+                $project->relativePath($auditor->trustFile->path),
             )
-            : sprintf('Trusted [%d] package(s).', count($recorded)));
+            : sprintf('Trusted [%d] package(s).', $recorded->count()));
 
         if ($this->holdsPending($recorded)) {
             $this->components->info('Run [composer install] to write those bytes to vendor/.');
@@ -116,7 +118,7 @@ final class TrustCommand extends Command
             $this->components->error(sprintf('[%s] stays unrecorded: %s', $audit->package, $audit->reason()));
         }
 
-        return $unreadable === [] ? self::SUCCESS : self::FAILURE;
+        return $unreadable->isEmpty() ? self::SUCCESS : self::FAILURE;
     }
 
     /**
@@ -154,7 +156,8 @@ final class TrustCommand extends Command
             return self::FAILURE;
         }
 
-        $recorded = [];
+        /** @var Collection<string, PackageAudit> $recorded */
+        $recorded = new Collection;
 
         foreach ($names as $name) {
             try {
@@ -208,10 +211,10 @@ final class TrustCommand extends Command
 
             $auditor->trustFile->record($grant);
 
-            $recorded[$audit->package] = $audit;
+            $recorded->put($audit->package, $audit);
         }
 
-        if ($recorded === []) {
+        if ($recorded->isEmpty()) {
             return self::SUCCESS;
         }
 
@@ -223,22 +226,34 @@ final class TrustCommand extends Command
             return self::FAILURE;
         }
 
-        $first = array_values($recorded)[0];
-
-        $this->components->info(count($recorded) === 1
-            ? sprintf(
-                'Recorded [%s] [%s] at [%s].',
-                $first->package,
-                $first->version,
-                $first->hash instanceof TreeHash ? $first->hash->short() : '',
-            )
-            : sprintf('Recorded [%d] package(s).', count($recorded)));
+        $this->announceRecorded($recorded);
 
         if ($this->holdsPending($recorded)) {
             $this->components->info('Run [composer install] to write those bytes to vendor/.');
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  Collection<string, PackageAudit>  $recorded
+     */
+    private function announceRecorded(Collection $recorded): void
+    {
+        if ($recorded->count() !== 1) {
+            $this->components->info(sprintf('Recorded [%d] package(s).', $recorded->count()));
+
+            return;
+        }
+
+        $audit = $recorded->sole();
+
+        $this->components->info(sprintf(
+            'Recorded [%s] [%s] at [%s].',
+            $audit->package,
+            $audit->version,
+            $audit->hash instanceof TreeHash ? $audit->hash->short() : '',
+        ));
     }
 
     private function grantOf(PackageAudit $audit): Grant
@@ -260,17 +275,11 @@ final class TrustCommand extends Command
     }
 
     /**
-     * @param  array<string, PackageAudit>  $audits
+     * @param  Collection<string, PackageAudit>  $audits
      */
-    private function holdsPending(array $audits): bool
+    private function holdsPending(Collection $audits): bool
     {
-        foreach ($audits as $audit) {
-            if ($audit->pending()) {
-                return true;
-            }
-        }
-
-        return false;
+        return $audits->contains(static fn (PackageAudit $audit): bool => $audit->pending());
     }
 
     private function delta(AuditProject $auditor, Project $project, PackageAudit $audit): ?Delta
@@ -358,13 +367,9 @@ final class TrustCommand extends Command
     {
         $packages = $this->argument('packages');
 
-        return is_array($packages)
-            ? array_values(array_filter($packages, static fn (mixed $package): bool => is_string($package) && $package !== ''))
-            : [];
-    }
-
-    private function relative(string $root, string $path): string
-    {
-        return str_starts_with($path, $root.'/') ? mb_substr($path, mb_strlen($root) + 1) : $path;
+        return (new Collection(is_array($packages) ? $packages : []))
+            ->filter(static fn (mixed $package): bool => is_string($package) && $package !== '')
+            ->values()
+            ->all();
     }
 }

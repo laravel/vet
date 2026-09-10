@@ -57,7 +57,7 @@ final readonly class Project
 
         if (is_file($this->composerJsonPath())) {
             $config = Json::array(Json::readFile($this->composerJsonPath(), 'the project manifest'), 'config');
-            $configured = is_string($config['vendor-dir'] ?? null) ? $config['vendor-dir'] : null;
+            $configured = Json::string($config, 'vendor-dir');
 
             if ($configured !== null && $configured !== '') {
                 $vendorDir = str_replace('$HOME', (string) getenv('HOME'), $configured);
@@ -77,5 +77,10 @@ final readonly class Project
     public function vetFilePath(): string
     {
         return $this->rootPath.'/vet.json';
+    }
+
+    public function relativePath(string $path): string
+    {
+        return Path::relativeTo($path, $this->rootPath);
     }
 }
