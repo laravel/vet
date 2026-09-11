@@ -56,20 +56,18 @@ final readonly class Fixture
         return $contents;
     }
 
-    public function agent(string $script): void
+    public function agent(StubAgent $stub): string
     {
-        $this->agentNamed('agent', $script);
+        return $this->agentNamed('agent', $stub);
     }
 
-    public function agentNamed(string $name, string $script): void
+    public function agentNamed(string $name, StubAgent $stub): string
     {
-        $binary = dirname($this->rootPath).'/'.$name;
+        $executable = $stub->install(dirname($this->rootPath), $name);
 
-        file_put_contents($binary, "#!/bin/sh\n".$script."\n");
+        putenv('VET_AGENT_BINARY='.$executable);
 
-        chmod($binary, 0o755);
-
-        putenv('VET_AGENT_BINARY='.$binary);
+        return $executable;
     }
 
     public function remove(): void

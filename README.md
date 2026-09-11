@@ -60,7 +60,7 @@ vet has one command. It audits what `vendor/` holds, and when you run it in a te
 
 ## Recording Your Baseline
 
-The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option does the same:
+The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option deletes `vet.json` first, then does the same, so you start from an empty trust file:
 
 ```shell
 vet --init

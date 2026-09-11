@@ -40,6 +40,7 @@ use App\ValueObjects\Project;
 use App\ValueObjects\TreeHash;
 use App\ValueObjects\TrustFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use Laravel\Prompts\Prompt;
 use LaravelZero\Framework\Commands\Command;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
@@ -62,7 +63,7 @@ final class VetCommand extends Command
     protected $signature = 'vet
         {packages?* : Audit these packages, as vendor/name}
         {--init : Record every package that vendor/ holds today, and start the trust file from them}
-        {--fresh : The same as --init}
+        {--fresh : Delete the trust file, then do the same as --init}
         {--agent : Hand each delta to your coding agent, and show the verdict it writes}
         {--model= : The model that the coding agent uses (defaults to the one of the agent)}
         {--from= : Show the delta from this version rather than the trusted one}
@@ -90,20 +91,9 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        $path = $this->option('path');
-        assert($path === null || is_string($path));
-
-        try {
-            $project = Project::locate($path ?? (string) getcwd());
-            $auditor = $this->auditor($project);
-        } catch (VetException $vetException) {
-            $this->components->error($vetException->getMessage());
-
-            return self::FAILURE;
-        }
-
         $packages = $this->packages();
-        $init = $this->option('init') === true || $this->option('fresh') === true;
+        $fresh = $this->option('fresh') === true;
+        $init = $this->option('init') === true || $fresh;
 
         if ($packages !== [] && $init) {
             $this->components->error('The [--init] option takes no package. Run [vet --init] or [vet <package>].');
@@ -111,14 +101,31 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        if ($packages !== []) {
-            return $this->auditPackages($project, $auditor, $packages);
-        }
-
-        if ($this->option('from') !== null || $this->option('to') !== null) {
+        if ($packages === [] && ($this->option('from') !== null || $this->option('to') !== null)) {
             $this->components->error('The [--from] and [--to] options need one package. Run [vet <package> --from=<version>].');
 
             return self::FAILURE;
+        }
+
+        $path = $this->option('path');
+        assert($path === null || is_string($path));
+
+        try {
+            $project = Project::locate($path ?? (string) getcwd());
+
+            if ($fresh) {
+                File::delete($project->vetFilePath());
+            }
+
+            $auditor = $this->auditor($project);
+        } catch (VetException $vetException) {
+            $this->components->error($vetException->getMessage());
+
+            return self::FAILURE;
+        }
+
+        if ($packages !== []) {
+            return $this->auditPackages($project, $auditor, $packages);
         }
 
         if ($init) {

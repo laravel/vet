@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Support\BinaryName;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
 
@@ -17,7 +18,7 @@ enum AgentType: string
 
     public static function of(string $binary): ?self
     {
-        return self::tryFrom(basename($binary));
+        return self::tryFrom(BinaryName::of($binary));
     }
 
     /**

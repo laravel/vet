@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\AgentType;
 use App\Enums\AgentVerdict;
 use App\Exceptions\AgentFailedException;
+use App\Support\BinaryName;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
@@ -59,7 +60,7 @@ final readonly class ReviewWithAgent
 
     public function name(): string
     {
-        return basename($this->binary);
+        return BinaryName::of($this->binary);
     }
 
     public function type(): ?AgentType

@@ -224,20 +224,51 @@ it('asks for vet --init and audits nothing when the project holds no trust file'
     expect($created)->toBeFalse();
 });
 
-it('records the baseline with --fresh, the alias of --init', function (): void {
-    $fixture = Fixture::open('no-trust-file');
+it('deletes the trust file with --fresh, then records the baseline again', function (): void {
+    $fixture = Fixture::open('orphan-trust-file');
 
     try {
         $status = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
         $trustFile = $fixture->read('vet.json');
     } finally {
         $fixture->remove();
     }
 
     expect($status)->toBe(0)
-        ->and($trustFile)
-        ->toContain('"acme/widget"')
-        ->toContain('"acme/lint"');
+        ->and($output)->toContain('Trusted [1] package(s), and wrote [vet.json].')
+        ->and($trustFile)->toContain('"acme/widget"')
+        ->and(str_contains($trustFile, '"acme/ghost"'))->toBeFalse();
+});
+
+it('starts again with --fresh when the trust file holds an older schema', function (): void {
+    $fixture = Fixture::open('legacy-trust-file');
+
+    try {
+        $status = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+        $trustFile = $fixture->read('vet.json');
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and(str_contains($output, 'declares schema [2]'))->toBeFalse()
+        ->and($trustFile)->toContain('"schema": 4');
+});
+
+it('keeps the trust file when --fresh comes with a package', function (): void {
+    $fixture = Fixture::open('orphan-trust-file');
+
+    try {
+        $status = vet(['packages' => ['acme/widget'], '--fresh' => true, '--path' => $fixture->rootPath]);
+        $trustFile = $fixture->read('vet.json');
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($trustFile)->toContain('"acme/ghost"');
 });
 
 it('trusts nothing new when the trust file covers every installed package', function (): void {

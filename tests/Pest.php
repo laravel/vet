@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\ValueObjects\AgentPrompt;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Testing\PendingCommand;
+use Tests\Fixtures\StubAgent;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature', 'Unit');
@@ -34,22 +36,15 @@ function composerPlanFile(array $operations): string
     return $path;
 }
 
-function stubBinary(string $script): string
+function stubAgent(StubAgent $stub): string
 {
-    $path = sys_get_temp_dir().'/vet-tests/'.bin2hex(random_bytes(8));
+    $directory = sys_get_temp_dir().'/vet-tests/'.bin2hex(random_bytes(8));
 
-    if (! is_dir(dirname($path))) {
-        mkdir(dirname($path), 0o777, true);
-    }
-
-    file_put_contents($path, "#!/bin/sh\n".$script."\n");
-    chmod($path, 0o755);
-
-    register_shutdown_function(static function () use ($path): void {
-        @unlink($path);
+    register_shutdown_function(static function () use ($directory): void {
+        File::deleteDirectory($directory);
     });
 
-    return $path;
+    return $stub->install($directory, 'agent');
 }
 
 /**

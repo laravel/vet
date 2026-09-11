@@ -6,10 +6,11 @@ use App\ValueObjects\AgentBatch;
 use Illuminate\Support\Facades\Artisan;
 use Tests\Fixtures\Fixture;
 use Tests\Fixtures\StaleProject;
+use Tests\Fixtures\StubAgent;
 
 it('hands each delta to the agent, and writes the verdict under the package', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/New.php] writes a path outside the package","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/New.php] writes a path outside the package","findings":[]}'));
 
     try {
         $status = vet(['--path' => $fixture->rootPath, '--agent' => true]);
@@ -26,7 +27,7 @@ it('hands each delta to the agent, and writes the verdict under the package', fu
 
 it('writes each finding of the agent under the verdict', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/New.php] runs a shell command","findings":[{"path":"src/New.php","reason":"it calls [exec]"}]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/New.php] runs a shell command","findings":[{"path":"src/New.php","reason":"it calls [exec]"}]}'));
 
     try {
         vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--agent' => true]);
@@ -40,7 +41,7 @@ it('writes each finding of the agent under the verdict', function (): void {
 
 it('writes no verdict when the agent names a file that the delta does not hold', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"it reads a secret","findings":[{"path":"src/Invented.php","reason":"it reads .env"}]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"it reads a secret","findings":[{"path":"src/Invented.php","reason":"it reads .env"}]}'));
 
     try {
         vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--agent' => true]);
@@ -54,7 +55,7 @@ it('writes no verdict when the agent names a file that the delta does not hold',
 
 it('writes a partial verdict when the prompt holds no byte of an opaque artifact', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}'));
 
     try {
         vet(['packages' => ['acme/opaque'], '--path' => $fixture->rootPath, '--agent' => true]);
@@ -69,15 +70,13 @@ it('writes a partial verdict when the prompt holds no byte of an opaque artifact
 
 it('gives the agent the package, the versions and the source of each change', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $written = sys_get_temp_dir().'/vet-prompt-'.bin2hex(random_bytes(6));
 
-    $fixture->agent('cat >> '.escapeshellarg($written)."\n".'echo \'{"verdict":"clear","summary":"nothing","findings":[]}\'');
+    $agent = $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing","findings":[]}'));
 
     try {
         vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '--agent' => true]);
-        $prompt = (string) file_get_contents($written);
+        $prompt = StubAgent::promptGivenTo($agent);
     } finally {
-        unlink($written);
         $fixture->remove();
     }
 
@@ -92,7 +91,7 @@ it('gives the agent the package, the versions and the source of each change', fu
 
 it('writes the verdict of the agent in the json', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}'));
 
     try {
         vet(['--path' => $fixture->rootPath, '--agent' => true, '--json' => true]);
@@ -115,18 +114,16 @@ it('writes the verdict of the agent in the json', function (): void {
 
 it('hands the whole tree to the agent when vet holds no earlier tree', function (): void {
     $fixture = Fixture::open('no-trust-file');
-    $written = sys_get_temp_dir().'/vet-prompt-'.bin2hex(random_bytes(6));
 
     file_put_contents($fixture->path('vet.json'), '{"schema": 4, "require": {}, "require-dev": {}}');
 
-    $fixture->agent('cat >> '.escapeshellarg($written)."\n".'echo \'{"verdict":"clear","summary":"this tree reaches outside nothing","findings":[]}\'');
+    $agent = $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"this tree reaches outside nothing","findings":[]}'));
 
     try {
         $status = vet(['--path' => $fixture->rootPath, '--agent' => true]);
         $output = Artisan::output();
-        $prompt = (string) file_get_contents($written);
+        $prompt = StubAgent::promptGivenTo($agent);
     } finally {
-        unlink($written);
         $fixture->remove();
     }
 
@@ -174,7 +171,7 @@ it('needs no agent when every package is covered', function (): void {
 
 it('asks no model when the json holds the verdict', function (): void {
     $fixture = Fixture::open('stale-project');
-    $fixture->agentNamed('claude', 'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true, '--json' => true])
@@ -231,11 +228,10 @@ it('asks no question about the agent when the batch is over the budget', functio
 
 it('reads the whole batch when the flag names the agent, whatever the budget', function (): void {
     $project = StaleProject::amongUngranted(AgentBatch::MAX_PROMPTS);
-    $binary = dirname($project->rootPath).'/agent';
+    $executable = StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}')
+        ->install(dirname($project->rootPath), 'agent');
 
-    file_put_contents($binary, "#!/bin/sh\ncat > /dev/null\necho '{\"verdict\":\"clear\",\"summary\":\"nothing reaches outside the package\",\"findings\":[]}'\n");
-    chmod($binary, 0o755);
-    putenv('VET_AGENT_BINARY='.$binary);
+    putenv('VET_AGENT_BINARY='.$executable);
 
     try {
         $status = vet(['--path' => $project->rootPath, '--agent' => true]);
@@ -266,7 +262,7 @@ it('invites the reader to one package when a trust file holds no earlier tree', 
 
 it('puts the verdict of the agent on the row that you pick', function (): void {
     $fixture = Fixture::open('stale-project');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
@@ -283,8 +279,7 @@ it('puts the verdict of the agent on the row that you pick', function (): void {
 
 it('asks which model the agent uses before it reads, and passes the answer to the agent', function (): void {
     $fixture = Fixture::open('stale-project');
-    $written = sys_get_temp_dir().'/vet-arguments-'.bin2hex(random_bytes(6));
-    $fixture->agentNamed('claude', 'echo "$@" > '.escapeshellarg($written)."\n".'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $agent = $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
@@ -293,9 +288,8 @@ it('asks which model the agent uses before it reads, and passes the answer to th
             ->expectsQuestion('Which packages do you trust?', [])
             ->run();
 
-        $arguments = (string) file_get_contents($written);
+        $arguments = implode(' ', StubAgent::argumentsGivenTo($agent));
     } finally {
-        @unlink($written);
         $fixture->remove();
     }
 
@@ -305,17 +299,15 @@ it('asks which model the agent uses before it reads, and passes the answer to th
 
 it('passes the model of the option to the agent without a question', function (): void {
     $fixture = Fixture::open('stale-project');
-    $written = sys_get_temp_dir().'/vet-arguments-'.bin2hex(random_bytes(6));
-    $fixture->agentNamed('claude', 'echo "$@" > '.escapeshellarg($written)."\n".'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $agent = $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true, '--model' => 'sonnet'])
             ->expectsQuestion('Which packages do you trust?', [])
             ->run();
 
-        $arguments = (string) file_get_contents($written);
+        $arguments = implode(' ', StubAgent::argumentsGivenTo($agent));
     } finally {
-        @unlink($written);
         $fixture->remove();
     }
 
@@ -324,8 +316,7 @@ it('passes the model of the option to the agent without a question', function ()
 
 it('keeps the default model of the agent when you press enter', function (): void {
     $fixture = Fixture::open('stale-project');
-    $written = sys_get_temp_dir().'/vet-arguments-'.bin2hex(random_bytes(6));
-    $fixture->agentNamed('claude', 'echo "$@" > '.escapeshellarg($written)."\n".'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $agent = $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
@@ -333,9 +324,8 @@ it('keeps the default model of the agent when you press enter', function (): voi
             ->expectsQuestion('Which packages do you trust?', [])
             ->run();
 
-        $arguments = (string) file_get_contents($written);
+        $arguments = implode(' ', StubAgent::argumentsGivenTo($agent));
     } finally {
-        @unlink($written);
         $fixture->remove();
     }
 
@@ -344,7 +334,7 @@ it('keeps the default model of the agent when you press enter', function (): voi
 
 it('asks no model when the agent is not one that vet knows', function (): void {
     $fixture = Fixture::open('stale-project');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
@@ -358,7 +348,7 @@ it('asks no model when the agent is not one that vet knows', function (): void {
 
 it('refuses a model for an agent that vet does not know', function (): void {
     $fixture = Fixture::open('stale-project');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"nothing","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing","findings":[]}'));
 
     try {
         $status = vet(['--path' => $fixture->rootPath, '--agent' => true, '--model' => 'opus']);
@@ -374,7 +364,7 @@ it('refuses a model for an agent that vet does not know', function (): void {
 
 it('hands every delta to the agent when you ask for it, then lets you pick', function (): void {
     $fixture = Fixture::open('stale-project');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
@@ -395,7 +385,7 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
 
 it('asks no question about the agent when the flag names it', function (): void {
     $fixture = Fixture::open('stale-project');
-    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
 
     try {
         command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
@@ -444,7 +434,7 @@ it('names the agent that it cannot run for one package', function (): void {
 
 it('sends nothing to the agent when the delta of one package holds no change', function (): void {
     $fixture = Fixture::open('delta-shapes');
-    $fixture->agent("cat > /dev/null\nexit 1");
+    $fixture->agent(StubAgent::silent()->failing(1, ''));
 
     try {
         vet(['packages' => ['acme/moved'], '--from' => '2.0.0', '--agent' => true, '--path' => $fixture->rootPath]);
