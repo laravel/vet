@@ -199,14 +199,13 @@ it('names the directory that it cannot create', function (): void {
     $destination = extractionPath();
 
     mkdir($destination);
-    Access::denyWrite($destination);
+    file_put_contents($destination.'/src', '');
 
     try {
         expect(static function () use ($archive, $destination): void {
             Warnings::silenced(static fn (): int => ExtractZip::handle($archive, $destination));
         })->toThrow(FailureException::class, sprintf('Could not create the directory [%s/src].', $destination));
     } finally {
-        Access::restore($destination);
         removeExtraction($archive, $destination);
     }
 });

@@ -6,21 +6,16 @@ use App\Exceptions\EmptyTreeException;
 use App\Exceptions\FailureException;
 use App\ValueObjects\Manifest;
 use Tests\Fixtures\Access;
+use Tests\Fixtures\UnreadableDirectory;
 
 it('names a directory of the tree that it cannot read', function (): void {
-    $directory = manifestTree();
-
-    mkdir($directory.'/locked');
-    file_put_contents($directory.'/locked/Secret.php', "<?php\n");
-    file_put_contents($directory.'/Widget.php', "<?php\n");
-    Access::denyRead($directory.'/locked');
+    UnreadableDirectory::register();
 
     try {
-        expect(fn (): Manifest => Manifest::ofDirectory($directory))
-            ->toThrow(FailureException::class, sprintf('Could not read the directory [%s].', $directory.DIRECTORY_SEPARATOR.'locked'));
+        expect(fn (): Manifest => Manifest::ofDirectory(UnreadableDirectory::ROOT))
+            ->toThrow(FailureException::class, sprintf('Could not read the directory [%s].', UnreadableDirectory::ROOT.DIRECTORY_SEPARATOR.'locked'));
     } finally {
-        Access::restore($directory.'/locked');
-        removeManifestTree($directory);
+        UnreadableDirectory::unregister();
     }
 });
 

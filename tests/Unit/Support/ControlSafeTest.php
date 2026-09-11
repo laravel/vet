@@ -35,6 +35,14 @@ it('keeps a tab, a newline and a character of a language', function (): void {
         ->and(ControlSafe::text('src/日本語.php'))->toBe('src/日本語.php');
 });
 
+it('keeps the line ending of windows and replaces a carriage return that stands alone', function (): void {
+    expect(ControlSafe::text("a\r\nb"))->toBe("a\r\nb")
+        ->and(ControlSafe::text("\r\n\r\n"))->toBe("\r\n\r\n")
+        ->and(ControlSafe::text("safe\rspoof"))->toBe('safe?spoof')
+        ->and(ControlSafe::text("a\r\r\nb"))->toBe("a?\r\nb")
+        ->and(ControlSafe::text("bad \xC3\x28 \r"))->toBe("bad \xC3\x28 ?");
+});
+
 it('replaces an escape sequence of a path that holds no readable encoding', function (): void {
     expect(ControlSafe::text("bad \xC3\x28 \x1b[2K"))->toBe("bad \xC3\x28 ?[2K");
 });
