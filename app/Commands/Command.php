@@ -13,10 +13,10 @@ use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
 use App\Support\PickedCountRenderer;
 use App\Support\PromptOutput;
+use App\Support\RevertibleMultiSelectPrompt;
 use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentReview;
-use Laravel\Prompts\MultiSelectPrompt;
 use Laravel\Prompts\Prompt;
 use LaravelZero\Framework\Commands\Command as LaravelZeroCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
@@ -100,7 +100,7 @@ abstract class Command extends LaravelZeroCommand
     {
         Prompt::setOutput(new PromptOutput($this->output, $formatter));
 
-        Prompt::addTheme('vet', [MultiSelectPrompt::class => PickedCountRenderer::class]);
+        Prompt::addTheme('vet', [RevertibleMultiSelectPrompt::class => PickedCountRenderer::class]);
         Prompt::theme('vet');
     }
 

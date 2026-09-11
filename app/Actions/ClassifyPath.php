@@ -182,12 +182,6 @@ final readonly class ClassifyPath
             return true;
         }
 
-        foreach ($this->runtimeRoots as $root) {
-            if ($path === $root || str_starts_with($path, $root.'/')) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->runtimeRoots, fn (string $root): bool => $path === $root || str_starts_with($path, $root.'/'));
     }
 }

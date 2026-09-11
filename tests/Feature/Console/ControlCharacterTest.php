@@ -57,7 +57,7 @@ it('writes each prompt through an output that keeps the escape sequences of lara
         $fixture->remove();
     }
 
-    $output = (new ReflectionProperty(Prompt::class, 'output'))->getValue();
+    $output = new ReflectionProperty(Prompt::class, 'output')->getValue();
     $formatter = $output instanceof PromptOutput ? $output->getFormatter() : null;
     $frame = "\e[?25l\e[1G\e[13A\e[J\e[90m\e[2mpicker\e[22m\e[39m";
 

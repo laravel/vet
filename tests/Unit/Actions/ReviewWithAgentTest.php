@@ -120,7 +120,7 @@ it('writes no verdict when the agent answers with prose', function (): void {
 });
 
 it('names the binary that it cannot run', function (): void {
-    (new ReviewWithAgent('agent-that-is-not-installed', AgentModel::default(), 300))->handle(['acme/widget' => agentPrompt('the delta', [], [])]);
+    new ReviewWithAgent('agent-that-is-not-installed', AgentModel::default(), 300)->handle(['acme/widget' => agentPrompt('the delta', [], [])]);
 })->throws(AgentFailedException::class, 'Could not run [agent-that-is-not-installed].');
 
 it('finds the agent that the environment names', function (): void {
@@ -134,7 +134,7 @@ it('finds the agent that the environment names', function (): void {
 });
 
 it('refuses a model for an agent whose flags vet does not know', function (): void {
-    expect(fn (): ReviewWithAgent => (new ReviewWithAgent('/usr/local/bin/my-agent', AgentModel::default(), 300))->withModel(AgentModel::of('opus')))
+    expect(fn (): ReviewWithAgent => new ReviewWithAgent('/usr/local/bin/my-agent', AgentModel::default(), 300)->withModel(AgentModel::of('opus')))
         ->toThrow(AgentFailedException::class, 'Could not pass a model to [/usr/local/bin/my-agent].');
 });
 
@@ -147,7 +147,7 @@ it('gives a claude agent the flags of claude and the model, and reads its envelo
     chmod($directory.'/claude', 0o755);
 
     try {
-        $review = (new ReviewWithAgent($directory.'/claude', AgentModel::default(), 300))
+        $review = new ReviewWithAgent($directory.'/claude', AgentModel::default(), 300)
             ->withModel(AgentModel::of('opus'))
             ->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 

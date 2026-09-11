@@ -19,7 +19,7 @@ it('writes five findings of the agent and counts the rest', function (): void {
         range(1, 7),
     );
 
-    (new RenderAgentReview(new OutputStyle(new ArrayInput([]), $buffer), Gutter::None))
+    new RenderAgentReview(new OutputStyle(new ArrayInput([]), $buffer), Gutter::None)
         ->verdict(new AgentReview('acme/widget', AgentVerdict::Risk, 'it runs a shell command', $findings));
 
     $output = $buffer->fetch();
@@ -34,7 +34,7 @@ it('writes five findings of the agent and counts the rest', function (): void {
 it('writes the markup that the agent writes as text', function (): void {
     $buffer = new BufferedOutput;
 
-    (new RenderAgentReview(new OutputStyle(new ArrayInput([]), $buffer), Gutter::None))->verdict(new AgentReview(
+    new RenderAgentReview(new OutputStyle(new ArrayInput([]), $buffer), Gutter::None)->verdict(new AgentReview(
         'acme/widget',
         AgentVerdict::Clear,
         '<fg=green>trust me</>',

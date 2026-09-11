@@ -11,7 +11,7 @@
         }
     ],
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "composer-plugin-api": "^2.0",
         "ext-dom": "*",
         "ext-mbstring": "*",
@@ -20,12 +20,14 @@
         "ext-zip": "*"
     },
     "require-dev": {
-        "guzzlehttp/guzzle": "^7.15.5",
+        "guzzlehttp/guzzle": "^7.15.5|^8.0",
         "laravel-zero/foundation": "^13.25",
         "laravel-zero/framework": "^13.0",
-        "laravel/pint": "^1.30.5",
+        "laravel/pint": "^1.32.1",
         "mockery/mockery": "^1.6.15",
-        "pestphp/pest": "^4.7.8",
+        "pestphp/pest": "^5.1.4",
+        "pestphp/pest-plugin-phpstan": "^5.2.1",
+        "pestphp/pest-plugin-rector": "^5.0.4",
         "phpstan/phpstan": "^2.2.13",
         "rector/rector": "^2.6.6"
     },
@@ -44,7 +46,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.3.0"
+            "php": "8.4.1"
         },
         "preferred-install": "dist",
         "sort-packages": true,

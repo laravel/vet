@@ -377,13 +377,7 @@ final class RenderProjectAudit
 
     private function holdsDelta(): bool
     {
-        foreach ($this->reviews as $review) {
-            if ($review->delta instanceof Delta) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->reviews, fn (PackageReview $review): bool => $review->delta instanceof Delta);
     }
 
     /**

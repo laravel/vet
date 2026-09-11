@@ -42,7 +42,7 @@ Laravel Vet shows you what a `composer update` is about to write into your `vend
 
 ## Installation
 
-> **Requires [PHP 8.3+](https://php.net/releases/)**.
+> **Requires [PHP 8.4+](https://php.net/releases/)**.
 
 You can install Laravel Vet via Composer:
 

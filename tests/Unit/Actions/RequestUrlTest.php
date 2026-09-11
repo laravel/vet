@@ -19,7 +19,7 @@ it('follows a redirect chain to the final response', function (): void {
         FakeHttp::body('done'),
     ]);
 
-    $body = (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/hop/2');
+    $body = new RequestUrl('vet-test', [], $http->client)->get('https://example.test/hop/2');
 
     expect($body)->toBe('done')
         ->and($http->urls())->toBe([
@@ -38,7 +38,7 @@ it('resolves a relative location against the current url', function (): void {
         FakeHttp::body('done'),
     ]);
 
-    $body = (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/dir/start');
+    $body = new RequestUrl('vet-test', [], $http->client)->get('https://example.test/dir/start');
 
     expect($body)->toBe('done')
         ->and($http->urls())->toBe([
@@ -56,7 +56,7 @@ it('keeps the port of the current url on a redirect to a path', function (): voi
         FakeHttp::body('done'),
     ]);
 
-    $body = (new RequestUrl('vet-test', [], $http->client))->get('https://example.test:8443/dir/start');
+    $body = new RequestUrl('vet-test', [], $http->client)->get('https://example.test:8443/dir/start');
 
     expect($body)->toBe('done')
         ->and($http->urls())->toBe([
@@ -72,7 +72,7 @@ it('resolves a relative location against a url that holds no path', function ():
         FakeHttp::body('done'),
     ]);
 
-    $body = (new RequestUrl('vet-test', [], $http->client))->get('https://example.test');
+    $body = new RequestUrl('vet-test', [], $http->client)->get('https://example.test');
 
     expect($body)->toBe('done')
         ->and($http->urls())->toBe([
@@ -108,7 +108,7 @@ it('sends the github token to github hosts and drops it on a redirect to a forei
         FakeHttp::body('zip'),
     ]);
 
-    $body = (new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client))->get('https://api.github.com/repos/acme/widget/zipball/abc');
+    $body = new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client)->get('https://api.github.com/repos/acme/widget/zipball/abc');
 
     expect($body)->toBe('zip')
         ->and($http->header('https://api.github.com/repos/acme/widget/zipball/abc', 'Authorization'))->toBe('Bearer secret-token')
@@ -156,7 +156,7 @@ it('reads the github token of the auth file in the xdg config home', function ()
 it('sends no token to a host that only ends with the letters of github.com', function (): void {
     $http = new FakeHttp([FakeHttp::body('zip')]);
 
-    (new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client))->get('https://evilgithub.com/widget.zip');
+    new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client)->get('https://evilgithub.com/widget.zip');
 
     expect($http->header('https://evilgithub.com/widget.zip', 'Authorization'))->toBeNull();
 });
@@ -164,7 +164,7 @@ it('sends no token to a host that only ends with the letters of github.com', fun
 it('refuses a url that is not https before it sends a request', function (string $url): void {
     $http = new FakeHttp([]);
 
-    expect(fn (): string => (new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client))->get($url))
+    expect(fn (): string => new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client)->get($url))
         ->toThrow(FetchFailedException::class, sprintf('Request to [%s] refused: vet reads https URLs only.', $url))
         ->and($http->requests)->toBe([]);
 })->with([
@@ -177,7 +177,7 @@ it('refuses a url that is not https before it sends a request', function (string
 it('refuses a redirect to a url that is not https', function (): void {
     $http = new FakeHttp([FakeHttp::redirect('http://github.com/acme/widget.zip')]);
 
-    expect(fn (): string => (new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client))->get('https://github.com/acme/widget.zip'))
+    expect(fn (): string => new RequestUrl('vet-test', RequestUrl::bearer('secret-token'), $http->client)->get('https://github.com/acme/widget.zip'))
         ->toThrow(FetchFailedException::class, 'Request to [http://github.com/acme/widget.zip] refused')
         ->and($http->urls())->toBe(['https://github.com/acme/widget.zip']);
 });
@@ -185,14 +185,14 @@ it('refuses a redirect to a url that is not https', function (): void {
 it('reports the status of a failed response', function (): void {
     $http = new FakeHttp([new Response(404, [], 'missing')]);
 
-    expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/missing'))
+    expect(fn (): string => new RequestUrl('vet-test', [], $http->client)->get('https://example.test/missing'))
         ->toThrow(FetchFailedException::class, 'Request to [https://example.test/missing] failed with HTTP [404].');
 });
 
 it('refuses an empty body', function (): void {
     $http = new FakeHttp([FakeHttp::body("  \n")]);
 
-    expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/empty'))
+    expect(fn (): string => new RequestUrl('vet-test', [], $http->client)->get('https://example.test/empty'))
         ->toThrow(FetchFailedException::class, 'returned an empty body');
 });
 
@@ -232,7 +232,7 @@ it('reads the github token in the order that composer reads it', function (): vo
 it('names the url that the transport fails to reach', function (): void {
     $http = new FakeHttp([new ConnectException('Could not resolve host [example.test]', new Request('GET', 'https://example.test/widget.zip'))]);
 
-    expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/widget.zip'))
+    expect(fn (): string => new RequestUrl('vet-test', [], $http->client)->get('https://example.test/widget.zip'))
         ->toThrow(FetchFailedException::class, 'Request to [https://example.test/widget.zip] failed: Could not resolve host [example.test]');
 });
 
@@ -294,7 +294,7 @@ it('skips an auth file that it cannot read or decode', function (): void {
 it('refuses a relative redirect from a url that holds no host', function (): void {
     $http = new FakeHttp([FakeHttp::redirect('next.zip')]);
 
-    expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https:widget.zip'))
+    expect(fn (): string => new RequestUrl('vet-test', [], $http->client)->get('https:widget.zip'))
         ->toThrow(FetchFailedException::class, 'Request to [next.zip] refused: vet reads https URLs only.');
 });
 

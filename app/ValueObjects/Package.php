@@ -163,13 +163,7 @@ final readonly class Package
 
     public function autoloadsPackageRoot(): bool
     {
-        foreach ($this->autoloadPaths() as $path) {
-            if (Path::normalize($path) === '') {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->autoloadPaths(), fn (string $path): bool => Path::normalize($path) === '');
     }
 
     /**

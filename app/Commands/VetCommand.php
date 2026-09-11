@@ -19,6 +19,7 @@ use App\Support\Bytes;
 use App\Support\ControlSafe;
 use App\Support\Invitation;
 use App\Support\Json;
+use App\Support\RevertibleMultiSelectPrompt;
 use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\ComposerOperation;
@@ -32,11 +33,15 @@ use App\ValueObjects\TrustFile;
 use Illuminate\Support\Collection;
 use Symfony\Component\Console\Output\OutputInterface;
 
-use function Laravel\Prompts\multiselect;
+use function Laravel\Prompts\form;
 use function Laravel\Prompts\select;
 
 final class VetCommand extends Command
 {
+    private const string PICK_HINT = 'Press the space bar to pick a package, ctrl+a to pick every package, and enter to record the ones that you picked.';
+
+    private const string PICK_OR_GO_BACK_HINT = 'Press the space bar to pick a package, ctrl+a to pick every package, enter to record the ones that you picked, and escape to go back.';
+
     /**
      * @var string
      */
@@ -182,25 +187,52 @@ final class VetCommand extends Command
             return self::SUCCESS;
         }
 
-        $reviews = $agentAsked ? $screen->agentReviews() : [];
-
-        if (! $agentAsked) {
-            $batch = $screen->agentBatch();
-
-            if (! $batch->fitsOneRun()) {
-                $screen->renderOverBudgetTip($batch);
-            } elseif ($this->wantsAgentFirst()) {
-                $reviews = $this->reviewWithAgent($screen, $batch);
-            }
+        if ($agentAsked) {
+            return $this->pickPackages($auditor, $screen, $screen->agentReviews(), self::PICK_HINT);
         }
 
-        return $this->pickPackages($auditor, $screen, $reviews);
+        $batch = $screen->agentBatch();
+
+        if ($batch->fitsOneRun()) {
+            return $this->chooseReviewThenPick($auditor, $screen, $batch);
+        }
+
+        $screen->renderOverBudgetTip($batch);
+
+        return $this->pickPackages($auditor, $screen, [], self::PICK_HINT);
+    }
+
+    private function chooseReviewThenPick(AuditProject $auditor, RenderProjectAudit $screen, AgentBatch $batch): int
+    {
+        $agentReviews = [];
+        $status = self::FAILURE;
+
+        form()
+            ->add(fn (): bool => $this->wantsAgentFirst(), name: 'agentFirst')
+            ->add(
+                /** @param array{agentFirst: bool} $responses */
+                function (array $responses) use ($auditor, $screen, $batch, &$agentReviews, &$status): void {
+                    if ($responses['agentFirst'] && $agentReviews === []) {
+                        $agentReviews = $this->reviewWithAgent($screen, $batch);
+                    }
+
+                    $status = $this->pickPackages(
+                        $auditor,
+                        $screen,
+                        $responses['agentFirst'] ? $agentReviews : [],
+                        self::PICK_OR_GO_BACK_HINT,
+                    );
+                },
+            )
+            ->submit();
+
+        return $status;
     }
 
     /**
      * @param  array<string, AgentReview>  $reviews
      */
-    private function pickPackages(AuditProject $auditor, RenderProjectAudit $screen, array $reviews): int
+    private function pickPackages(AuditProject $auditor, RenderProjectAudit $screen, array $reviews, string $hint): int
     {
         $failing = new Collection($screen->failing());
 
@@ -210,13 +242,13 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        $picked = new Collection(multiselect(
+        $picked = Collection::wrap(new RevertibleMultiSelectPrompt(
             label: 'Which packages do you trust?',
             options: $this->choices($readable, $reviews),
             default: $this->clearPackages($readable, $reviews),
             scroll: 10,
-            hint: 'Press the space bar to pick a package, ctrl+a to pick every package, and enter to record the ones that you picked.',
-        ));
+            hint: $hint,
+        )->prompt());
 
         $recorded = $readable->filter(
             static fn (PackageAudit $audit): bool => $picked->contains($audit->package),
@@ -347,7 +379,7 @@ final class VetCommand extends Command
             return self::SUCCESS;
         }
 
-        [$installed, $incoming] = (new Collection($targets))
+        [$installed, $incoming] = new Collection($targets)
             ->partition(static fn (PackageAudit $audit): bool => ! $audit->pending());
 
         if ($installed->isNotEmpty()) {
@@ -584,7 +616,7 @@ final class VetCommand extends Command
 
         if ($agentReview instanceof AgentReview) {
             $this->newLine();
-            (new RenderAgentReview($this->output, Gutter::None))->verdict($agentReview);
+            new RenderAgentReview($this->output, Gutter::None)->verdict($agentReview);
         } elseif ($agentAsked) {
             $this->newLine();
             $agentRenderer = new RenderAgentReview($this->output, Gutter::None);

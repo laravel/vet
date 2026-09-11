@@ -19,7 +19,7 @@ final class ControlSafeComponents extends Factory
 
     public function tip(string $message): void
     {
-        (new TipLine($this->output))->render('tip', ControlSafe::text($message));
+        new TipLine($this->output)->render('tip', ControlSafe::text($message));
     }
 
     private static function readable(mixed $parameter): mixed

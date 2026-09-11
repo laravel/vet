@@ -23,7 +23,7 @@ function renderedDeltaReport(array $changes, array $notes): string
 {
     $buffer = new BufferedOutput;
 
-    $delta = (new Delta(
+    $delta = new Delta(
         package: 'acme/widget',
         from: '1.0.0',
         to: '2.0.0',
@@ -33,9 +33,9 @@ function renderedDeltaReport(array $changes, array $notes): string
         changes: $changes,
         manifestChange: null,
         firstInstall: false,
-    ))->withResolution(false, $notes);
+    )->withResolution(false, $notes);
 
-    (new RenderDelta(new OutputStyle(new ArrayInput([]), $buffer), Invitation::toReadTheInstalledTree(), Gutter::None))->report($delta);
+    new RenderDelta(new OutputStyle(new ArrayInput([]), $buffer), Invitation::toReadTheInstalledTree(), Gutter::None)->report($delta);
 
     return $buffer->fetch();
 }

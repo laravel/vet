@@ -19,7 +19,7 @@ function classifyFile(string $contents): string
 }
 
 it('reads a file that an autoload rule points at as runtime source', function (): void {
-    expect((new ClassifyPath(['src']))->handle('src/Widget.php'))->toBe(BucketType::RuntimeSource);
+    expect(new ClassifyPath(['src'])->handle('src/Widget.php'))->toBe(BucketType::RuntimeSource);
 });
 
 it('reads a Dockerfile as runtime source', function (): void {
@@ -32,14 +32,14 @@ it('reads a Dockerfile as runtime source', function (): void {
 });
 
 it('reads a shell script as runtime source', function (): void {
-    expect((new ClassifyPath(['src']))->handle('runtimes/8.4/start-container.sh'))
+    expect(new ClassifyPath(['src'])->handle('runtimes/8.4/start-container.sh'))
         ->toBe(BucketType::RuntimeSource);
 });
 
 it('reads a file that starts with a shebang as runtime source', function (): void {
     $file = classifyFile("#!/usr/bin/env bash\nset -e\n");
 
-    expect((new ClassifyPath(['src']))->handle('runtimes/8.4/start-container', $file))
+    expect(new ClassifyPath(['src'])->handle('runtimes/8.4/start-container', $file))
         ->toBe(BucketType::RuntimeSource);
 });
 
@@ -51,7 +51,7 @@ it('reads a document as inert', function (): void {
 });
 
 it('reads composer.json as the install manifest', function (): void {
-    expect((new ClassifyPath(['src']))->handle('composer.json'))->toBe(BucketType::InstallManifest);
+    expect(new ClassifyPath(['src'])->handle('composer.json'))->toBe(BucketType::InstallManifest);
 });
 
 it('reads a compiled binary as opaque, even inside an autoload root', function (): void {
@@ -62,17 +62,17 @@ it('reads a compiled binary as opaque, even inside an autoload root', function (
 });
 
 it('reads a file that holds a null byte as opaque', function (): void {
-    expect((new ClassifyPath(['src']))->handle('src/Widget.php', classifyFile("<?php\n\0\0payload")))
+    expect(new ClassifyPath(['src'])->handle('src/Widget.php', classifyFile("<?php\n\0\0payload")))
         ->toBe(BucketType::Opaque);
 });
 
 it('reads an image that holds a null byte as inert', function (): void {
-    expect((new ClassifyPath(['src']))->handle('docs/logo.png', classifyFile("\x89PNG\r\n\x1a\n\0\0\0\rIHDR")))
+    expect(new ClassifyPath(['src'])->handle('docs/logo.png', classifyFile("\x89PNG\r\n\x1a\n\0\0\0\rIHDR")))
         ->toBe(BucketType::Inert);
 });
 
 it('reads a large script on one line as opaque', function (): void {
-    expect((new ClassifyPath(['src']))->handle('dist/widget.min.js', classifyFile(str_repeat('var a=1;', 3000))))
+    expect(new ClassifyPath(['src'])->handle('dist/widget.min.js', classifyFile(str_repeat('var a=1;', 3000))))
         ->toBe(BucketType::Opaque);
 });
 

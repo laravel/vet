@@ -20,7 +20,7 @@ it('replaces an escape sequence in a message that it wraps', function (): void {
 });
 
 it('formats no text when it receives no message', function (): void {
-    expect((new ControlSafeFormatter(new OutputFormatter(false)))->format(null))->toBe('');
+    expect(new ControlSafeFormatter(new OutputFormatter(false))->format(null))->toBe('');
 });
 
 it('keeps the decoration and the styles of the formatter that it wraps', function (): void {
