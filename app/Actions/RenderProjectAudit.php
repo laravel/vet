@@ -212,16 +212,6 @@ final class RenderProjectAudit
         $this->renderAudited();
     }
 
-    private static function statusWeight(AuditStatus $status): int
-    {
-        return match ($status) {
-            AuditStatus::Unknown => 0,
-            AuditStatus::Changed => 1,
-            AuditStatus::Ungranted => 2,
-            AuditStatus::Covered => 3,
-        };
-    }
-
     private function overBudgetTip(AgentBatch $batch): string
     {
         return sprintf(
@@ -244,11 +234,11 @@ final class RenderProjectAudit
         $reviews = $this->reviews;
 
         uasort($this->failing, static fn (PackageAudit $a, PackageAudit $b): int => [
-            self::statusWeight($a->status),
+            $a->status->weight(),
             $reviews[$b->package]->files,
             $a->package,
         ] <=> [
-            self::statusWeight($b->status),
+            $b->status->weight(),
             $reviews[$a->package]->files,
             $b->package,
         ]);
@@ -285,7 +275,7 @@ final class RenderProjectAudit
         $this->components->twoColumnDetail(
             sprintf(
                 '<fg=%s>%s</> <fg=gray>%s</>%s  <fg=gray>%s</>',
-                $this->statusColor($audit->status),
+                $audit->status->color(),
                 $audit->package,
                 $audit->versions(),
                 $audit->dev ? ' <fg=gray>(dev)</>' : '',
@@ -386,14 +376,6 @@ final class RenderProjectAudit
     private function verdict(array $discrepancies): int
     {
         return $this->failing === [] && $discrepancies === [] ? self::SUCCESS : self::FAILURE;
-    }
-
-    private function statusColor(AuditStatus $status): string
-    {
-        return match ($status) {
-            AuditStatus::Unknown, AuditStatus::Changed => 'red',
-            AuditStatus::Ungranted, AuditStatus::Covered => 'yellow',
-        };
     }
 
     private function review(PackageAudit $audit): PackageReview
