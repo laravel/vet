@@ -8,7 +8,7 @@ use App\Enums\PackageStatus;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\TreeHash;
 
-it('says that composer would install bytes that the trust file holds no entry for', function (): void {
+it('says that the trust file never trusted a package', function (): void {
     $hash = TreeHash::fromManifest('incoming');
 
     $audit = new PackageAudit(
@@ -27,5 +27,5 @@ it('says that composer would install bytes that the trust file holds no entry fo
         path: null,
     );
 
-    expect($audit->reason())->toBe(sprintf('composer would install these bytes; no entry in the trust file [%s]', $hash->short()));
+    expect($audit->note())->toBe('never trusted');
 });

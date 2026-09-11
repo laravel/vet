@@ -35,12 +35,15 @@ final readonly class PackageReview
 
     public function label(): string
     {
-        if (! $this->delta instanceof Delta) {
-            return $this->scope === ReviewScope::NotReadable ? 'not readable' : 'whole package';
-        }
+        return match ($this->scope) {
+            ReviewScope::NotReadable => 'not readable',
+            ReviewScope::WholePackage => sprintf('whole package, %s', $this->fileCount()),
+            ReviewScope::Delta, ReviewScope::PublishedDelta => sprintf('%s changed', $this->fileCount()),
+        };
+    }
 
-        return $this->scope === ReviewScope::PublishedDelta
-            ? sprintf('delta from the published [%s]', $this->delta->from)
-            : sprintf('delta from [%s]', $this->delta->from);
+    private function fileCount(): string
+    {
+        return sprintf('%d %s', $this->files, $this->files === 1 ? 'file' : 'files');
     }
 }

@@ -6,6 +6,7 @@ use App\Actions\ResolveDelta;
 use App\Enums\InstallSourceType;
 use App\Exceptions\FailureException;
 use App\Support\Json;
+use App\Support\Path;
 use App\ValueObjects\Delta;
 use App\ValueObjects\Package;
 use App\ValueObjects\Project;
@@ -62,7 +63,7 @@ it('builds no incoming delta without an installed tree to compare to', function 
         expect(fn (): Delta => $resolver->incoming($target, Package::fromLockEntry(['name' => 'acme/widget', 'version' => '1.0.0'], false)))
             ->toThrow(FailureException::class, 'The package [acme/widget] has no recorded install path.')
             ->and(fn (): Delta => $resolver->incoming($target, Package::fromInstalledEntry(['name' => 'acme/widget', 'version' => '1.0.0', 'install-path' => '../acme/missing'], false, $project->rootPath.'/vendor/composer')))
-            ->toThrow(FailureException::class, sprintf('The install path [%s/vendor/acme/missing] of [acme/widget] is not a directory.', $project->rootPath));
+            ->toThrow(FailureException::class, sprintf('The install path [%s/vendor/acme/missing] of [acme/widget] is not a directory.', Path::normalize($project->rootPath)));
     } finally {
         $project->remove();
     }

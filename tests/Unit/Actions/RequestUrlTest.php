@@ -9,6 +9,7 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\File;
+use Tests\Fixtures\Access;
 use Tests\Fixtures\FakeHttp;
 use Tests\Fixtures\Warnings;
 
@@ -265,7 +266,7 @@ it('skips an auth file that it cannot read or decode', function (): void {
     file_put_contents($directory.'/locked.json', (string) json_encode(['github-oauth' => ['github.com' => 'locked-token']]));
     file_put_contents($directory.'/named.json', (string) json_encode(['github-oauth' => ['github.com' => 'named-token']]));
     file_put_contents($directory.'/composer-home/auth.json', 'not json');
-    chmod($directory.'/locked.json', 0o000);
+    Access::denyRead($directory.'/locked.json');
 
     $http = new FakeHttp([FakeHttp::body('zip'), FakeHttp::body('zip')]);
     app()->instance(ClientInterface::class, $http->client);
@@ -283,7 +284,7 @@ it('skips an auth file that it cannot read or decode', function (): void {
         withEnvironment([...$environment, 'COMPOSER_AUTH_FILE' => $directory.'/locked.json'], static fn (): string => RequestUrl::default()->get('https://github.com/acme/skipped.zip'));
         withEnvironment([...$environment, 'COMPOSER_AUTH_FILE' => $directory.'/named.json'], static fn (): string => RequestUrl::default()->get('https://github.com/acme/named.zip'));
     } finally {
-        chmod($directory.'/locked.json', 0o644);
+        Access::restore($directory.'/locked.json');
         File::deleteDirectory($directory);
     }
 
@@ -321,7 +322,7 @@ it('names the download that it cannot write', function (): void {
     $request = new RequestUrl('vet-test', [], (new FakeHttp([FakeHttp::body('zip bytes')]))->client);
 
     mkdir($directory);
-    chmod($directory, 0o555);
+    Access::denyWrite($directory);
 
     try {
         expect(static function () use ($request, $directory): void {
@@ -330,7 +331,7 @@ it('names the download that it cannot write', function (): void {
             });
         })->toThrow(FetchFailedException::class, sprintf('Request to [https://example.test/widget.zip] failed: could not write to [%s/widget.zip.', $directory));
     } finally {
-        chmod($directory, 0o755);
+        Access::restore($directory);
         File::deleteDirectory($directory);
     }
 });

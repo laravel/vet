@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\ClassifyPath;
 use App\Enums\BucketType;
+use Tests\Fixtures\Access;
 
 function classifyFile(string $contents): string
 {
@@ -95,8 +96,8 @@ it('reads a file that it cannot open as inert', function (): void {
     $script = classifyFile("#!/bin/sh\n");
     $bundle = classifyFile(str_repeat('var a=1;', 3000));
 
-    chmod($script, 0o000);
-    chmod($bundle, 0o000);
+    Access::denyRead($script);
+    Access::denyRead($bundle);
 
     try {
         $classifier = new ClassifyPath(['src'], false);
@@ -104,7 +105,7 @@ it('reads a file that it cannot open as inert', function (): void {
         expect($classifier->handle('runtimes/start-container', $script))->toBe(BucketType::Inert)
             ->and($classifier->handle('dist/widget.min.js', $bundle))->toBe(BucketType::Inert);
     } finally {
-        chmod($script, 0o644);
-        chmod($bundle, 0o644);
+        Access::restore($script);
+        Access::restore($bundle);
     }
 });

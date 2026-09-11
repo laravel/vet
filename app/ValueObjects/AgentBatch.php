@@ -8,10 +8,6 @@ use App\Actions\BuildAgentPrompt;
 
 final readonly class AgentBatch
 {
-    public const int MAX_PROMPTS = 20;
-
-    public const int MAX_BYTES = 2 * 1024 * 1024;
-
     /**
      * @param  array<string, AgentPrompt>  $prompts
      */
@@ -55,10 +51,5 @@ final readonly class AgentBatch
         }
 
         return $bytes;
-    }
-
-    public function fitsOneRun(): bool
-    {
-        return $this->count() <= self::MAX_PROMPTS && $this->bytes() <= self::MAX_BYTES;
     }
 }

@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
-use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
-use App\Enums\BucketType;
 use App\Enums\Gutter;
+use App\Enums\PatchExtent;
 use App\Exceptions\VetException;
-use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
 use App\Support\Invitation;
-use App\Support\Json;
 use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentReview;
 use App\ValueObjects\AuditReport;
@@ -22,13 +19,16 @@ use App\ValueObjects\LockDiscrepancy;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\PackageReview;
 use Illuminate\Console\OutputStyle;
-use Symfony\Component\Console\Output\OutputInterface;
+use Illuminate\Support\Str;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final readonly class RenderProjectAudit
 {
     private const int SUCCESS = 0;
 
     private const int FAILURE = 1;
+
+    private const int MAX_DELTAS = 10;
 
     private ControlSafeComponents $components;
 
@@ -51,7 +51,7 @@ final readonly class RenderProjectAudit
         private array $agentReviews,
     ) {
         $this->components = new ControlSafeComponents($output);
-        $this->renderer = new RenderDelta($output, $invitation, Gutter::Package);
+        $this->renderer = new RenderDelta($output, $invitation, Gutter::Package, PatchExtent::Abridged);
         $this->agentRenderer = new RenderAgentReview($output, Gutter::Package);
     }
 
@@ -112,11 +112,6 @@ final readonly class RenderProjectAudit
         return AgentBatch::of($deltas);
     }
 
-    public function renderOverBudgetTip(AgentBatch $batch): void
-    {
-        $this->components->tip($this->overBudgetTip($batch));
-    }
-
     /**
      * @return array<string, PackageAudit>
      */
@@ -125,65 +120,19 @@ final readonly class RenderProjectAudit
         return $this->failing;
     }
 
-    /**
-     * @return array<string, AgentReview>
-     */
-    public function agentReviews(): array
-    {
-        return $this->agentReviews;
-    }
-
     public function renderAgentReviews(): void
     {
         foreach ($this->failing as $audit) {
             $this->renderRow($audit, $this->reviews[$audit->package]);
-            $this->renderAgent($audit, $this->reviews[$audit->package], true);
+            $this->renderAgent($audit, $this->reviews[$audit->package]);
+            $this->output->newLine();
         }
-
-        $this->output->newLine();
     }
 
     /**
      * @param  array<int, LockDiscrepancy>  $discrepancies
      */
-    public function json(array $discrepancies): int
-    {
-        $reviews = $this->reviews;
-        $renderer = $this->renderer;
-        $agentReviews = $this->agentReviews;
-
-        $this->output->write(Json::encode([
-            'total' => $this->report->total(),
-            'covered' => $this->report->coveredCount(),
-            'percentage' => $this->report->percentage(),
-            'counts' => $this->report->counts(),
-            'lock_discrepancies' => array_map(static fn (LockDiscrepancy $discrepancy): array => $discrepancy->toArray(), $discrepancies),
-            'unaudited' => array_values(array_map(static function (PackageAudit $audit) use ($reviews, $renderer, $agentReviews): array {
-                $review = $reviews[$audit->package];
-
-                return [
-                    'package' => $audit->package,
-                    'version' => $audit->version,
-                    'status' => $audit->status->value,
-                    'state' => $audit->state->value,
-                    'from' => $audit->from,
-                    'dev' => $audit->dev,
-                    'files' => $audit->files,
-                    'files_to_review' => $review->files,
-                    'scope' => $review->scope->value,
-                    'delta' => $review->delta instanceof Delta ? $renderer->toArray($review->delta) : null,
-                    'agent' => ($agentReviews[$audit->package] ?? null)?->toArray(),
-                ];
-            }, $this->failing)),
-        ]), false, OutputInterface::OUTPUT_RAW);
-
-        return $this->verdict($discrepancies);
-    }
-
-    /**
-     * @param  array<int, LockDiscrepancy>  $discrepancies
-     */
-    public function render(array $discrepancies, bool $agentAsked): int
+    public function render(array $discrepancies): int
     {
         $this->output->newLine();
 
@@ -196,30 +145,30 @@ final readonly class RenderProjectAudit
         }
 
         if ($this->failing === []) {
-            $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
+            $this->components->info(sprintf('All [%d] packages are trusted.', $this->report->total()));
 
             return $this->verdict($discrepancies);
         }
 
-        $this->renderFailing($agentAsked);
-        $this->renderAudited();
-        $this->renderVerdict($agentAsked);
+        $this->renderFailing();
+        $this->renderSummary();
+        $this->renderVerdict();
 
         return self::FAILURE;
     }
 
-    public function renderReport(bool $agentAsked): void
+    public function renderReport(): void
     {
         $this->output->newLine();
 
         if ($this->failing === []) {
-            $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
+            $this->components->info(sprintf('All [%d] packages are trusted.', $this->report->total()));
 
             return;
         }
 
-        $this->renderFailing($agentAsked);
-        $this->renderAudited();
+        $this->renderFailing();
+        $this->renderSummary();
     }
 
     private static function review(AuditProject $auditor, PackageAudit $audit): PackageReview
@@ -257,75 +206,59 @@ final readonly class RenderProjectAudit
             : PackageReview::ofWholePackage($audit->files);
     }
 
-    private function overBudgetTip(AgentBatch $batch): string
+    private function renderFailing(): void
     {
-        return sprintf(
-            'Hand a few packages at a time to your coding agent with [vet <package> --agent]. One run reads [%d] package(s) or %s, and this batch holds [%d] package(s) and %s.',
-            AgentBatch::MAX_PROMPTS,
-            Bytes::human(AgentBatch::MAX_BYTES),
-            $batch->count(),
-            Bytes::human($batch->bytes()),
-        );
-    }
-
-    private function renderFailing(bool $agentAsked): void
-    {
-        $this->output->writeln(sprintf('  <options=bold>to review</> <fg=gray>(%d, worst first)</>', count($this->failing)));
+        $this->output->writeln(sprintf('  <options=bold>to review</> <fg=gray>(%d)</>', count($this->failing)));
         $this->output->newLine();
 
-        $endsWithDelta = false;
+        $collapsed = $this->collapsesDeltas();
+        $endsWithBlank = false;
 
         foreach ($this->failing as $audit) {
             $review = $this->reviews[$audit->package];
 
             $this->renderRow($audit, $review);
-            $this->renderAgent($audit, $review, $agentAsked);
 
-            $endsWithDelta = $review->delta instanceof Delta && $this->readsDelta($audit->package, $agentAsked);
+            $endsWithBlank = $review->delta instanceof Delta && ! $collapsed;
 
-            if ($endsWithDelta) {
+            if ($endsWithBlank) {
                 $this->output->writeln(Gutter::Package->blank());
-                $this->renderer->buckets($review->delta, BucketType::inReviewOrder());
+                $this->renderer->buckets($review->delta);
             }
         }
 
-        if (! $endsWithDelta) {
+        if (! $endsWithBlank) {
+            $this->output->newLine();
+        }
+
+        if ($collapsed) {
+            $this->output->writeln(sprintf('  <fg=gray>%s</>', OutputFormatter::escape('Read the changes of one package with [vet <package>].')));
             $this->output->newLine();
         }
     }
 
     private function renderRow(PackageAudit $audit, PackageReview $review): void
     {
+        $note = $audit->note();
+
         $this->components->twoColumnDetail(
             sprintf(
-                '<fg=%s>%s</> <fg=gray>%s</>%s  <fg=gray>%s</>',
+                '<fg=%s>%s</> <fg=gray>%s</>%s%s',
                 $audit->status->color(),
                 $audit->package,
                 $audit->versions(),
                 $audit->dev ? ' <fg=gray>(dev)</>' : '',
-                $audit->reason(),
+                $note === '' ? '' : sprintf('  <fg=%s>%s</>', $audit->status === AuditStatus::Ungranted ? 'gray' : 'red', $note),
             ),
-            $audit->status === AuditStatus::Unknown
-                ? '<fg=red>bytes not readable</>'
-                : sprintf(
-                    '<fg=gray>%d files (%s)  ·  %s</>',
-                    $review->files,
-                    $review->label(),
-                    Bytes::human($audit->bytes),
-                ),
+            sprintf(
+                '<fg=%s>%s</>',
+                $audit->status === AuditStatus::Unknown ? 'red' : 'gray',
+                $review->label(),
+            ),
         );
     }
 
-    private function readsDelta(string $package, bool $agentAsked): bool
-    {
-        if (! $agentAsked || $this->output->isVerbose()) {
-            return true;
-        }
-
-        return ($this->agentReviews[$package] ?? null)?->verdict !== AgentVerdict::Clear;
-    }
-
-    private function renderAgent(PackageAudit $audit, PackageReview $review, bool $agentAsked): void
+    private function renderAgent(PackageAudit $audit, PackageReview $review): void
     {
         $agentReview = $this->agentReviews[$audit->package] ?? null;
 
@@ -335,40 +268,35 @@ final readonly class RenderProjectAudit
             return;
         }
 
-        if ($agentAsked) {
-            $review->delta instanceof Delta
-                ? $this->agentRenderer->noChange()
-                : $this->agentRenderer->noEarlierTree();
-        }
+        $review->delta instanceof Delta
+            ? $this->agentRenderer->noChange()
+            : $this->agentRenderer->noEarlierTree();
     }
 
-    private function renderAudited(): void
+    private function renderSummary(): void
     {
-        $this->components->twoColumnDetail(
-            '<options=bold>audited</>',
-            sprintf(
-                '%d / %d  <fg=gray>(%s%%)</>',
-                $this->report->coveredCount(),
-                $this->report->total(),
-                $this->report->percentage(),
-            ),
-        );
+        $this->output->writeln(sprintf(
+            '  <options=bold>Packages:</> <fg=yellow;options=bold>%d to review</><fg=gray>,</> <fg=green;options=bold>%d trusted</>',
+            count($this->failing),
+            $this->report->coveredCount(),
+        ));
         $this->output->newLine();
     }
 
-    private function renderVerdict(bool $agentAsked): void
+    private function renderVerdict(): void
     {
+        $count = count($this->failing);
+        $subject = sprintf('[%d] %s %s not trusted.', $count, Str::plural('package', $count), $count === 1 ? 'is' : 'are');
+
         $this->components->error($this->readsEveryChange()
             ? sprintf(
-                '[%d] package(s) are not covered. Read every change with [%s]. Run [vet] in a terminal to record the ones that you trust.',
-                count($this->failing),
+                '%s Read every change with [%s]. Run [vet] in a terminal to pick the ones that you trust.',
+                $subject,
                 $this->invitation->command,
             )
-            : sprintf('[%d] package(s) are not covered. Run [vet] in a terminal to record the ones that you trust.', count($this->failing)));
+            : sprintf('%s Run [vet] in a terminal to pick the ones that you trust.', $subject));
 
-        if (! $agentAsked) {
-            $this->components->tip($this->tip());
-        }
+        $this->components->tip($this->tip());
     }
 
     private function readsEveryChange(): bool
@@ -379,14 +307,15 @@ final readonly class RenderProjectAudit
     private function tip(): string
     {
         if (! $this->holdsDelta()) {
-            return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet <package> --agent].';
+            return 'Vet holds no earlier version to compare these packages to. Run [vet] in a terminal to hand the whole packages to your coding agent.';
         }
 
-        $batch = $this->agentBatch();
+        return 'Run [vet] in a terminal to hand every change to your coding agent.';
+    }
 
-        return $batch->fitsOneRun()
-            ? 'Hand every change to your coding agent with [vet --agent].'
-            : $this->overBudgetTip($batch);
+    private function collapsesDeltas(): bool
+    {
+        return count($this->failing) > self::MAX_DELTAS && ! $this->output->isVerbose() && $this->holdsDelta();
     }
 
     private function holdsDelta(): bool

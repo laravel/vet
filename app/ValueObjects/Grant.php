@@ -14,7 +14,6 @@ final readonly class Grant
         public string $version,
         public TreeHash $hash,
         public bool $dev,
-        public ?string $notes,
     ) {}
 
     /**
@@ -34,7 +33,6 @@ final readonly class Grant
             version: $version,
             hash: TreeHash::parse($hash),
             dev: $dev,
-            notes: Json::string($entry, 'notes'),
         );
     }
 
@@ -53,15 +51,9 @@ final readonly class Grant
      */
     public function toArray(): array
     {
-        $entry = [
+        return [
             'version' => $this->version,
             'hash' => (string) $this->hash,
         ];
-
-        if ($this->notes !== null) {
-            $entry['notes'] = $this->notes;
-        }
-
-        return $entry;
     }
 }

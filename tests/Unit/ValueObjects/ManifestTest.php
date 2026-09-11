@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\EmptyTreeException;
 use App\Exceptions\FailureException;
 use App\ValueObjects\Manifest;
+use Tests\Fixtures\Access;
 
 it('names a directory of the tree that it cannot read', function (): void {
     $directory = manifestTree();
@@ -12,13 +13,13 @@ it('names a directory of the tree that it cannot read', function (): void {
     mkdir($directory.'/locked');
     file_put_contents($directory.'/locked/Secret.php', "<?php\n");
     file_put_contents($directory.'/Widget.php', "<?php\n");
-    chmod($directory.'/locked', 0o000);
+    Access::denyRead($directory.'/locked');
 
     try {
         expect(fn (): Manifest => Manifest::ofDirectory($directory))
-            ->toThrow(FailureException::class, sprintf('Could not read the directory [%s].', $directory.'/locked'));
+            ->toThrow(FailureException::class, sprintf('Could not read the directory [%s].', $directory.DIRECTORY_SEPARATOR.'locked'));
     } finally {
-        chmod($directory.'/locked', 0o755);
+        Access::restore($directory.'/locked');
         removeManifestTree($directory);
     }
 });
@@ -27,13 +28,13 @@ it('names a file of the tree that it cannot read', function (): void {
     $directory = manifestTree();
 
     file_put_contents($directory.'/Widget.php', "<?php\n");
-    chmod($directory.'/Widget.php', 0o000);
+    Access::denyRead($directory.'/Widget.php');
 
     try {
         expect(fn (): Manifest => Manifest::ofDirectory($directory))
-            ->toThrow(FailureException::class, sprintf('Could not read the file [%s].', $directory.'/Widget.php'));
+            ->toThrow(FailureException::class, sprintf('Could not read the file [%s].', $directory.DIRECTORY_SEPARATOR.'Widget.php'));
     } finally {
-        chmod($directory.'/Widget.php', 0o644);
+        Access::restore($directory.'/Widget.php');
         removeManifestTree($directory);
     }
 });
@@ -66,7 +67,7 @@ it('records the target of a symlink rather than the bytes that it points to', fu
 
     expect($entries['link.txt'])->toBe(hash('sha256', 'real.txt'))
         ->and($entries['link.txt'])->not->toBe($entries['real.txt']);
-});
+})->skipOnWindows();
 
 it('records the target of a symlink that points outside the tree', function (): void {
     $directory = manifestTree();
@@ -82,7 +83,7 @@ it('records the target of a symlink that points outside the tree', function (): 
 
     expect($manifest->count())->toBe(2)
         ->and($manifest->entries()['escape.txt'])->toBe(hash('sha256', '../../../../etc/passwd'));
-});
+})->skipOnWindows();
 
 it('walks into no directory that a symlink points at', function (): void {
     $directory = manifestTree();
@@ -100,7 +101,7 @@ it('walks into no directory that a symlink points at', function (): void {
     expect($manifest->count())->toBe(2)
         ->and($manifest->entries())->toHaveKey('loop')
         ->and($manifest->entries()['loop'])->toBe(hash('sha256', '.'));
-});
+})->skipOnWindows();
 
 it('refuses to hash a directory that holds no file', function (): void {
     $directory = manifestTree();
@@ -152,7 +153,7 @@ it('counts the bytes of each file and none of a symlink', function (): void {
 
     expect($manifest->count())->toBe(2)
         ->and($manifest->bytes())->toBe(100);
-});
+})->skipOnWindows();
 
 it('gives two trees that a file name splits two hashes', function (): void {
     $forged = manifestTree();
@@ -176,7 +177,7 @@ it('gives two trees that a file name splits two hashes', function (): void {
     }
 
     expect($forgedHash)->not->toBe($realHash);
-});
+})->skipOnWindows();
 
 it('keeps the hash of a tree whose paths hold no escape', function (): void {
     $directory = manifestTree();

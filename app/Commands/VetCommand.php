@@ -7,7 +7,6 @@ namespace App\Commands;
 use App\Actions\AuditProject;
 use App\Actions\CacheArtifact;
 use App\Actions\ColdCacheArtifact;
-use App\Actions\RenderAgentReview;
 use App\Actions\RenderDelta;
 use App\Actions\RenderProjectAudit;
 use App\Actions\ResolveDelta;
@@ -16,18 +15,19 @@ use App\Composer\Gate;
 use App\Enums\AgentType;
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
-use App\Enums\BucketType;
 use App\Enums\Gutter;
+use App\Enums\PatchExtent;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
 use App\Support\ControlSafe;
 use App\Support\ControlSafeComponents;
 use App\Support\ControlSafeFormatter;
 use App\Support\Invitation;
-use App\Support\Json;
 use App\Support\PickedCountRenderer;
+use App\Support\ProgressDots;
 use App\Support\PromptOutput;
 use App\Support\RevertibleMultiSelectPrompt;
+use App\Support\RevertibleSuggestPrompt;
 use App\ValueObjects\AgentBatch;
 use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentReview;
@@ -41,7 +41,9 @@ use App\ValueObjects\TreeHash;
 use App\ValueObjects\TrustFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Laravel\Prompts\Prompt;
+use Laravel\Prompts\Themes\Default\SuggestPromptRenderer;
 use LaravelZero\Framework\Commands\Command;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
 use Symfony\Component\Console\Input\InputInterface;
@@ -49,13 +51,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 use function Laravel\Prompts\form;
 use function Laravel\Prompts\select;
-use function Laravel\Prompts\suggest;
 
 final class VetCommand extends Command
 {
-    private const string PICK_HINT = 'Press the space bar to pick a package, ctrl+a to pick every package, and enter to record the ones that you picked.';
-
     private const string PICK_OR_GO_BACK_HINT = 'Press the space bar to pick a package, ctrl+a to pick every package, enter to record the ones that you picked, and escape to go back.';
+
+    private const string MODEL_OR_GO_BACK_HINT = 'Type a model name, pick one from the list, or press escape to go back.';
 
     /**
      * @var string
@@ -64,16 +65,12 @@ final class VetCommand extends Command
         {packages?* : Audit these packages, as vendor/name}
         {--init : Record every package that vendor/ holds today, and start the trust file from them}
         {--fresh : Delete the trust file, then do the same as --init}
-        {--agent : Hand each delta to your coding agent, and show the verdict it writes}
         {--model= : The model that the coding agent uses (defaults to the one of the agent)}
         {--from= : Show the delta from this version rather than the trusted one}
         {--to= : The version to compare to (defaults to the installed one)}
-        {--notes= : A note to record alongside the entry}
         {--path= : The project directory to audit (defaults to the current one)}
-        {--bucket= : Limit the delta to one bucket: install-manifest, opaque, runtime-source, inert}
         {--plan= : Audit the operations that this composer plan file holds}
-        {--no-cache : Re-download archives instead of reusing the cache}
-        {--json : Emit machine-readable output}';
+        {--no-cache : Re-download archives instead of reusing the cache}';
 
     /**
      * @var string
@@ -82,15 +79,6 @@ final class VetCommand extends Command
 
     public function handle(): int
     {
-        if (! $this->bucketIsKnown()) {
-            $this->components->error(sprintf(
-                'The [--bucket] option accepts [%s].',
-                implode('], [', array_column(BucketType::cases(), 'value')),
-            ));
-
-            return self::FAILURE;
-        }
-
         $packages = $this->packages();
         $fresh = $this->option('fresh') === true;
         $init = $this->option('init') === true || $fresh;
@@ -159,6 +147,7 @@ final class VetCommand extends Command
 
         $this->components = new ControlSafeComponents($this->output);
 
+        $this->laravel->instance(ProgressDots::class, new ProgressDots($this->output));
         $this->installColdCache();
     }
 
@@ -172,29 +161,8 @@ final class VetCommand extends Command
             : AuditProject::forPlan($project, ComposerPlan::fromFile($path));
     }
 
-    /**
-     * @return array<int, BucketType>
-     */
-    private function buckets(): array
-    {
-        $bucket = $this->option('bucket');
-        assert($bucket === null || is_string($bucket));
-
-        return $bucket === null ? BucketType::inReviewOrder() : [BucketType::from($bucket)];
-    }
-
-    private function bucketIsKnown(): bool
-    {
-        $bucket = $this->option('bucket');
-        assert($bucket === null || is_string($bucket));
-
-        return $bucket === null || BucketType::tryFrom($bucket) instanceof BucketType;
-    }
-
     private function auditProject(AuditProject $auditor): int
     {
-        $agentAsked = $this->option('agent') === true;
-
         try {
             $discrepancies = $auditor->lockDiscrepancies();
 
@@ -205,42 +173,24 @@ final class VetCommand extends Command
                 Invitation::toReadTheInstalledTree(),
             );
 
-            if ($agentAsked) {
-                $screen = $screen->withAgentReviews($this->agentReviews($screen->agentBatch()));
-            }
+            $this->dots()->end();
         } catch (VetException $vetException) {
             $this->components->error($vetException->getMessage());
 
             return self::FAILURE;
         }
 
-        if ($this->option('json') === true) {
-            return $screen->json($discrepancies);
-        }
-
         if (! $this->asksQuestions() || $discrepancies !== []) {
-            return $screen->render($discrepancies, $agentAsked);
+            return $screen->render($discrepancies);
         }
 
-        $screen->renderReport($agentAsked);
+        $screen->renderReport();
 
         if ($screen->failing() === []) {
             return self::SUCCESS;
         }
 
-        if ($agentAsked) {
-            return $this->pickPackages($auditor, $screen, $screen->agentReviews(), self::PICK_HINT);
-        }
-
-        $batch = $screen->agentBatch();
-
-        if ($batch->fitsOneRun()) {
-            return $this->chooseReviewThenPick($auditor, $screen, $batch);
-        }
-
-        $screen->renderOverBudgetTip($batch);
-
-        return $this->pickPackages($auditor, $screen, [], self::PICK_HINT);
+        return $this->chooseReviewThenPick($auditor, $screen, $screen->agentBatch());
     }
 
     private function chooseReviewThenPick(AuditProject $auditor, RenderProjectAudit $screen, AgentBatch $batch): int
@@ -360,16 +310,24 @@ final class VetCommand extends Command
         $agent = ReviewWithAgent::default();
         $agent = $agent->withModel($this->agentModel($agent));
 
-        if ($this->writesProse()) {
-            $this->components->info(sprintf(
-                'Reading [%d] delta(s) with [%s]. The prompts hold %s. This takes a moment.',
-                $batch->count(),
-                $agent->name(),
-                Bytes::human($batch->bytes()),
-            ));
-        }
+        $this->components->info(sprintf(
+            '[%s] reviews [%d] %s (%s). This takes a moment.',
+            $agent->name(),
+            $batch->count(),
+            Str::plural('package', $batch->count()),
+            Bytes::human($batch->bytes()),
+        ));
 
-        return $agent->handle($batch->prompts);
+        $reviews = $agent->handle($batch->prompts);
+
+        $this->dots()->end();
+
+        return $reviews;
+    }
+
+    private function dots(): ProgressDots
+    {
+        return $this->laravel->make(ProgressDots::class);
     }
 
     private function agentModel(ReviewWithAgent $agent): AgentModel
@@ -382,16 +340,20 @@ final class VetCommand extends Command
 
         $agentType = $agent->type();
 
-        if (! $agentType instanceof AgentType || ! $this->asksQuestions() || ! $this->writesProse()) {
+        if (! $agentType instanceof AgentType) {
             return AgentModel::default();
         }
 
-        return AgentModel::of(suggest(
+        $model = new RevertibleSuggestPrompt(
             label: 'Which model do you want the agent to use?',
             options: $agentType->models(),
             placeholder: sprintf('Press enter for the default model of [%s].', $agent->name()),
-            hint: 'Type a model name, or pick one from the list.',
-        ));
+            hint: self::MODEL_OR_GO_BACK_HINT,
+        )->prompt();
+
+        assert(is_string($model));
+
+        return AgentModel::of($model);
     }
 
     private function asksQuestions(): bool
@@ -404,7 +366,10 @@ final class VetCommand extends Command
     {
         Prompt::setOutput(new PromptOutput($this->output, $formatter));
 
-        Prompt::addTheme('vet', [RevertibleMultiSelectPrompt::class => PickedCountRenderer::class]);
+        Prompt::addTheme('vet', [
+            RevertibleMultiSelectPrompt::class => PickedCountRenderer::class,
+            RevertibleSuggestPrompt::class => SuggestPromptRenderer::class,
+        ]);
         Prompt::theme('vet');
     }
 
@@ -418,11 +383,6 @@ final class VetCommand extends Command
             CacheArtifact::class,
             static fn (CacheArtifact $cache): CacheArtifact => new ColdCacheArtifact($cache),
         );
-    }
-
-    private function writesProse(): bool
-    {
-        return ! $this->input->hasOption('json') || $this->option('json') !== true;
     }
 
     /**
@@ -446,30 +406,27 @@ final class VetCommand extends Command
      */
     private function choices(Collection $targets, array $reviews): array
     {
-        $choices = [];
+        $versions = $targets->map(
+            static fn (PackageAudit $audit): string => ControlSafe::text($audit->versions()).($audit->dev ? ' (dev)' : ''),
+        );
+        $packageWidth = max(0, ...$targets->map(static fn (PackageAudit $audit): int => mb_strlen(ControlSafe::text($audit->package)))->values()->all());
+        $versionsWidth = max(0, ...$versions->map(static fn (string $label): int => mb_strlen($label))->values()->all());
 
-        foreach ($targets as $audit) {
-            $parts = [
-                ControlSafe::text($audit->package),
-                ControlSafe::text($audit->versions()),
-                sprintf('%d files', $audit->files),
-                $audit->pending() ? 'incoming' : 'installed',
+        return $targets->map(static function (PackageAudit $audit, string $package) use ($reviews, $versions, $packageWidth, $versionsWidth): string {
+            $review = $reviews[$package] ?? null;
+
+            $columns = [
+                Str::padRight(ControlSafe::text($package), $packageWidth),
+                Str::padRight((string) $versions->get($package), $versionsWidth),
+                $review?->unreadNote() ?? '',
             ];
 
-            if ($audit->dev) {
-                $parts[] = 'dev';
+            if ($reviews !== []) {
+                array_unshift($columns, $review?->verdict->label() ?? 'SKIP');
             }
 
-            $review = $reviews[$audit->package] ?? null;
-
-            if ($review instanceof AgentReview) {
-                $parts[] = sprintf('agent: %s', $review->verdict->label());
-            }
-
-            $choices[$audit->package] = implode('  ', $parts);
-        }
-
-        return $choices;
+            return rtrim(implode('  ', $columns));
+        })->all();
     }
 
     private function trustInstalled(Project $project, AuditProject $auditor): int
@@ -482,12 +439,14 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
+        $this->dots()->end();
+
         $targets = $report->failing();
 
         $this->newLine();
 
         if ($targets === []) {
-            $this->components->info(sprintf('All [%d] packages are already covered.', $report->total()));
+            $this->components->info(sprintf('All [%d] packages are already trusted.', $report->total()));
 
             return self::SUCCESS;
         }
@@ -514,11 +473,12 @@ final class VetCommand extends Command
         if ($installed->isNotEmpty()) {
             $this->components->info($created
                 ? sprintf(
-                    'Trusted [%d] package(s), and wrote [%s].',
+                    'Trusted [%d] %s, and wrote [%s].',
                     $installed->count(),
+                    Str::plural('package', $installed->count()),
                     $project->relativePath($auditor->trustFile->path),
                 )
-                : sprintf('Trusted [%d] package(s).', $installed->count()));
+                : sprintf('Trusted [%d] %s.', $installed->count(), Str::plural('package', $installed->count())));
         }
 
         if ($incoming->isNotEmpty()) {
@@ -538,8 +498,9 @@ final class VetCommand extends Command
         $this->renderTargets($incoming->all(), 'to read first');
 
         $this->components->error(sprintf(
-            'composer would write [%d] package(s) that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.',
+            'composer would write [%d] %s that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.',
             $incoming->count(),
+            Str::plural('package', $incoming->count()),
         ));
     }
 
@@ -560,7 +521,7 @@ final class VetCommand extends Command
                     $audit->versions(),
                     $audit->dev ? ' <fg=gray>(dev)</>' : '',
                 ),
-                sprintf('<fg=gray>%s</>', $audit->reason()),
+                sprintf('<fg=gray>%s</>', $audit->note()),
             );
         }
 
@@ -578,48 +539,18 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        if (count($names) > 1 && $this->option('json') === true) {
-            $this->components->error('The [--json] option needs one package. Run [vet <package> --json].');
-
-            return self::FAILURE;
-        }
-
-        /** @var Collection<string, PackageAudit> $recorded */
-        $recorded = new Collection;
         $status = self::SUCCESS;
 
         foreach ($names as $name) {
-            if ($this->auditPackage($project, $auditor, $name, $recorded) === self::FAILURE) {
+            if ($this->auditPackage($project, $auditor, $name) === self::FAILURE) {
                 $status = self::FAILURE;
             }
-        }
-
-        if ($recorded->isEmpty()) {
-            return $status;
-        }
-
-        try {
-            $this->save($auditor->trustFile, $recorded);
-        } catch (VetException $vetException) {
-            $this->components->error($vetException->getMessage());
-
-            return self::FAILURE;
-        }
-
-        $this->newLine();
-        $this->announceRecorded($recorded);
-
-        if ($this->holdsPending($recorded)) {
-            $this->components->info('Run [composer install] to write those bytes to vendor/.');
         }
 
         return $status;
     }
 
-    /**
-     * @param  Collection<string, PackageAudit>  $recorded
-     */
-    private function auditPackage(Project $project, AuditProject $auditor, string $package, Collection $recorded): int
+    private function auditPackage(Project $project, AuditProject $auditor, string $package): int
     {
         try {
             $audit = $auditor->auditOfName($package);
@@ -629,6 +560,8 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
+        $this->dots()->end();
+
         if ($audit->status === AuditStatus::Unknown) {
             $this->newLine();
             $this->components->error($audit->cause ?? 'Vet cannot read those bytes.');
@@ -637,7 +570,7 @@ final class VetCommand extends Command
         }
 
         $requested = $this->option('from') !== null || $this->option('to') !== null;
-        $renderer = new RenderDelta($this->output, Invitation::toReadTheInstalledTree(), Gutter::None);
+        $renderer = new RenderDelta($this->output, Invitation::toReadTheInstalledTree(), Gutter::None, PatchExtent::Full);
         $delta = null;
         $unresolved = null;
 
@@ -683,41 +616,7 @@ final class VetCommand extends Command
             }
         }
 
-        $agentAsked = $this->option('agent') === true;
-        $agentReview = null;
-
-        if ($agentAsked) {
-            try {
-                $agentReviews = $this->agentReviews(AgentBatch::of([$audit->package => $delta ?? $auditor->wholeTree($audit)]));
-            } catch (VetException $vetException) {
-                $this->components->error($vetException->getMessage());
-
-                return self::FAILURE;
-            }
-
-            $agentReview = $agentReviews[$audit->package] ?? null;
-        }
-
-        $covered = $audit->status === AuditStatus::Covered;
-
-        if ($this->option('json') === true) {
-            $this->output->write(Json::encode([
-                'package' => $audit->package,
-                'version' => $audit->version,
-                'status' => $audit->status->value,
-                'state' => $audit->state->value,
-                'from' => $audit->from,
-                'source' => $audit->source->value,
-                'hash' => (string) $audit->hash,
-                'files' => $audit->files,
-                'bytes' => $audit->bytes,
-                'path' => $audit->path,
-                'delta' => $delta instanceof Delta ? $renderer->toArray($delta) : null,
-                'agent' => $agentReview?->toArray(),
-            ]), false, OutputInterface::OUTPUT_RAW);
-
-            return $covered ? self::SUCCESS : self::FAILURE;
-        }
+        $this->dots()->end();
 
         $this->renderSubject($project, $audit);
 
@@ -725,18 +624,8 @@ final class VetCommand extends Command
             $this->components->twoColumnDetail('provides', $package);
         }
 
-        if ($agentReview instanceof AgentReview) {
-            $this->newLine();
-            new RenderAgentReview($this->output, Gutter::None)->verdict($agentReview);
-        } elseif ($agentAsked) {
-            $this->newLine();
-            $agentRenderer = new RenderAgentReview($this->output, Gutter::None);
-
-            $delta instanceof Delta ? $agentRenderer->noChange() : $agentRenderer->noEarlierTree();
-        }
-
         if ($delta instanceof Delta) {
-            $renderer->report($delta, $this->buckets());
+            $renderer->report($delta);
         } else {
             $this->newLine();
 
@@ -745,43 +634,20 @@ final class VetCommand extends Command
             }
         }
 
-        if ($covered) {
-            return $this->recordNote($audit, $recorded);
-        }
-
-        if ($this->option('notes') !== null) {
-            $this->components->error(sprintf(
-                '[%s] is not covered, so vet holds no entry for the note. Run [vet] to record it first.',
-                $audit->package,
-            ));
-
-            return self::FAILURE;
-        }
-
-        $this->components->info('Record these bytes with [vet].');
-
-        return self::FAILURE;
-    }
-
-    /**
-     * @param  Collection<string, PackageAudit>  $recorded
-     */
-    private function recordNote(PackageAudit $audit, Collection $recorded): int
-    {
-        if ($this->option('notes') === null) {
+        if ($audit->status === AuditStatus::Covered) {
             $this->components->info(sprintf(
-                '[%s] [%s] is already covered: %s.',
+                '[%s] [%s] is already %s.',
                 $audit->package,
                 $audit->version,
-                $audit->reason(),
+                $audit->note(),
             ));
 
             return self::SUCCESS;
         }
 
-        $recorded->put($audit->package, $audit);
+        $this->components->info('Record these bytes with [vet].');
 
-        return self::SUCCESS;
+        return self::FAILURE;
     }
 
     private function renderSubject(Project $project, PackageAudit $audit): void
@@ -814,7 +680,7 @@ final class VetCommand extends Command
     private function announceRecorded(Collection $recorded): void
     {
         if ($recorded->count() !== 1) {
-            $this->components->info(sprintf('Recorded [%d] package(s).', $recorded->count()));
+            $this->components->info(sprintf('Recorded [%d] packages.', $recorded->count()));
 
             return;
         }
@@ -845,15 +711,11 @@ final class VetCommand extends Command
 
     private function grantOf(PackageAudit $audit, TreeHash $hash): Grant
     {
-        $notes = $this->option('notes');
-        assert($notes === null || is_string($notes));
-
         return new Grant(
             package: $audit->package,
             version: $audit->version,
             hash: $hash,
             dev: $audit->dev,
-            notes: $notes ?? $audit->grant?->notes,
         );
     }
 

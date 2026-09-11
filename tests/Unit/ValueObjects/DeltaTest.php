@@ -6,7 +6,7 @@ use App\Enums\InstallSourceType;
 use App\ValueObjects\Delta;
 use App\ValueObjects\TreeHash;
 
-it('asks for a review of a delta that holds no change', function (): void {
+it('reads a delta that holds no change as not inert', function (): void {
     $delta = new Delta(
         package: 'acme/widget',
         from: '1.0.0',
@@ -22,7 +22,6 @@ it('asks for a review of a delta that holds no change', function (): void {
     );
 
     expect($delta->isEmpty())->toBeTrue()
-        ->and($delta->needsNoReview())->toBeFalse()
         ->and($delta->isInertOnly())->toBeFalse();
 });
 

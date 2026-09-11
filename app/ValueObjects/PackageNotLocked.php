@@ -15,16 +15,4 @@ final readonly class PackageNotLocked implements LockDiscrepancy
     {
         return sprintf('[%s] is installed at [%s] but is not in composer.lock', $this->package, $this->installed);
     }
-
-    /**
-     * @return array<string, string>
-     */
-    public function toArray(): array
-    {
-        return [
-            'type' => 'not-locked',
-            'package' => $this->package,
-            'installed' => $this->installed,
-        ];
-    }
 }

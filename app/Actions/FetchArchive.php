@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Exceptions\FailureException;
+use App\Support\ProgressDots;
 use App\ValueObjects\Package;
 use Illuminate\Support\Facades\File;
 
@@ -15,11 +16,12 @@ final readonly class FetchArchive
     public function __construct(
         private RequestUrl $http,
         private CacheArtifact $cache,
+        private ProgressDots $dots,
     ) {}
 
     public static function default(): self
     {
-        return new self(RequestUrl::default(), app(CacheArtifact::class));
+        return new self(RequestUrl::default(), app(CacheArtifact::class), app(ProgressDots::class));
     }
 
     public function handle(Package $package): string
@@ -48,6 +50,7 @@ final readonly class FetchArchive
         $archive = $this->cache->forPackage('downloads', $package->name, $release.'.zip');
 
         if (! $this->cache->has($archive)) {
+            $this->dots->mark();
             $this->http->download($package->distUrl, $archive);
         }
 

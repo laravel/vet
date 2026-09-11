@@ -17,7 +17,7 @@ it('puts each change of a project in its bucket', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('to review (5, worst first)')
+        ->toContain('to review (5)')
         ->toContain('~ .github/workflows/tests.yml')
         ->toContain('~ docs/readme.md')
         ->toContain('opaque artifact (2)')
@@ -162,7 +162,7 @@ it('stops at five paths and invites the source of the rest', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('23 files (delta from [1.0.0])')
+        ->toContain('23 files changed')
         ->toContain('runtime source (23)')
         ->toContain('+ src/Rule01.php')
         ->toContain('+ src/Rule05.php')
@@ -197,7 +197,7 @@ it('reports a change of a line ending as a change', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('2 files (delta from [1.0.0])')
+        ->toContain('2 files changed')
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php');
 });
@@ -233,34 +233,13 @@ it('reads the files, the classmap and the psr-0 roots of a package as runtime so
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('4 files (delta from [1.0.0])')
+        ->toContain('4 files changed')
         ->toContain('runtime source (3)')
         ->toContain('~ lib/Legacy.php')
         ->toContain('~ psr0/Acme/Old.php')
         ->toContain('~ src/helpers.php')
         ->toContain('inert (1)')
         ->toContain('~ docs/guide.md');
-});
-
-it('limits the delta to the bucket that the user names', function (): void {
-    $fixture = Fixture::open('delta-shapes');
-
-    try {
-        vet([
-            'packages' => ['acme/media'],
-            '--bucket' => 'inert',
-            '--path' => $fixture->rootPath,
-        ]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($output)
-        ->toContain('inert (1)')
-        ->toContain('~ resources/font.woff2')
-        ->and(str_contains($output, 'runtime source'))->toBeFalse()
-        ->and(str_contains($output, 'src/logo.png'))->toBeFalse();
 });
 
 it('compares the two versions that the user names', function (): void {
@@ -318,25 +297,6 @@ it('prints the exact path of a file whose name holds a space and a character out
     expect($output)
         ->toContain('+ src/日本語 file.php')
         ->toContain('runtime source (4)');
-});
-
-it('names the buckets that the option accepts when the user names another', function (): void {
-    $fixture = Fixture::open('delta-shapes');
-
-    try {
-        $status = vet([
-            'packages' => ['acme/media'],
-            '--bucket' => 'runtime',
-            '--path' => $fixture->rootPath,
-        ]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('The [--bucket] option accepts [install-manifest], [opaque], [runtime-source], [inert].');
 });
 
 it('prints a line that ends with a backslash and closes the color of that line', function (): void {

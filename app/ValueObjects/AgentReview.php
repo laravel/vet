@@ -10,26 +10,36 @@ final readonly class AgentReview
 {
     /**
      * @param  array<int, AgentFinding>  $findings
+     * @param  array<int, UnreadFile>  $unread
      */
     public function __construct(
         public string $package,
         public AgentVerdict $verdict,
         public string $summary,
         public array $findings,
+        public array $unread,
     ) {}
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, int>
      */
-    public function toArray(): array
+    public function unreadCounts(): array
     {
-        return [
-            'verdict' => $this->verdict->value,
-            'summary' => $this->summary,
-            'findings' => array_map(
-                static fn (AgentFinding $finding): array => $finding->toArray(),
-                $this->findings,
-            ),
-        ];
+        return array_count_values(array_map(
+            static fn (UnreadFile $file): string => $file->reason->label(),
+            $this->unread,
+        ));
+    }
+
+    public function unreadNote(): string
+    {
+        $counts = $this->unreadCounts();
+        $total = count($this->unread);
+
+        return match (count($counts)) {
+            0 => '',
+            1 => sprintf('%d %s %s', $total, $total === 1 ? 'file' : 'files', array_key_first($counts)),
+            default => sprintf('%d files not read', $total),
+        };
     }
 }

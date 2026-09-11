@@ -23,7 +23,7 @@ it('prints no control character of a path that a package holds', function (): vo
     expect($output)
         ->toContain('builds/ev?[2Kil.so')
         ->and(str_contains($output, "\x1b"))->toBeFalse();
-});
+})->skipOnWindows();
 
 it('prints no control character of a version that the lock file holds', function (): void {
     $fixture = Fixture::open('no-trust-file');

@@ -36,13 +36,13 @@ it('reports that every package is covered', function (): void {
         $auditor = AuditProject::forProject(Project::at($fixture->rootPath));
         $screen = projectAuditScreen($auditor, $auditor->report(), $buffer);
 
-        $screen->renderReport(false);
+        $screen->renderReport();
     } finally {
         $fixture->remove();
     }
 
     expect($screen->failing())->toBe([])
-        ->and($buffer->fetch())->toContain('All [2] packages are covered.');
+        ->and($buffer->fetch())->toContain('All [2] packages are trusted.');
 });
 
 it('says why the agent read no delta of a package', function (): void {
@@ -53,15 +53,14 @@ it('says why the agent read no delta of a package', function (): void {
         $auditor = AuditProject::forProject(Project::at($project->rootPath));
         $screen = projectAuditScreen($auditor, $auditor->report(), $buffer);
 
-        $status = $screen->render([], true);
+        $screen->renderAgentReviews();
     } finally {
         $project->remove();
     }
 
-    expect($status)->toBe(1)
-        ->and($buffer->fetch())
-        ->toContain('agent  not sent  This delta holds no change, so vet sent nothing.')
-        ->toContain('agent  not sent  Vet cannot read the bytes of this package, so it sent nothing.');
+    expect($buffer->fetch())
+        ->toContain('SKIP   No file changed, so vet sent nothing to the agent.')
+        ->toContain('SKIP   Vet cannot read the files of this package, so it sent nothing to the agent.');
 });
 
 it('reviews the whole package of a pending audit that the plan does not hold', function (): void {

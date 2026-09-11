@@ -10,7 +10,7 @@ use Tests\Fixtures\Warnings;
 
 function cacheRoot(): string
 {
-    $root = sys_get_temp_dir().'/vet-cache-'.bin2hex(random_bytes(6));
+    $root = Path::normalize(sys_get_temp_dir().'/vet-cache-'.bin2hex(random_bytes(6)));
 
     putenv('VET_CACHE_DIR='.$root);
 

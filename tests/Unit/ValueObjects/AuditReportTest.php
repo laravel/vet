@@ -8,5 +8,5 @@ it('reads a project that installs no package as fully covered', function (): voi
     $report = new AuditReport([]);
 
     expect($report->total())->toBe(0)
-        ->and($report->percentage())->toBe(100.0);
+        ->and($report->failing())->toBe([]);
 });

@@ -29,5 +29,14 @@ jobs:
             - name: Install dependencies
               run: composer install --prefer-dist --no-interaction --no-progress
 
-            - name: Run tests
+            - name: Run tests with coverage
+              if: matrix.os == 'ubuntu-latest'
               run: composer test
+
+            - name: Run tests
+              if: matrix.os != 'ubuntu-latest'
+              shell: bash
+              run: |
+                  composer test:lint
+                  composer test:types
+                  vendor/bin/pest --parallel

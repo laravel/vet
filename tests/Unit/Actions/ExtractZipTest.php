@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\ExtractZip;
 use App\Exceptions\FailureException;
+use Tests\Fixtures\Access;
 use Tests\Fixtures\CraftedArchive;
 use Tests\Fixtures\Warnings;
 
@@ -179,13 +180,13 @@ it('names the file that it cannot write', function (): void {
     $destination = extractionPath();
 
     mkdir($destination);
-    chmod($destination, 0o555);
+    Access::denyWrite($destination);
 
     try {
         expect(fn (): int => ExtractZip::handle($archive, $destination))
             ->toThrow(FailureException::class, sprintf('Could not write to [%s/Widget.php].', $destination));
     } finally {
-        chmod($destination, 0o755);
+        Access::restore($destination);
         removeExtraction($archive, $destination);
     }
 });
@@ -198,14 +199,14 @@ it('names the directory that it cannot create', function (): void {
     $destination = extractionPath();
 
     mkdir($destination);
-    chmod($destination, 0o555);
+    Access::denyWrite($destination);
 
     try {
         expect(static function () use ($archive, $destination): void {
             Warnings::silenced(static fn (): int => ExtractZip::handle($archive, $destination));
         })->toThrow(FailureException::class, sprintf('Could not create the directory [%s/src].', $destination));
     } finally {
-        chmod($destination, 0o755);
+        Access::restore($destination);
         removeExtraction($archive, $destination);
     }
 });

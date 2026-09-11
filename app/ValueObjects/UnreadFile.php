@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\ValueObjects;
 
-final readonly class AgentFinding
+use App\Enums\UnreadReason;
+
+final readonly class UnreadFile
 {
     public function __construct(
         public string $path,
-        public string $reason,
+        public UnreadReason $reason,
+        public int $bytes,
     ) {}
 }

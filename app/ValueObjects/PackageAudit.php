@@ -38,59 +38,48 @@ final readonly class PackageAudit
 
     public function versions(): string
     {
-        return $this->from === null || $this->from === $this->version
+        $from = $this->earlierVersion();
+
+        return $from === null || $from === $this->version
             ? $this->version
-            : sprintf('%s → %s', $this->from, $this->version);
+            : sprintf('%s → %s', $from, $this->version);
     }
 
-    public function reason(): string
+    public function note(): string
     {
         return match ($this->status) {
             AuditStatus::Covered => sprintf('trusted at [%s]', $this->shortHash()),
-            AuditStatus::Ungranted => $this->ungrantedReason(),
-            AuditStatus::Changed => $this->changedReason(),
-            AuditStatus::Unknown => $this->cause ?? 'these bytes cannot be read before they are installed',
+            AuditStatus::Ungranted => 'never trusted',
+            AuditStatus::Changed => $this->changedNote(),
+            AuditStatus::Unknown => $this->cause ?? 'not readable before install',
         };
     }
 
-    private function ungrantedReason(): string
+    private function earlierVersion(): ?string
     {
-        return $this->pending()
-            ? sprintf('composer would install these bytes; no entry in the trust file [%s]', $this->shortHash())
-            : sprintf('no entry; this tree is [%s]', $this->shortHash());
+        return $this->from ?? ($this->status === AuditStatus::Changed ? $this->grant?->version : null);
     }
 
-    private function changedReason(): string
+    private function changedNote(): string
     {
-        $granted = $this->grant instanceof Grant ? $this->grant->version : 'nothing';
+        $trusted = $this->grant?->version;
 
-        if ($this->pending()) {
-            return $this->grant instanceof Grant && $this->grant->version === $this->version
-                ? sprintf(
-                    'composer would install [%s] again, and its bytes changed from [%s] to [%s]',
-                    $this->version,
-                    $this->grant->hash->short(),
-                    $this->shortHash(),
-                )
-                : sprintf('composer would install these bytes; you trust [%s]', $granted);
+        if ($trusted === $this->version) {
+            return $this->sameVersionNote();
         }
 
-        if (! $this->grant instanceof Grant || $this->grant->version !== $this->version) {
-            return sprintf('[%s] was trusted, [%s] is installed', $granted, $this->version);
-        }
+        return $trusted === $this->earlierVersion() ? '' : sprintf('you trust %s', $trusted ?? 'nothing');
+    }
 
-        $reason = sprintf(
-            '[%s] is still installed but its bytes changed from [%s] to [%s]',
-            $this->version,
-            $this->grant->hash->short(),
+    private function sameVersionNote(): string
+    {
+        $note = sprintf(
+            'same version, different code (%s → %s)',
+            $this->grant?->hash->short() ?? 'no hash',
             $this->shortHash(),
         );
 
-        if ($this->source === InstallSourceType::Source) {
-            $reason .= '; this tree came from [--prefer-source]';
-        }
-
-        return $reason;
+        return $this->source === InstallSourceType::Source ? $note.', installed with [--prefer-source]' : $note;
     }
 
     private function shortHash(): string

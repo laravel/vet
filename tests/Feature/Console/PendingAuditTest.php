@@ -20,7 +20,7 @@ it('reviews the whole incoming package when vendor/ holds no file of the install
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('4 files (whole package)');
+        ->and($output)->toContain('whole package, 4 files');
 });
 
 it('audits the bytes that composer would write, and does not pass them', function (): void {
@@ -37,7 +37,7 @@ it('audits the bytes that composer would write, and does not pass them', functio
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
-        ->toContain('composer would install these bytes; you trust [1.0.0]')
+        ->toContain('files changed')
         ->toContain('install-time manifest');
 });
 
@@ -110,7 +110,7 @@ it('records the rebuilt bytes of the same version, while vendor/ holds the old o
     }
 
     expect($audited)->toBe(1)
-        ->and($auditOutput)->toContain('composer would install [1.0.0] again, and its bytes changed')
+        ->and($auditOutput)->toContain('same version, different code')
         ->and($trustFile)
         ->toContain('"version": "1.0.0"')
         ->toContain($rebuiltHash);
@@ -156,11 +156,11 @@ it('names the incoming bytes that it cannot read, and blocks them', function ():
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('bytes not readable')
+        ->toContain('not readable')
         ->toContain('vet cannot read those bytes')
         ->toContain('has no dist URL')
         ->and($trusted)->toBe(1)
-        ->and($trustOutput)->toContain('composer would write [1] package(s) that vendor/ does not hold');
+        ->and($trustOutput)->toContain('composer would write [1] package that vendor/ does not hold');
 });
 
 it('audits the tree on disk when composer plans nothing', function (): void {
@@ -174,7 +174,7 @@ it('audits the tree on disk when composer plans nothing', function (): void {
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are covered.');
+        ->and($output)->toContain('All [1] packages are trusted.');
 });
 
 it('refuses the bytes that composer would write, and records the installed ones', function (): void {
@@ -193,7 +193,7 @@ it('refuses the bytes that composer would write, and records the installed ones'
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('to read first (1)')
-        ->toContain('composer would write [1] package(s) that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.')
+        ->toContain('composer would write [1] package that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.')
         ->and($trustFile)->toContain('"version": "1.0.0"');
 });
 
@@ -203,7 +203,7 @@ it('offers no package to pick when vet cannot read the bytes of any package', fu
 
     try {
         command('vet', ['--path' => $project->rootPath])
-            ->expectsOutputToContain('bytes not readable')
+            ->expectsOutputToContain('not readable')
             ->expectsQuestion('How do you want to review these packages?', 'manual')
             ->assertExitCode(1)
             ->run();
@@ -212,25 +212,19 @@ it('offers no package to pick when vet cannot read the bytes of any package', fu
     }
 });
 
-it('records the note of the covered bytes that composer would write', function (): void {
+it('sends nothing to the agent when vet cannot read the bytes of any package', function (): void {
     $project = PendingUpdate::create();
-    $project->lockAt(PendingUpdate::TARGET_VERSION);
+    $project->lockWithoutDist(PendingUpdate::TARGET_VERSION);
 
     try {
-        trust(PendingUpdate::PACKAGE, ['--path' => $project->rootPath])->run();
-
-        $status = vet(['packages' => [PendingUpdate::PACKAGE], '--notes' => 'Read the installer.', '--path' => $project->rootPath]);
-        $output = Artisan::output();
-        $trustFile = $project->trustFile();
+        command('vet', ['--path' => $project->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsOutputToContain('so it sent nothing to the agent.')
+            ->assertExitCode(1)
+            ->run();
     } finally {
         $project->remove();
     }
-
-    expect($status)->toBe(0)
-        ->and($output)
-        ->toContain('Recorded [acme/widget] [2.0.0]')
-        ->toContain('Run [composer install] to write those bytes to vendor/.')
-        ->and($trustFile)->toContain('"notes": "Read the installer."');
 });
 
 it('names the incoming bytes of one package that it cannot read', function (): void {

@@ -17,7 +17,7 @@ it('reads the vendor directory that composer.json configures', function (): void
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are covered.');
+        ->and($output)->toContain('All [1] packages are trusted.');
 });
 
 it('says that a tree came from --prefer-source rather than report a change of bytes alone', function (): void {
@@ -32,8 +32,8 @@ it('says that a tree came from --prefer-source rather than report a change of by
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('is still installed but its bytes changed')
-        ->toContain('this tree came from [--prefer-source]');
+        ->toContain('same version, different code')
+        ->toContain('installed with [--prefer-source]');
 });
 
 it('reports the whole package when the dist of the granted version cannot be fetched', function (): void {
@@ -48,8 +48,8 @@ it('reports the whole package when the dist of the granted version cannot be fet
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('5 files (whole package)')
-        ->and(str_contains($output, 'delta from'))->toBeFalse();
+        ->toContain('whole package, 5 files')
+        ->and(str_contains($output, 'files changed'))->toBeFalse();
 });
 
 it('fails when the user asks for a delta of a version that holds no dist', function (): void {
@@ -126,8 +126,8 @@ it('reads the lock of a blocked update as the change to review, and names no dis
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('to review (1, worst first)')
-        ->toContain('composer would install these bytes')
+        ->toContain('to review (1)')
+        ->toContain('acme/widget 1.0.0 → 2.0.0')
         ->and(str_contains($output, 'is installed at'))->toBeFalse()
         ->and(str_contains($output, 'does not match composer.lock'))->toBeFalse();
 });
@@ -151,33 +151,6 @@ it('names a tree whose version disagrees with composer.lock', function (): void 
 
     expect($status)->toBe(1)
         ->and($output)->toContain('[acme/widget] is installed at [1.0.0] but composer.lock says [1.1.0]');
-});
-
-it('writes a tree whose version disagrees with composer.lock in the json report', function (): void {
-    $fixture = Fixture::open('version-drift');
-
-    $plan = composerPlanFile([[
-        'package' => 'acme/unrelated',
-        'change' => 'install',
-        'from' => null,
-        'to' => '1.0.0',
-    ]]);
-
-    try {
-        $status = vet(['--path' => $fixture->rootPath, '--plan' => $plan, '--json' => true]);
-        $report = json_decode(Artisan::output(), true);
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($report)->toBeArray()
-        ->and($report)->toHaveKey('lock_discrepancies', [[
-            'type' => 'version-mismatch',
-            'package' => 'acme/widget',
-            'installed' => '1.0.0',
-            'locked' => '1.1.0',
-        ]]);
 });
 
 it('asks for composer install when the project installs no package', function (): void {
@@ -328,10 +301,10 @@ it('reads a package that ships a symlink to a file that the tree holds no', func
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('2 files (delta from the published [1.0.0])')
+        ->toContain('2 files changed')
         ->toContain('~ README.md')
         ->toContain('~ src/Widget.php');
-});
+})->skipOnWindows();
 
 it('reads no dev package of composer.lock as missing after composer install --no-dev', function (): void {
     $fixture = Fixture::open('no-dev-install');
@@ -344,7 +317,7 @@ it('reads no dev package of composer.lock as missing after composer install --no
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are covered.')
+        ->and($output)->toContain('All [1] packages are trusted.')
         ->and(str_contains($output, 'acme/lint'))->toBeFalse();
 });
 
@@ -360,7 +333,7 @@ it('names no lock discrepancy for a dev package that composer install --no-dev s
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are covered.')
+        ->and($output)->toContain('All [1] packages are trusted.')
         ->and(str_contains($output, 'does not match composer.lock'))->toBeFalse();
 });
 
@@ -377,7 +350,7 @@ it('starts the trust file from a project that composer install --no-dev wrote', 
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('Trusted [1] package(s), and wrote [vet.json].');
+        ->and($output)->toContain('Trusted [1] package, and wrote [vet.json].');
 });
 
 it('warns that it cannot build the delta from the trusted version of one package', function (): void {

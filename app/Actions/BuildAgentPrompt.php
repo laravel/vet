@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\BucketType;
+use App\Enums\UnreadReason;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\Change;
 use App\ValueObjects\Delta;
 use App\ValueObjects\ManifestChange;
+use App\ValueObjects\UnreadFile;
 
 final readonly class BuildAgentPrompt
 {
@@ -51,7 +53,7 @@ final readonly class BuildAgentPrompt
 
     /**
      * @param  array<int, Change>  $changes
-     * @param  array<int, string>  $unread
+     * @param  array<int, UnreadFile>  $unread
      */
     private function section(Delta $delta, BucketType $bucket, array $changes, int &$budget, array &$unread): string
     {
@@ -63,7 +65,7 @@ final readonly class BuildAgentPrompt
             $size = mb_strlen($block, '8bit');
 
             if ($size > $budget) {
-                $unread[] = $change->path;
+                $unread[] = new UnreadFile($change->path, UnreadReason::TooBig, $this->bytesOnDisk($change));
 
                 continue;
             }
@@ -111,6 +113,13 @@ final readonly class BuildAgentPrompt
     {
         return ($change->oldFile === null ? 0 : $this->sizeOf($change->oldFile))
             + ($change->newFile === null ? 0 : $this->sizeOf($change->newFile));
+    }
+
+    private function bytesOnDisk(Change $change): int
+    {
+        $file = $change->newFile ?? $change->oldFile;
+
+        return $file === null ? 0 : $this->sizeOf($file);
     }
 
     private function sizeOf(string $file): int
@@ -215,7 +224,7 @@ final readonly class BuildAgentPrompt
     }
 
     /**
-     * @param  array<int, string>  $unread
+     * @param  array<int, UnreadFile>  $unread
      */
     private function unread(array $unread): string
     {
@@ -223,7 +232,7 @@ final readonly class BuildAgentPrompt
             return '';
         }
 
-        $named = array_map(static fn (string $path): string => sprintf('[%s]', $path), array_slice($unread, 0, self::MAX_NAMED));
+        $named = array_map(static fn (UnreadFile $file): string => sprintf('[%s]', $file->path), array_slice($unread, 0, self::MAX_NAMED));
         $hidden = count($unread) - count($named);
 
         return sprintf(
@@ -251,14 +260,14 @@ final readonly class BuildAgentPrompt
     }
 
     /**
-     * @param  array<int, string>  $unread
+     * @param  array<int, UnreadFile>  $unread
      */
     private function block(Delta $delta, Change $change, array &$unread): string
     {
         $head = sprintf("### %s %s\n", $change->status->symbol(), $change->path);
 
         if ($change->bucket === BucketType::Opaque) {
-            $unread[] = $change->path;
+            $unread[] = new UnreadFile($change->path, UnreadReason::NotText, $this->bytesOnDisk($change));
 
             return $head."\nVet cannot read these bytes as text, so this prompt does not hold them.\n";
         }
@@ -282,7 +291,7 @@ final readonly class BuildAgentPrompt
     }
 
     /**
-     * @param  array<int, string>  $unread
+     * @param  array<int, UnreadFile>  $unread
      */
     private function patch(Change $change, array &$unread): string
     {
@@ -290,13 +299,13 @@ final readonly class BuildAgentPrompt
         $new = $change->newFile === null ? '' : $this->read($change->newFile);
 
         if ($old === false || $new === false) {
-            $unread[] = $change->path;
+            $unread[] = new UnreadFile($change->path, UnreadReason::NotReadable, $this->bytesOnDisk($change));
 
             return "\nVet cannot read these bytes, so this prompt does not hold them.\n";
         }
 
         if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {
-            $unread[] = $change->path;
+            $unread[] = new UnreadFile($change->path, UnreadReason::NotText, $this->bytesOnDisk($change));
 
             return "\nThis file holds no readable source, so this prompt does not hold its bytes.\n";
         }
@@ -304,7 +313,7 @@ final readonly class BuildAgentPrompt
         $diff = BuildUnifiedDiff::handle($old, $new, 'a/'.$change->path, 'b/'.$change->path, 3);
 
         if (str_contains($diff, BuildUnifiedDiff::REWRITTEN)) {
-            $unread[] = $change->path;
+            $unread[] = new UnreadFile($change->path, UnreadReason::TooBig, $this->bytesOnDisk($change));
         }
 
         return $diff === '' ? '' : "\n".$diff;

@@ -8,6 +8,7 @@ use App\Enums\AgentType;
 use App\Enums\AgentVerdict;
 use App\Exceptions\AgentFailedException;
 use App\Support\BinaryName;
+use App\Support\ProgressDots;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
@@ -28,6 +29,7 @@ final readonly class ReviewWithAgent
         private string $binary,
         private AgentModel $model,
         private int $timeout,
+        private ProgressDots $dots,
     ) {}
 
     public static function default(): self
@@ -35,14 +37,14 @@ final readonly class ReviewWithAgent
         $binary = getenv('VET_AGENT_BINARY');
 
         if (is_string($binary) && $binary !== '') {
-            return new self($binary, AgentModel::default(), self::TIMEOUT);
+            return new self($binary, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
         }
 
         $finder = new ExecutableFinder;
 
         foreach (AgentType::cases() as $agentType) {
             if ($finder->find($agentType->value) !== null) {
-                return new self($agentType->value, AgentModel::default(), self::TIMEOUT);
+                return new self($agentType->value, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
             }
         }
 
@@ -55,7 +57,7 @@ final readonly class ReviewWithAgent
             throw AgentFailedException::noModelFlag($this->binary);
         }
 
-        return new self($this->binary, $model, $this->timeout);
+        return new self($this->binary, $model, $this->timeout, $this->dots);
     }
 
     public function name(): string
@@ -112,6 +114,7 @@ final readonly class ReviewWithAgent
                 $review = $this->settled($package, $prompts[$package], $process, $agentType);
 
                 if ($review instanceof AgentReview) {
+                    $this->dots->mark();
                     $reviews[$package] = $review;
                     unset($running[$package]);
                 }
@@ -176,19 +179,15 @@ final readonly class ReviewWithAgent
         $summary = $answer->summary === '' ? 'The agent wrote no summary.' : $answer->summary;
 
         if ($verdict === AgentVerdict::Clear && $prompt->unread !== []) {
-            return new AgentReview($package, AgentVerdict::Partial, $this->clamp(sprintf(
-                '[%d] file(s) did not reach the agent. %s',
-                count($prompt->unread),
-                $summary,
-            )), $answer->findings);
+            $verdict = AgentVerdict::Partial;
         }
 
-        return new AgentReview($package, $verdict, $this->clamp($summary), $answer->findings);
+        return new AgentReview($package, $verdict, $this->clamp($summary), $answer->findings, $prompt->unread);
     }
 
     private function unreadable(string $package, string $summary): AgentReview
     {
-        return new AgentReview($package, AgentVerdict::NoVerdict, $this->clamp($summary), []);
+        return new AgentReview($package, AgentVerdict::NoVerdict, $this->clamp($summary), [], []);
     }
 
     private function firstLine(string $output): string
@@ -214,7 +213,7 @@ final readonly class ReviewWithAgent
 
     private function executable(): string
     {
-        if (is_file($this->binary) && is_executable($this->binary)) {
+        if (is_file($this->binary) && (PHP_OS_FAMILY === 'Windows' || is_executable($this->binary))) {
             return $this->binary;
         }
 

@@ -40,8 +40,8 @@ it('writes each grant that it records in its section, and an empty section as an
         $trustFile = TrustFile::fromDocument(PersistTrustFile::atPath($root.'/vet.json'));
 
         $trustFile
-            ->withGrant(new Grant('acme/widget', '1.0.0', $hash, false, 'Read it.'))
-            ->withGrant(new Grant('acme/gadget', '2.0.0', $hash, false, null))
+            ->withGrant(new Grant('acme/widget', '1.0.0', $hash, false))
+            ->withGrant(new Grant('acme/gadget', '2.0.0', $hash, false))
             ->save();
 
         $written = json_decode((string) file_get_contents($root.'/vet.json'), true);
@@ -53,7 +53,7 @@ it('writes each grant that it records in its section, and an empty section as an
         'schema' => PersistTrustFile::SCHEMA,
         'require' => [
             'acme/gadget' => ['version' => '2.0.0', 'hash' => (string) $hash],
-            'acme/widget' => ['version' => '1.0.0', 'hash' => (string) $hash, 'notes' => 'Read it.'],
+            'acme/widget' => ['version' => '1.0.0', 'hash' => (string) $hash],
         ],
         'require-dev' => [],
     ]);

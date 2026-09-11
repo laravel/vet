@@ -26,19 +26,18 @@ enum AgentVerdict: string
     public function label(): string
     {
         return match ($this) {
-            self::Clear => 'clear',
-            self::Risk => 'RISK',
-            self::Partial => 'partial',
-            self::NoVerdict => 'no verdict',
+            self::Clear => 'PASS',
+            self::Risk => 'FAIL',
+            self::Partial, self::NoVerdict => 'WARN',
         };
     }
 
-    public function color(): string
+    public function badge(): string
     {
-        return match ($this) {
-            self::Clear => 'green',
-            self::Risk => 'red',
-            self::Partial, self::NoVerdict => 'yellow',
-        };
+        return sprintf('<%s;options=bold> %s </>', match ($this) {
+            self::Clear => 'fg=white;bg=green',
+            self::Risk => 'fg=white;bg=red',
+            self::Partial, self::NoVerdict => 'fg=black;bg=yellow',
+        }, $this->label());
     }
 }

@@ -7,7 +7,7 @@ namespace App\ValueObjects;
 final readonly class AgentPrompt
 {
     /**
-     * @param  array<int, string>  $unread
+     * @param  array<int, UnreadFile>  $unread
      * @param  array<int, string>  $paths
      */
     public function __construct(

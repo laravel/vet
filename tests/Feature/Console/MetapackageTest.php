@@ -17,7 +17,7 @@ it('covers a project that installs a metapackage, and reads no bytes of it', fun
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [2] packages are covered.')
+        ->and($output)->toContain('All [2] packages are trusted.')
         ->and(str_contains($output, 'acme/advisories'))->toBeFalse();
 });
 
@@ -35,7 +35,7 @@ it('records no entry of a metapackage in the baseline', function (): void {
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('Trusted [2] package(s)')
+        ->and($output)->toContain('Trusted [2] packages')
         ->and(str_contains($output, 'acme/advisories'))->toBeFalse()
         ->and(str_contains($trustFile, 'acme/advisories'))->toBeFalse()
         ->and($trustFile)->toContain('acme/widget');
@@ -85,6 +85,6 @@ it('reads no bytes of a metapackage that composer would install', function (): v
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [2] packages are covered.')
+        ->and($output)->toContain('All [2] packages are trusted.')
         ->and(str_contains($output, 'acme/advisories'))->toBeFalse();
 });

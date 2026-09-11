@@ -7,8 +7,12 @@ use App\Actions\DiskCacheArtifact;
 use App\Actions\FetchArchive;
 use App\Actions\RequestUrl;
 use App\Exceptions\FailureException;
+use App\Support\ProgressDots;
 use App\ValueObjects\Package;
+use Illuminate\Console\OutputStyle;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Fixtures\CraftedArchive;
 use Tests\Fixtures\FakeHttp;
 use Tests\Fixtures\Warnings;
@@ -48,7 +52,7 @@ function fetcherServing(string $bytes): FetchArchive
 
     $http = new FakeHttp([FakeHttp::body($bytes)]);
 
-    return new FetchArchive(new RequestUrl('vet-test', [], $http->client), DiskCacheArtifact::default());
+    return new FetchArchive(new RequestUrl('vet-test', [], $http->client), DiskCacheArtifact::default(), silentDots());
 }
 
 afterEach(function (): void {
@@ -92,6 +96,7 @@ it('reads the bytes again when the user refuses the cache', function (): void {
     $fetcher = new FetchArchive(
         new RequestUrl('vet-test', [], $http->client),
         new ColdCacheArtifact(DiskCacheArtifact::default()),
+        silentDots(),
     );
 
     $fetcher->handle($package);
@@ -112,13 +117,34 @@ it('names the directory that it cannot move the extracted archive into', functio
     );
 
     File::ensureDirectoryExists(dirname($directory));
-    file_put_contents($directory, 'a file where the tree belongs');
+    file_put_contents($directory, 'a read-only file where the tree belongs');
+    chmod($directory, 0o444);
 
     try {
         expect(static function () use ($fetcher, $package): void {
             Warnings::silenced(static fn (): string => $fetcher->handle($package));
         })->toThrow(FailureException::class, sprintf('Could not move the extracted archive into [%s].', $directory));
     } finally {
+        chmod($directory, 0o644);
         File::deleteDirectory((string) getenv('VET_CACHE_DIR'));
     }
+});
+
+it('marks each download with a dot, and no read of the cache', function (): void {
+    $served = (string) file_get_contents(widgetArchive());
+    $package = widgetPackage(sha1($served));
+    $buffer = new BufferedOutput;
+
+    putenv('VET_CACHE_DIR='.sys_get_temp_dir().'/vet-fetch-'.bin2hex(random_bytes(6)));
+
+    $fetcher = new FetchArchive(
+        new RequestUrl('vet-test', [], new FakeHttp([FakeHttp::body($served)])->client),
+        DiskCacheArtifact::default(),
+        new ProgressDots(new OutputStyle(new ArrayInput([]), $buffer)),
+    );
+
+    $fetcher->handle($package);
+    $fetcher->handle($package);
+
+    expect($buffer->fetch())->toBe('  .');
 });

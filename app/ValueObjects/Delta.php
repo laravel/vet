@@ -69,20 +69,6 @@ final readonly class Delta
         ));
     }
 
-    /**
-     * @return array<string, int>
-     */
-    public function counts(): array
-    {
-        $counts = [];
-
-        foreach (BucketType::inReviewOrder() as $bucket) {
-            $counts[$bucket->value] = count($this->inBucket($bucket));
-        }
-
-        return $counts;
-    }
-
     public function isEmpty(): bool
     {
         return $this->changes === [];
@@ -97,21 +83,6 @@ final readonly class Delta
         }
 
         return $this->changes !== [];
-    }
-
-    public function needsNoReview(): bool
-    {
-        if ($this->changes === []) {
-            return false;
-        }
-
-        foreach ($this->changes as $change) {
-            if ($change->bucket === BucketType::Opaque || $change->bucket === BucketType::RuntimeSource) {
-                return false;
-            }
-        }
-
-        return ! $this->manifestChange instanceof ManifestChange || ! $this->manifestChange->touchesExecution();
     }
 
     /**

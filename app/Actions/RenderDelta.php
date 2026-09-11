@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\BucketType;
 use App\Enums\Gutter;
+use App\Enums\PatchExtent;
 use App\Support\ControlSafeComponents;
 use App\Support\Invitation;
 use App\ValueObjects\Change;
@@ -24,40 +25,12 @@ final readonly class RenderDelta
         private OutputStyle $output,
         private Invitation $invitation,
         private Gutter $gutter,
+        private PatchExtent $extent,
     ) {
         $this->components = new ControlSafeComponents($output);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function toArray(Delta $delta): array
-    {
-        return [
-            'from' => $delta->from,
-            'to' => $delta->to,
-            'from_hash' => (string) $delta->fromHash,
-            'to_hash' => (string) $delta->toHash,
-            'source' => $delta->source->value,
-            'compared_against_install' => $delta->toIsLocalInstall,
-            'notes' => $delta->notes,
-            'counts' => $delta->counts(),
-            'inert_only' => $delta->isInertOnly(),
-            'needs_no_review' => $delta->needsNoReview(),
-            'review_blockers' => $delta->reviewBlockers(),
-            'manifest_keys' => $delta->manifestChange?->changedKeys() ?? [],
-            'changes' => array_map(static fn (Change $change): array => [
-                'path' => $change->path,
-                'status' => $change->status->value,
-                'bucket' => $change->bucket->value,
-            ], $delta->changes()),
-        ];
-    }
-
-    /**
-     * @param  array<int, BucketType>  $buckets
-     */
-    public function report(Delta $delta, array $buckets): void
+    public function report(Delta $delta): void
     {
         $this->output->newLine();
         $this->output->writeln(sprintf(
@@ -88,19 +61,18 @@ final readonly class RenderDelta
             return;
         }
 
-        $this->buckets($delta, $buckets);
+        $this->buckets($delta);
 
         $this->renderVerdict($delta, $this->output->isVerbose());
     }
 
-    /**
-     * @param  array<int, BucketType>  $buckets
-     */
-    public function buckets(Delta $delta, array $buckets): void
+    public function buckets(Delta $delta): void
     {
         $verbose = $this->output->isVerbose();
+        $budget = ($verbose ? PatchExtent::Full : $this->extent)->lines();
+        $hiddenLines = 0;
 
-        foreach ($buckets as $bucket) {
+        foreach (BucketType::inReviewOrder() as $bucket) {
             $changes = $delta->inBucket($bucket);
 
             if ($changes === []) {
@@ -119,9 +91,15 @@ final readonly class RenderDelta
             foreach ($shown as $change) {
                 $this->renderChange($delta, $change);
 
-                if ($bucket !== BucketType::Opaque) {
-                    $this->renderPatch($change);
+                if ($bucket === BucketType::Opaque) {
+                    continue;
                 }
+
+                $lines = $this->patchLines($change);
+                $written = $this->writePatch(array_slice($lines, 0, $budget));
+
+                $budget -= $written;
+                $hiddenLines += count($lines) - $written;
             }
 
             $hidden = count($changes) - count($shown);
@@ -134,6 +112,15 @@ final readonly class RenderDelta
                 )));
             }
 
+            $this->output->writeln($this->gutter->blank());
+        }
+
+        if ($hiddenLines > 0) {
+            $this->output->writeln($this->gutter->line(sprintf(
+                '  <fg=gray>… and %d more lines, with [vet %s]</>',
+                $hiddenLines,
+                OutputFormatter::escape($delta->package),
+            )));
             $this->output->writeln($this->gutter->blank());
         }
     }
@@ -167,41 +154,50 @@ final readonly class RenderDelta
         }
     }
 
-    private function renderPatch(Change $change): void
+    /**
+     * @param  array<int, string>  $lines
+     */
+    private function writePatch(array $lines): int
+    {
+        foreach ($lines as $line) {
+            $this->output->writeln($this->gutter->line('    '.$line));
+        }
+
+        if ($lines !== []) {
+            $this->output->writeln($this->gutter->blank());
+        }
+
+        return count($lines);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function patchLines(Change $change): array
     {
         $old = $change->oldFile === null ? '' : $this->read($change->oldFile);
         $new = $change->newFile === null ? '' : $this->read($change->newFile);
 
         if ($old === false || $new === false) {
-            $this->output->writeln($this->gutter->line('    <fg=gray>vet cannot read this file, so its bytes are not shown</>'));
-            $this->output->writeln($this->gutter->blank());
-
-            return;
+            return ['<fg=gray>vet cannot read this file, so its bytes are not shown</>'];
         }
 
         if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {
-            $this->output->writeln($this->gutter->line('    <fg=gray>this file holds no readable source, so its bytes are not shown</>'));
-            $this->output->writeln($this->gutter->blank());
-
-            return;
+            return ['<fg=gray>this file holds no readable source, so its bytes are not shown</>'];
         }
 
         $diff = BuildUnifiedDiff::handle($old, $new, 'a/'.$change->path, 'b/'.$change->path, 3);
 
         if ($diff === '') {
-            return;
+            return [];
         }
 
-        foreach (array_slice(explode("\n", rtrim($diff, "\n")), 2) as $line) {
-            $this->output->writeln($this->gutter->line('    '.match (true) {
-                str_starts_with($line, '+') => sprintf('<fg=green>%s</>', OutputFormatter::escape($line)),
-                str_starts_with($line, '-') => sprintf('<fg=red>%s</>', OutputFormatter::escape($line)),
-                str_starts_with($line, '@@') => sprintf('<fg=cyan>%s</>', OutputFormatter::escape($line)),
-                default => sprintf('<fg=gray>%s</>', OutputFormatter::escape($line)),
-            }));
-        }
-
-        $this->output->writeln($this->gutter->blank());
+        return array_map(static fn (string $line): string => match (true) {
+            str_starts_with($line, '+') => sprintf('<fg=green>%s</>', OutputFormatter::escape($line)),
+            str_starts_with($line, '-') => sprintf('<fg=red>%s</>', OutputFormatter::escape($line)),
+            str_starts_with($line, '@@') => sprintf('<fg=cyan>%s</>', OutputFormatter::escape($line)),
+            default => sprintf('<fg=gray>%s</>', OutputFormatter::escape($line)),
+        }, array_slice(explode("\n", rtrim($diff, "\n")), 2));
     }
 
     private function renderVerdict(Delta $delta, bool $verbose): void

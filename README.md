@@ -43,13 +43,13 @@ If you know `cargo vet` from the Rust world, this is the same idea for Composer.
 
    ERROR  [1] package is not trusted. Read every change with [vet -v]. Run [vet] in a terminal to pick the ones that you trust.
 
-   TIP  Hand every change to your coding agent with [vet --agent].
+   TIP  Run [vet] in a terminal to hand every change to your coding agent.
 ```
 
 You read the changes, or you let your agent read them, and vet writes your decision down. Your build then holds you to it: **a package that nobody has trusted fails the build** until someone reads it.
 
 ```shell
-vet --agent
+vet
 ```
 
 ```
@@ -79,7 +79,7 @@ Composer asks whether to allow the plugin the first time. Answer yes, and vet ru
 ./vendor/bin/vet
 ```
 
-**Vet has one command.** It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the untrusted packages you trust. You can read the changes yourself, or ask your coding agent to read them first, and the `--agent` option does that from the start. Until `vet.json` exists, vet has no earlier version to compare an update against, so the first step is to record the packages you trust today.
+**Vet has one command.** It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the untrusted packages you trust. You can read the changes yourself, or ask your coding agent to read them first. Until `vet.json` exists, vet has no earlier version to compare an update against, so the first step is to record the packages you trust today.
 
 ## Recording Your Baseline
 
@@ -150,9 +150,9 @@ In a terminal, vet follows the report with a question. Every package that you do
    INFO  Run [composer install] to write those bytes to vendor/.
 ```
 
-The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until you trust every package. A package you skip fails the run, in the same way it fails your build.
+The run exits with a non-zero status until you trust every package. A package you skip fails the run, in the same way it fails your build.
 
-Vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of changes. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
+Above ten packages, the report lists each package with the count of its changed files and shows no change. A change that runs past forty lines stops there, and `vet <package>` shows the rest. Vet prints one dot for each archive that it downloads, and one for each package that the agent finishes.
 
 ### Auditing a Single Package
 
@@ -181,12 +181,11 @@ vet acme/logger acme/tooling
    INFO  Record these bytes with [vet].
 ```
 
-When the trust file already trusts the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the changes. The `--from` and `--to` options compare any two versions, and the `--notes` option writes a note on the entry of a package that you already trust:
+When the trust file already trusts the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the changes. The `--from` and `--to` options compare any two versions:
 
 ```shell
 vet carbonphp/carbon-doctrine-types --from=3.1.0
 vet carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
-vet acme/logger --notes="Read with the team on Friday."
 ```
 
 ### Reading the Changes
@@ -200,18 +199,12 @@ Vet sorts the changed files into four buckets, and shows you the ones that can h
 | `runtime source` | The source that your application autoloads and executes |
 | `inert` | Everything else, such as tests, documentation and images |
 
-The `--bucket` option reads one bucket at a time, and takes `install-manifest`, `opaque`, `runtime-source` or `inert`:
-
-```shell
-vet symfony/console --bucket=runtime-source
-```
-
 ## Handing a Review to Your Agent
 
-Reading every change by hand takes time, and most of the time you won't want to. The `--agent` option hands the changes of each package to the coding agent already on your machine, and prints the result next to the package. **You still make the call.** The agent reads, and you decide:
+Reading every change by hand takes time, and most of the time you won't want to. In a terminal, the first question offers the coding agent already on your machine. Pick it, and vet hands the changes of each package to the agent, and prints the result next to the package. **You still make the call.** The agent reads, and you decide:
 
 ```shell
-vet --agent
+vet
 ```
 
 ```
@@ -236,7 +229,7 @@ vet --agent
 
 A result is one of four. `PASS` means the agent read every file and found no attack. `FAIL` comes with one line for each file the agent names. `WARN` means the rest of the reading is yours: the agent did not read every file, or its answer did not arrive. When a file is too big for the prompt, or holds no text, such as a `.phar`, `WARN` names that file, the reason and its size. `SKIP` means vet sent nothing, because no file changed or vet cannot read the files of the package.
 
-In a terminal, each result sits on its row of the list, and vet picks every `PASS` row for you before you read it. One `enter` records those packages, and you read each `FAIL` and `WARN` before you decide. The first question offers the agent too, so you can ask for it without the option:
+In a terminal, each result sits on its row of the list, and vet picks every `PASS` row for you before you read it. One `enter` records those packages, and you read each `FAIL` and `WARN` before you decide:
 
 ```
  ┌ Which packages do you trust? ────────────────────────────────┐
@@ -259,15 +252,15 @@ Before the agent reads, vet asks which model it uses. Pick one from the list, ty
  └──────────────────────────────────────────────────────────────┘
 ```
 
-The `--model` option gives the answer without the question, which is what a script needs:
+The `--model` option gives the answer without the question:
 
 ```shell
-vet --agent --model=opus
+vet --model=opus
 ```
 
 **The agent runs only when you ask for it.** The Composer plugin never asks, and a result writes nothing to `vet.json` until you answer the question, so the decision stays yours.
 
-The `--agent` option reads every package in the batch, whatever its size. Vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
+Vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
 
 ### How the Agent Reads
 
@@ -311,12 +304,6 @@ The `--no-plugins` option of Composer runs one command without the plugin, so th
 composer update --no-plugins
 ```
 
-The `--json` option emits the report for another program to read:
-
-```shell
-vet --json
-```
-
 ## Configuration
 
 Vet reads three environment variables:
@@ -327,7 +314,7 @@ VET_GITHUB_TOKEN=
 VET_CACHE_DIR=
 ```
 
-`VET_AGENT_BINARY` names the coding agent that `--agent` runs. `VET_GITHUB_TOKEN` authenticates the archives that vet downloads from GitHub, and vet falls back to `GITHUB_TOKEN`, to `GH_TOKEN`, and to your Composer authentication file. `VET_CACHE_DIR` holds the archives that vet has already downloaded, and defaults to `vet` inside `$XDG_CACHE_HOME`, or inside `$HOME/.cache`.
+`VET_AGENT_BINARY` names the coding agent that vet runs. `VET_GITHUB_TOKEN` authenticates the archives that vet downloads from GitHub, and vet falls back to `GITHUB_TOKEN`, to `GH_TOKEN`, and to your Composer authentication file. `VET_CACHE_DIR` holds the archives that vet has already downloaded, and defaults to `vet` inside `$XDG_CACHE_HOME`, or inside `$HOME/.cache`.
 
 Pass the `--no-cache` option to download an archive again instead of reading the cached one:
 

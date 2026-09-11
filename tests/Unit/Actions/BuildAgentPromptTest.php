@@ -6,10 +6,21 @@ use App\Actions\BuildAgentPrompt;
 use App\Enums\BucketType;
 use App\Enums\ChangeStatus;
 use App\Enums\InstallSourceType;
+use App\Enums\UnreadReason;
+use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\Change;
 use App\ValueObjects\Delta;
 use App\ValueObjects\ManifestChange;
 use App\ValueObjects\TreeHash;
+use App\ValueObjects\UnreadFile;
+
+/**
+ * @return array<int, array{0: string, 1: UnreadReason}>
+ */
+function unreadCauses(AgentPrompt $prompt): array
+{
+    return array_map(static fn (UnreadFile $file): array => [$file->path, $file->reason], $prompt->unread);
+}
 
 function promptDirectory(): string
 {
@@ -185,7 +196,7 @@ it('names an opaque artifact and reads none of its bytes', function (): void {
         promptChange($directory, 'bin/tool.phar', 'one', 'two', BucketType::Opaque),
     ], false, null, []));
 
-    expect($prompt->unread)->toBe(['bin/tool.phar'])
+    expect(unreadCauses($prompt))->toBe([['bin/tool.phar', UnreadReason::NotText]])
         ->and($prompt->text)
         ->toContain('Vet cannot read these bytes as text')
         ->toContain('This prompt holds no byte of [1] file(s): [bin/tool.phar]');
@@ -214,7 +225,7 @@ it('skips the file that the budget cannot hold, and names it', function (): void
         promptChange($directory, 'src/Small.php', "<?php\n", "<?php\n\nreturn 1;\n", BucketType::RuntimeSource),
     ], false, null, []));
 
-    expect($prompt->unread)->toBe(['src/Big.php'])
+    expect(unreadCauses($prompt))->toBe([['src/Big.php', UnreadReason::TooBig]])
         ->and($prompt->text)->toContain('+++ b/src/Small.php');
 
     expect($prompt->text)->not->toContain('+++ b/src/Big.php');
@@ -228,7 +239,7 @@ it('names once the file that it cannot read line by line and that the budget can
         promptChange($directory, 'src/Generated.php', str_repeat(str_repeat('b', 20)."\n", 12_000), str_repeat(str_repeat('c', 20)."\n", 12_000), BucketType::RuntimeSource),
     ], false, null, []));
 
-    expect($prompt->unread)->toBe(['src/Generated.php'])
+    expect(unreadCauses($prompt))->toBe([['src/Generated.php', UnreadReason::TooBig]])
         ->and($prompt->text)->toContain('This prompt holds no byte of [1] file(s): [src/Generated.php]');
 });
 
@@ -239,7 +250,7 @@ it('names the file that it cannot read line by line', function (): void {
         promptChange($directory, 'src/Generated.php', '', str_repeat("a\n", 250_000), BucketType::RuntimeSource),
     ], false, null, []));
 
-    expect($prompt->unread)->toBe(['src/Generated.php'])
+    expect(unreadCauses($prompt))->toBe([['src/Generated.php', UnreadReason::TooBig]])
         ->and($prompt->text)->toContain('@@ file rewritten @@');
 });
 
@@ -282,5 +293,5 @@ it('names the file whose bytes it cannot read', function (): void {
     ], false, null, []));
 
     expect($prompt->text)->toContain('Vet cannot read these bytes, so this prompt does not hold them.')
-        ->and($prompt->unread)->toBe(['src/Gone.php']);
+        ->and(unreadCauses($prompt))->toBe([['src/Gone.php', UnreadReason::NotReadable]]);
 });

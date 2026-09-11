@@ -26,7 +26,7 @@ it('records the review of one package, and turns the gate green', function (): v
 
     expect($trustFile)->toContain('"version": "2.0.0"')
         ->and($audited)->toBe(0)
-        ->and($auditOutput)->toContain('All [1] packages are covered.');
+        ->and($auditOutput)->toContain('All [1] packages are trusted.');
 });
 
 it('audits one package, and records nothing', function (): void {
@@ -47,22 +47,6 @@ it('audits one package, and records nothing', function (): void {
     expect($trustFile)->toContain('"version": "1.0.0"');
 });
 
-it('refuses a note for a package that it does not cover', function (): void {
-    $fixture = Fixture::open('stale-project');
-
-    try {
-        $status = vet(['packages' => ['acme/widget'], '--notes' => 'Read it.', '--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)->toContain('[acme/widget] is not covered, so vet holds no entry for the note. Run [vet] to record it first.')
-        ->and($trustFile)->toContain('"version": "1.0.0"');
-});
-
 it('baselines every installed package of a project that holds no trust file', function (): void {
     $fixture = Fixture::open('stale-project');
 
@@ -80,7 +64,7 @@ it('baselines every installed package of a project that holds no trust file', fu
     expect($trusted)->toBe(0)
         ->and($trustOutput)
         ->toContain('to trust (1)')
-        ->toContain('no entry')
+        ->toContain('never trusted')
         ->toContain('wrote [vet.json]')
         ->and($audited)->toBe(0);
 });
@@ -111,7 +95,7 @@ it('audits without a question when nobody can answer one', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('Run [vet] in a terminal to record the ones that you trust.')
+        ->and($output)->toContain('Run [vet] in a terminal to pick the ones that you trust.')
         ->and($trustFile)->toContain('"version": "1.0.0"');
 });
 
@@ -120,7 +104,7 @@ it('records the package that you pick, and the delta that you read', function ()
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsOutputToContain('to review (1, worst first)')
+            ->expectsOutputToContain('to review (1)')
             ->expectsQuestion('How do you want to review these packages?', 'manual')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->expectsOutputToContain('~ src/Widget.php')
@@ -172,13 +156,14 @@ it('fails when you record one package of two, because the other stays uncovered'
         ->and(str_contains($trustFile, 'acme/lint'))->toBeFalse();
 });
 
-it('records the note that you give', function (): void {
-    $fixture = Fixture::open('stale-project');
+it('records every package that you pick', function (): void {
+    $fixture = Fixture::open('partly-audited');
 
     try {
-        command('vet', ['--notes' => 'I read every line.', '--path' => $fixture->rootPath])
+        command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'manual')
-            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
+            ->expectsQuestion('Which packages do you trust?', ['acme/widget', 'acme/lint'])
+            ->expectsOutputToContain('Recorded [2] packages.')
             ->assertExitCode(0)
             ->run();
 
@@ -188,8 +173,8 @@ it('records the note that you give', function (): void {
     }
 
     expect($trustFile)
-        ->toContain('"version": "2.0.0"')
-        ->toContain('"notes": "I read every line."');
+        ->toContain('"acme/widget"')
+        ->toContain('"acme/lint"');
 });
 
 it('rejects --init when the user also names a package', function (): void {
@@ -210,7 +195,7 @@ it('asks for vet --init and audits nothing when the project holds no trust file'
     $fixture = Fixture::open('no-trust-file');
 
     try {
-        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
+        command('vet', ['--path' => $fixture->rootPath])
             ->expectsOutputToContain('No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].')
             ->doesntExpectOutputToContain('to review')
             ->assertExitCode(1)
@@ -236,7 +221,7 @@ it('deletes the trust file with --fresh, then records the baseline again', funct
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('Trusted [1] package(s), and wrote [vet.json].')
+        ->and($output)->toContain('Trusted [1] package, and wrote [vet.json].')
         ->and($trustFile)->toContain('"acme/widget"')
         ->and(str_contains($trustFile, '"acme/ghost"'))->toBeFalse();
 });
@@ -282,32 +267,29 @@ it('trusts nothing new when the trust file covers every installed package', func
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [2] packages are already covered.');
+        ->and($output)->toContain('All [2] packages are already trusted.');
 });
 
-it('refuses an option that needs one package when the user names two', function (string $option, string|bool $value, string $message): void {
+it('refuses --from when the user names two packages', function (): void {
     $fixture = Fixture::open('audited-project');
 
     try {
-        $status = vet(['packages' => ['acme/widget', 'acme/lint'], '--path' => $fixture->rootPath, $option => $value]);
+        $status = vet(['packages' => ['acme/widget', 'acme/lint'], '--from' => '1.0.0', '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain($message);
-})->with([
-    '--from' => ['--from', '1.0.0', 'The [--from] and [--to] options need one package. Run [vet <package> --from=<version>].'],
-    '--json' => ['--json', true, 'The [--json] option needs one package. Run [vet <package> --json].'],
-]);
+        ->and($output)->toContain('The [--from] and [--to] options need one package. Run [vet <package> --from=<version>].');
+});
 
 it('asks no question when the trust file covers every package', function (): void {
     $fixture = Fixture::open('audited-project');
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsOutputToContain('All [2] packages are covered.')
+            ->expectsOutputToContain('All [2] packages are trusted.')
             ->assertExitCode(0)
             ->run();
     } finally {
@@ -364,37 +346,4 @@ it('names the trust file that it cannot write when you trust every package', fun
 
     expect($status)->toBe(1)
         ->and($output)->toContain('Could not write the vet file');
-});
-
-it('names the trust file that it cannot write the note of a covered package to', function (): void {
-    $fixture = Fixture::open('audited-project');
-
-    chmod($fixture->path('vet.json'), 0o444);
-
-    try {
-        $status = vet(['packages' => ['acme/widget'], '--notes' => 'Read it.', '--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        chmod($fixture->path('vet.json'), 0o644);
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)->toContain('Could not write the vet file');
-});
-
-it('records the note of two covered packages', function (): void {
-    $fixture = Fixture::open('audited-project');
-
-    try {
-        $status = vet(['packages' => ['acme/widget', 'acme/lint'], '--notes' => 'Read with the team.', '--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(0)
-        ->and($output)->toContain('Recorded [2] package(s).')
-        ->and(substr_count($trustFile, '"notes": "Read with the team."'))->toBe(2);
 });

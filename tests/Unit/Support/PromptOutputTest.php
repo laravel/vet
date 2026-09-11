@@ -25,5 +25,5 @@ it('shares the count of the blank lines with the output of the command', functio
     $output->writeDirectly("\e[?25h");
 
     expect($style->newLinesWritten())->toBe(2)
-        ->and($buffer->fetch())->toBe("audited\n\nprompt\n\n\e[?25h");
+        ->and($buffer->fetch())->toBe('audited'.PHP_EOL.PHP_EOL."prompt\n\n\e[?25h");
 });

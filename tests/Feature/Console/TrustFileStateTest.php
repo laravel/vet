@@ -64,38 +64,7 @@ it('ignores an entry of a package that the project does not install', function (
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are covered.');
-});
-
-it('keeps the notes of an entry that the user records again', function (): void {
-    $fixture = Fixture::open('partly-audited');
-
-    try {
-        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
-
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($trustFile)
-        ->toContain('"notes": "Reviewed with the team."')
-        ->toContain('"version": "2.0.0"');
-});
-
-it('replaces the notes of an entry when the user gives --notes', function (): void {
-    $fixture = Fixture::open('partly-audited');
-
-    try {
-        trust('acme/widget', ['--notes' => 'Read the phar too.', '--path' => $fixture->rootPath])->run();
-
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($trustFile)->toContain('"notes": "Read the phar too."')
-        ->and(str_contains($trustFile, 'Reviewed with the team.'))->toBeFalse();
+        ->and($output)->toContain('All [1] packages are trusted.');
 });
 
 it('writes the dev package of a baseline in require-dev', function (): void {
@@ -180,29 +149,7 @@ it('moves the entry of a dev package into require-dev when the user records it a
         ->and($trustFile['require-dev'])->toHaveKey('acme/lint');
 });
 
-it('writes the notes of an entry that is already covered', function (): void {
-    $fixture = Fixture::open('partly-audited');
-
-    try {
-        trust('acme/widget', ['--path' => $fixture->rootPath])->run();
-
-        $status = vet([
-            'packages' => ['acme/widget'],
-            '--notes' => 'Read the phar too.',
-            '--path' => $fixture->rootPath,
-        ]);
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(0)
-        ->and($trustFile)
-        ->toContain('"notes": "Read the phar too."')
-        ->toContain('"version": "2.0.0"');
-});
-
-it('keeps the notes of an entry that is already covered when the user gives no note', function (): void {
+it('reports a package that the trust file already covers', function (): void {
     $fixture = Fixture::open('partly-audited');
 
     try {
@@ -210,12 +157,10 @@ it('keeps the notes of an entry that is already covered when the user gives no n
 
         $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
         $output = Artisan::output();
-        $trustFile = $fixture->read('vet.json');
     } finally {
         $fixture->remove();
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('[acme/widget] [2.0.0] is already covered')
-        ->and($trustFile)->toContain('"notes": "Reviewed with the team."');
+        ->and($output)->toContain('[acme/widget] [2.0.0] is already trusted at');
 });

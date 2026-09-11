@@ -20,7 +20,7 @@ it('covers every package of an audited project, and reaches no network', functio
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [2] packages are covered.');
+        ->and($output)->toContain('All [2] packages are trusted.');
 });
 
 it('reports one package of an audited project without a delta', function (): void {
@@ -54,8 +54,8 @@ it('renders the four buckets of a stale project, worst first', function (): void
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('acme/widget 2.0.0')
-        ->toContain('4 files (delta from [1.0.0])')
+        ->toContain('acme/widget 1.0.0 → 2.0.0')
+        ->toContain('4 files changed')
         ->toContain('install-time manifest (1)')
         ->toContain('~ composer.json  scripts')
         ->toContain('opaque artifact (1)')
@@ -100,7 +100,7 @@ it('asks for a baseline when the project holds no trust file', function (): void
         ->and($output)
         ->toContain('No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].')
         ->and(str_contains($output, 'acme/widget'))->toBeFalse()
-        ->and(str_contains($output, 'are not covered'))->toBeFalse();
+        ->and(str_contains($output, 'not trusted'))->toBeFalse();
 });
 
 it('reports a changed package before an ungranted one', function (): void {
@@ -115,10 +115,10 @@ it('reports a changed package before an ungranted one', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('4 files (delta from [1.0.0])')
-        ->toContain('[1.0.0] was trusted, [2.0.0] is installed')
+        ->toContain('4 files changed')
+        ->toContain('acme/widget 1.0.0 → 2.0.0')
         ->toContain('acme/lint 1.0.0 (dev)')
-        ->toContain('no entry; this tree is')
+        ->toContain('never trusted')
         ->and(mb_strpos($output, 'acme/widget'))->toBeLessThan((int) mb_strpos($output, 'acme/lint'));
 });
 
@@ -161,7 +161,7 @@ it('orders each package by the count of files that its review costs', function (
 
     $rows = array_values(array_filter(
         explode("\n", $output),
-        static fn (string $line): bool => str_contains($line, 'files'),
+        static fn (string $line): bool => preg_match('/\d+ files? changed/', $line) === 1,
     ));
 
     expect($status)->toBe(1)
@@ -201,7 +201,7 @@ it('renders the buckets and the changed paths of a stale package', function (): 
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('1 files (delta from [1.0.0])')
+        ->toContain('1 file changed')
         ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
         ->toContain("+        return 'gadget';")
@@ -226,7 +226,7 @@ it('renders the source of each change with -v', function (): void {
         ->toContain("│     +        return 'gadget';")
         ->toContain("-        return 'widget';")
         ->toContain("+        return 'gadget';")
-        ->toContain('[1] package(s) are not covered. Run [vet] in a terminal to record the ones that you trust.');
+        ->toContain('[1] package is not trusted. Run [vet] in a terminal to pick the ones that you trust.');
 });
 
 it('refuses the cache when the user gives --no-cache', function (): void {
@@ -240,4 +240,22 @@ it('refuses the cache when the user gives --no-cache', function (): void {
 
     expect($status)->toBe(0)
         ->and(app(CacheArtifact::class))->toBeInstanceOf(ColdCacheArtifact::class);
+});
+
+it('lists each package without its changes when more than ten need a review', function (): void {
+    $project = StaleProject::amongUngranted(10);
+
+    try {
+        $status = vet(['--path' => $project->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('to review (11)')
+        ->toContain('1 file changed')
+        ->toContain('Read the changes of one package with [vet <package>].')
+        ->and(str_contains($output, 'runtime source (1)'))->toBeFalse();
 });

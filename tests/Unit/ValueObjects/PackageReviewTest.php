@@ -6,5 +6,6 @@ use App\ValueObjects\PackageReview;
 
 it('names the scope of a review that reads no delta', function (): void {
     expect(PackageReview::unreadable()->label())->toBe('not readable')
-        ->and(PackageReview::ofWholePackage(3)->label())->toBe('whole package');
+        ->and(PackageReview::ofWholePackage(3)->label())->toBe('whole package, 3 files')
+        ->and(PackageReview::ofWholePackage(1)->label())->toBe('whole package, 1 file');
 });

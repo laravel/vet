@@ -21,17 +21,4 @@ final readonly class PackageVersionMismatch implements LockDiscrepancy
             $this->locked,
         );
     }
-
-    /**
-     * @return array<string, string>
-     */
-    public function toArray(): array
-    {
-        return [
-            'type' => 'version-mismatch',
-            'package' => $this->package,
-            'installed' => $this->installed,
-            'locked' => $this->locked,
-        ];
-    }
 }

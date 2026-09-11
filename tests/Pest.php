@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Support\ProgressDots;
 use App\ValueObjects\AgentPrompt;
+use App\ValueObjects\UnreadFile;
+use Illuminate\Console\OutputStyle;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Testing\PendingCommand;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 use Tests\Fixtures\StubAgent;
 use Tests\TestCase;
 
@@ -36,6 +41,11 @@ function composerPlanFile(array $operations): string
     return $path;
 }
 
+function silentDots(): ProgressDots
+{
+    return new ProgressDots(new OutputStyle(new ArrayInput([]), new NullOutput));
+}
+
 function stubAgent(StubAgent $stub): string
 {
     $directory = sys_get_temp_dir().'/vet-tests/'.bin2hex(random_bytes(8));
@@ -48,7 +58,7 @@ function stubAgent(StubAgent $stub): string
 }
 
 /**
- * @param  array<int, string>  $unread
+ * @param  array<int, UnreadFile>  $unread
  * @param  array<int, string>  $paths
  */
 function agentPrompt(string $text, array $unread, array $paths): AgentPrompt
