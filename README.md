@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/laravel/vet/v0.x/art/logo.png" alt="Vet example" height="300">
+    <img src="https://raw.githubusercontent.com/laravel/vet/0.x/art/logo.png" alt="Vet example" height="300">
 </p>
 
 Laravel Vet is a dependency audit for PHP. It **shows you the code** that `composer update` is about to write into your `vendor/` directory, and **records the packages you trust** in a `vet.json` file.
