@@ -23,6 +23,7 @@ jobs:
               with:
                   php-version: ${{ matrix.php }}
                   extensions: dom, curl, fileinfo, libxml, mbstring, zip
+                  ini-values: zend.assertions=1
                   coverage: pcov
 
             - name: Install dependencies
