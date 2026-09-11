@@ -1,6 +1,12 @@
 # Laravel Vet
 
-Laravel Vet shows you what a `composer update` is about to write into your `vendor/` directory, and records the trees you trust in a `vet.json` file. With vet, you can read each change one package at a time, hand a delta to the coding agent already on your machine, record a note next to your decision, and hold your build to the bytes you have read.
+Laravel Vet is a dependency audit for PHP. It **shows you the code** that `composer update` is about to write into your `vendor/` directory, and **records the packages you trust** in a `vet.json` file.
+
+If you know `cargo vet` from the Rust world, this is the same idea for Composer. If you don't, here is the whole idea: every update brings new code into your project that nobody on your team has read. Vet shows you that code, one package at a time, **before it lands**. Once you trust a package, vet remembers it, so the next update **only asks about what changed**.
+
+**You don't have to read it all yourself.** Vet hands each change to the coding agent already on your machine, such as Claude Code, Codex or Gemini, and the agent reads it for you and reports back: clear, or a risk with the file and the reason. You read the risks, press enter on the rest, and get on with your day.
+
+**Vet works with any PHP project.** Laravel, Symfony, WordPress, or plain PHP: if you have a `composer.json`, you can use it. It ships as a Composer plugin, so it runs after every `composer install` and before every `composer update` writes anything. **There is no step to add.**
 
 ```
 ❯ composer update
@@ -40,6 +46,23 @@ Laravel Vet shows you what a `composer update` is about to write into your `vend
 
 ```
 
+You read the change, or you let your agent read it, and vet writes your decision down. Your build then holds you to it: **a package that nobody has trusted fails the build** until someone reads it.
+
+```shell
+vet --agent
+```
+
+```
+  to review (3, worst first)
+
+  acme/logger 1.2.0 → 2.0.0  you trust 1.2.0     12 files (delta from 1.2.0)
+    agent  RISK  src/Ship.php reads .env and sends it to an unknown host
+           src/Ship.php  it posts the contents of [.env] to [telemetry.example.com]
+
+  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0   2 files (delta from 3.1.0)
+    agent  clear  the delta changes two return types
+```
+
 ## Installation
 
 > **Requires [PHP 8.4+](https://php.net/releases/)**.
@@ -50,13 +73,13 @@ You can install Laravel Vet via Composer:
 composer require laravel/vet --dev
 ```
 
-By default, vet is invoked using the `./vendor/bin/vet` script that is included with the package:
+Composer asks whether to allow the plugin the first time. Answer yes, and vet runs on every install and update from then on. You can also run it yourself with the `./vendor/bin/vet` script that is included with the package:
 
 ```shell
 ./vendor/bin/vet
 ```
 
-vet has one command. It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the uncovered packages you trust. Until `vet.json` exists, vet has no earlier tree to compare an update against, so the first step is to record the packages you trust today.
+**Vet has one command.** It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the uncovered packages you trust. You can read the changes yourself, or ask your coding agent to read them first, and the `--agent` option does that from the start. Until `vet.json` exists, vet has no earlier tree to compare an update against, so the first step is to record the packages you trust today.
 
 ## Recording Your Baseline
 
@@ -94,7 +117,7 @@ vet
 
 ```
 
-vet exits with a non-zero status when a package is not covered, which is what makes it useful in a build. Without a terminal, in your CI or inside the Composer plugin, the report is all that vet writes.
+Vet exits with a non-zero status when a package is not covered, which is what makes it useful in a build. Without a terminal, in your CI or inside the Composer plugin, the report is all that vet writes.
 
 Until `vet.json` exists, vet audits nothing and asks no question. It names the command that starts the trust file, and exits with a non-zero status:
 
@@ -124,11 +147,11 @@ In a terminal, vet follows the report with a question. Every package without an 
 
 The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
 
-vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of delta. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
+Vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of delta. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
 
 ### Auditing a Single Package
 
-You may audit one package, or a few, by passing their names. vet shows you the tree, and records nothing:
+You may audit one package, or a few, by passing their names. Vet shows you the tree, and records nothing:
 
 ```shell
 vet acme/logger acme/tooling
@@ -152,7 +175,7 @@ vet acme/logger --notes="Read with the team on Friday."
 
 ### Reading a Delta
 
-vet sorts the files of a delta into four buckets, and shows you the ones that can hurt you first:
+Vet sorts the files of a delta into four buckets, and shows you the ones that can hurt you first:
 
 | Bucket | What it holds |
 | --- | --- |
@@ -169,7 +192,7 @@ vet symfony/console --bucket=runtime-source
 
 ## Handing a Review to Your Agent
 
-Reading every delta by hand takes time. The `--agent` option hands each delta to the coding agent already on your machine, and prints the verdict it writes next to the package:
+Reading every delta by hand takes time, and most of the time you won't want to. The `--agent` option hands each delta to the coding agent already on your machine, and prints the verdict it writes next to the package. **You still make the call.** The agent reads, and you decide:
 
 ```shell
 vet --agent
@@ -214,21 +237,21 @@ The `--model` option gives the answer without the question, which is what a scri
 vet --agent --model=opus
 ```
 
-The agent runs only when you ask for it. The Composer plugin never asks, and a verdict writes nothing to `vet.json` until you answer the question, so the decision stays yours.
+**The agent runs only when you ask for it.** The Composer plugin never asks, and a verdict writes nothing to `vet.json` until you answer the question, so the decision stays yours.
 
-The `--agent` option reads every package in the batch, whatever its size. vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
+The `--agent` option reads every package in the batch, whatever its size. Vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
 
 ### How the Agent Reads
 
-vet looks for `claude`, then `codex`, then `gemini` on your `PATH`, and gives it the prompt on standard input. The `VET_AGENT_BINARY` environment variable names a different one.
+Vet looks for `claude`, then `codex`, then `gemini` on your `PATH`, and gives it the prompt on standard input. The `VET_AGENT_BINARY` environment variable names a different one.
 
-vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the delta and does nothing else. The delta stands inside a marker that carries a token of the run, and vet checks every file the answer names against the files the delta holds.
+Vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the delta and does nothing else. The delta stands inside a marker that carries a token of the run, and vet checks every file the answer names against the files the delta holds.
 
-A package with no entry in your trust file has no earlier tree to compare against. vet sends its whole tree instead, because that is the package you know least.
+A package with no entry in your trust file has no earlier tree to compare against. Vet sends its whole tree instead, because that is the package you know least.
 
 ## The Trust File
 
-The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. You should commit it. It holds one entry for each package: the version you read, and the hash of the tree you read:
+The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. **You should commit it.** It holds one entry for each package: the version you read, and the hash of the tree you read:
 
 ```json
 {
@@ -252,9 +275,9 @@ The hash covers every file of the tree. When a package ships the same version wi
 
 ## Continuous Integration
 
-Your build audits your dependencies the moment it installs them. vet ships a Composer plugin, and the plugin runs the audit after every `composer install`, and again before `composer update` writes anything into `vendor/`. There is no step to add.
+Your build audits your dependencies the moment it installs them. Vet ships a Composer plugin, and the plugin runs the audit after every `composer install`, and again before `composer update` writes anything into `vendor/`. There is no step to add.
 
-The `--no-plugins` option of Composer runs one command without the plugin, so the update writes into `vendor/` and nobody reads it until you run `vet`.
+The `--no-plugins` option of Composer runs one command without the plugin, so the update writes into `vendor/` and nobody reads it until you run `vet`:
 
 ```shell
 composer update --no-plugins
@@ -268,7 +291,7 @@ vet --json
 
 ## Configuration
 
-vet reads three environment variables:
+Vet reads three environment variables:
 
 ```ini
 VET_AGENT_BINARY=
