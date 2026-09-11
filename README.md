@@ -254,6 +254,12 @@ The hash covers every file of the tree. When a package ships the same version wi
 
 Your build audits your dependencies the moment it installs them. vet ships a Composer plugin, and the plugin runs the audit after every `composer install`, and again before `composer update` writes anything into `vendor/`. There is no step to add.
 
+The `--no-plugins` option of Composer runs one command without the plugin, so the update writes into `vendor/` and nobody reads it until you run `vet`.
+
+```shell
+composer update --no-plugins
+```
+
 The `--json` option emits the report for another program to read:
 
 ```shell
