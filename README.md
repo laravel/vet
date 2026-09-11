@@ -2,6 +2,9 @@
     <img src="https://raw.githubusercontent.com/laravel/vet/0.x/art/logo.png?ref=1" alt="Vet example" height="300">
 </p>
 
+> [!WARNING]
+> Laravel Vet is a work in progress, and has no tagged release yet. Use it at your own risk.
+
 Laravel Vet is a dependency audit for PHP. It **shows you the code** that `composer update` is about to write into your `vendor/` directory, and **records the packages you trust** in a `vet.json` file.
 
 If you know `cargo vet` from the Rust world, this is the same idea for Composer. If you don't, here is the whole idea: every update brings new code into your project that nobody on your team has read. Vet shows you that code, one package at a time, **before it lands**. Once you trust a package, vet remembers it, so the next update **only asks about what changed**.
