@@ -13,9 +13,9 @@ use App\ValueObjects\Project;
 use Illuminate\Console\OutputStyle;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
-use Tests\Fixture;
-use Tests\PendingUpdate;
-use Tests\StaleProject;
+use Tests\Fixtures\Fixture;
+use Tests\Fixtures\PendingUpdate;
+use Tests\Fixtures\StaleProject;
 
 function projectAuditScreen(AuditProject $auditor, AuditReport $report, BufferedOutput $buffer): RenderProjectAudit
 {

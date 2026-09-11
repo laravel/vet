@@ -98,6 +98,64 @@ it('writes that the delta compares nothing to the installed tree of a first inst
     expect($prompt->text)->toContain('compared: nothing → 2.0.0');
 });
 
+it('writes that the delta is a downgrade', function (): void {
+    $directory = promptDirectory();
+
+    $delta = new Delta(
+        package: 'acme/widget',
+        from: 'v2.0.0',
+        to: 'v1.9.0',
+        fromHash: TreeHash::fromManifest('two'),
+        toHash: TreeHash::fromManifest('one'),
+        source: InstallSourceType::Dist,
+        changes: [promptChange($directory, 'src/Ship.php', "<?php\n\nreturn 2;\n", "<?php\n\nreturn 1;\n", BucketType::RuntimeSource)],
+        manifestChange: null,
+        firstInstall: false,
+    );
+
+    $prompt = (new BuildAgentPrompt)->handle($delta);
+
+    expect($prompt->text)
+        ->toContain('compared: v2.0.0 → v1.9.0')
+        ->toContain('This delta is a downgrade from [v2.0.0] to [v1.9.0].')
+        ->toContain('Report a risk only when the code of [v1.9.0] itself does one of the actions above.');
+});
+
+it('writes that an upgrade is no downgrade', function (): void {
+    $directory = promptDirectory();
+
+    $prompt = (new BuildAgentPrompt)->handle(promptDelta([
+        promptChange($directory, 'src/Ship.php', "<?php\n", "<?php\n\nreturn 1;\n", BucketType::RuntimeSource),
+    ], false, null));
+
+    expect($prompt->text)->not->toContain('This delta is a downgrade');
+});
+
+it('writes that a differing byte of the installed tree is not a risk by itself', function (): void {
+    $directory = promptDirectory();
+
+    $delta = new Delta(
+        package: 'acme/widget',
+        from: '2.0.0',
+        to: '2.0.0',
+        fromHash: TreeHash::fromManifest('published'),
+        toHash: TreeHash::fromManifest('installed'),
+        source: InstallSourceType::Dist,
+        changes: [promptChange($directory, 'src/Ship.php', "<?php\n\nreturn 1;\n", "<?php\n\nreturn 1;\r\n", BucketType::RuntimeSource)],
+        manifestChange: null,
+        firstInstall: false,
+        toIsLocalInstall: true,
+    );
+
+    $prompt = (new BuildAgentPrompt)->handle($delta);
+
+    expect($prompt->text)
+        ->toContain('compared: the published 2.0.0 → the installed 2.0.0')
+        ->toContain('The installed tree of [2.0.0] differs from the tree that the registry published. The difference itself is not a risk.');
+
+    expect($prompt->text)->not->toContain('This delta is a downgrade');
+});
+
 it('holds the delta between two markers that carry one token', function (): void {
     $directory = promptDirectory();
 

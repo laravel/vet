@@ -15,7 +15,7 @@ final readonly class Package
     /**
      * @param  array<string, string>  $replace
      * @param  array<string, string>  $provide
-     * @param  array<string, mixed>  $autoload
+     * @param  array<array-key, mixed>  $autoload
      * @param  array<int, string>  $bin
      */
     public function __construct(

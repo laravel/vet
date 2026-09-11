@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
-use Tests\Fixture;
+use Tests\Fixtures\Fixture;
 
 function evilPath(): string
 {

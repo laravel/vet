@@ -753,9 +753,9 @@ final class VetCommand extends Command
     {
         $packages = $this->argument('packages');
 
-        return (new Collection(is_array($packages) ? $packages : []))
-            ->filter(static fn (mixed $package): bool => is_string($package) && $package !== '')
-            ->values()
-            ->all();
+        return array_values(array_filter(
+            is_array($packages) ? $packages : [],
+            static fn (mixed $package): bool => is_string($package) && $package !== '',
+        ));
     }
 }

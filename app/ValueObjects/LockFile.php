@@ -56,4 +56,16 @@ final readonly class LockFile
     {
         return $this->packages;
     }
+
+    /**
+     * @return array<string, Package>
+     */
+    public function packagesInstalledBy(InstalledRepository $installed): array
+    {
+        if ($installed->installsDev()) {
+            return $this->packages;
+        }
+
+        return array_filter($this->packages, static fn (Package $package): bool => ! $package->dev);
+    }
 }

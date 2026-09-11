@@ -53,7 +53,7 @@ final class Json
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<array-key, mixed>  $data
      */
     public static function string(array $data, string $key): ?string
     {
@@ -63,7 +63,7 @@ final class Json
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<array-key, mixed>  $data
      * @return array<array-key, mixed>
      */
     public static function array(array $data, string $key): array

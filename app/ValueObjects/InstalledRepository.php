@@ -15,6 +15,7 @@ final readonly class InstalledRepository
      */
     private function __construct(
         private array $packages,
+        private bool $installsDev,
     ) {}
 
     public static function fromProject(Project $project): self
@@ -23,8 +24,9 @@ final readonly class InstalledRepository
         $data = Json::readFile($path, 'the installed package list');
 
         $entries = Json::array($data, 'packages');
+        $installsDev = ($data['dev'] ?? null) !== false;
 
-        if ($entries === []) {
+        if ($entries === [] && $installsDev) {
             throw InvalidJsonException::shape($path, 'expected a non-empty "packages" array. Run [composer install] first.');
         }
 
@@ -48,13 +50,13 @@ final readonly class InstalledRepository
             $packages[$name] = Package::fromInstalledEntry($entry, isset($devNames[$name]), $vendorComposerPath);
         }
 
-        if ($packages === []) {
+        if ($packages === [] && $entries !== []) {
             throw InvalidJsonException::shape($path, 'no package entries carried a name.');
         }
 
         ksort($packages, SORT_STRING);
 
-        return new self($packages);
+        return new self($packages, $installsDev);
     }
 
     /**
@@ -63,6 +65,11 @@ final readonly class InstalledRepository
     public function all(): array
     {
         return $this->packages;
+    }
+
+    public function installsDev(): bool
+    {
+        return $this->installsDev;
     }
 
     public function has(string $name): bool

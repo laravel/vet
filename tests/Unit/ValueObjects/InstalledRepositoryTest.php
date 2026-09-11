@@ -37,3 +37,20 @@ it('names an installed package list whose entries carry no name', function (): v
         File::deleteDirectory($root);
     }
 });
+
+it('reads the empty installed package list that composer install --no-dev writes', function (): void {
+    $root = sys_get_temp_dir().'/vet-installed-'.bin2hex(random_bytes(6));
+
+    File::ensureDirectoryExists($root.'/vendor/composer');
+    file_put_contents($root.'/composer.json', '{"name":"acme/app"}');
+    file_put_contents($root.'/vendor/composer/installed.json', '{"packages":[],"dev":false,"dev-package-names":[]}');
+
+    try {
+        $installed = InstalledRepository::fromProject(Project::at($root));
+    } finally {
+        File::deleteDirectory($root);
+    }
+
+    expect($installed->all())->toBe([])
+        ->and($installed->installsDev())->toBeFalse();
+});

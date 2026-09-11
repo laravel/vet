@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests;
+namespace Tests\Fixtures;
 
 use App\Support\Json;
 use FilesystemIterator;
@@ -20,7 +20,7 @@ final readonly class Fixture
 
     public static function open(string $name): self
     {
-        $source = __DIR__.'/Fixtures/'.$name;
+        $source = __DIR__.'/'.$name;
 
         if (! is_dir($source.'/project')) {
             throw new RuntimeException(sprintf('The fixture [%s] holds no project directory.', $name));
@@ -189,7 +189,6 @@ final readonly class Fixture
                 continue;
             }
 
-            /** @var array<string, mixed> $release */
             $dist = Json::array($release, 'dist');
             $key = mb_substr(hash(
                 'sha256',

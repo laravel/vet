@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Support\Json;
 use Illuminate\Support\Facades\Artisan;
-use Tests\Fixture;
+use Tests\Fixtures\Fixture;
 
 it('covers a project that installs a metapackage, and reads no bytes of it', function (): void {
     $fixture = Fixture::open('metapackage-project');

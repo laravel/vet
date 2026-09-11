@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
-use Tests\Fixture;
-use Tests\PendingUpdate;
+use Tests\Fixtures\Fixture;
+use Tests\Fixtures\PendingUpdate;
 
 it('reads the vendor directory that composer.json configures', function (): void {
     $fixture = Fixture::open('custom-vendor-dir');
@@ -331,4 +331,67 @@ it('reads a package that ships a symlink to a file that the tree holds no', func
         ->toContain('2 files (delta from the published [1.0.0])')
         ->toContain('~ README.md')
         ->toContain('~ src/Widget.php');
+});
+
+it('reads no dev package of composer.lock as missing after composer install --no-dev', function (): void {
+    $fixture = Fixture::open('no-dev-install');
+
+    try {
+        $status = vet(['--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('All [1] packages are covered.')
+        ->and(str_contains($output, 'acme/lint'))->toBeFalse();
+});
+
+it('names no lock discrepancy for a dev package that composer install --no-dev skips', function (): void {
+    $fixture = Fixture::open('no-dev-install');
+    $plan = composerPlanFile([]);
+
+    try {
+        $status = vet(['--path' => $fixture->rootPath, '--plan' => $plan]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('All [1] packages are covered.')
+        ->and(str_contains($output, 'does not match composer.lock'))->toBeFalse();
+});
+
+it('starts the trust file from a project that composer install --no-dev wrote', function (): void {
+    $fixture = Fixture::open('no-dev-install');
+
+    unlink($fixture->path('vet.json'));
+
+    try {
+        $status = vet(['--init' => true, '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('Trusted [1] package(s), and wrote [vet.json].');
+});
+
+it('warns that it cannot build the delta from the trusted version of one package', function (): void {
+    $fixture = Fixture::open('no-dist');
+
+    try {
+        $status = vet(['packages' => ['acme/widget'], '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('Could not build the delta from the granted [1.0.0]')
+        ->toContain('has no dist URL');
 });

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests;
+namespace Tests\Fixtures;
 
 use App\Actions\PersistTrustFile;
 use App\Support\Json;

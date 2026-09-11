@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
-use Tests\Fixture;
+use Tests\Fixtures\Fixture;
 
 it('reads the delta of a tree whose bytes changed at the trusted version', function (): void {
     $fixture = Fixture::open('tampered-project');

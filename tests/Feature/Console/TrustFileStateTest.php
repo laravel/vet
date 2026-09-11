@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
-use Tests\Fixture;
+use Tests\Fixtures\Fixture;
 
 it('tells the user what to do with a trust file of an older schema', function (): void {
     $fixture = Fixture::open('legacy-trust-file');

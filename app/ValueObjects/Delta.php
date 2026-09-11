@@ -61,6 +61,15 @@ final readonly class Delta
         return $this->toIsLocalInstall && $this->from === $this->to;
     }
 
+    public function isDowngrade(): bool
+    {
+        if ($this->firstInstall || $this->comparesPublishedToInstalled()) {
+            return false;
+        }
+
+        return version_compare(ltrim($this->to, 'v'), ltrim($this->from, 'v'), '<');
+    }
+
     /**
      * @return array<int, Change>
      */

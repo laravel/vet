@@ -14,7 +14,7 @@ pest()->extend(TestCase::class)->in('Feature', 'Unit');
  */
 function command(string $name, array $parameters): PendingCommand
 {
-    /** @phpstan-ignore method.notFound */
+    /** @phpstan-ignore method.notFound, return.type */
     return test()->artisan($name, $parameters);
 }
 

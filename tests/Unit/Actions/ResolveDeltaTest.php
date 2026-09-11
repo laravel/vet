@@ -7,7 +7,7 @@ use App\Exceptions\FailureException;
 use App\ValueObjects\Delta;
 use App\ValueObjects\Package;
 use App\ValueObjects\Project;
-use Tests\PendingUpdate;
+use Tests\Fixtures\PendingUpdate;
 
 it('compares the newest release to the release before it when the project holds no installed package list', function (): void {
     $project = PendingUpdate::create();

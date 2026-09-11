@@ -52,10 +52,10 @@ final readonly class ComposerPlan
         return new self(array_values($operations));
     }
 
-    public static function between(LockFile $lock, ?InstalledRepository $installed): self
+    public static function between(LockFile $lock, InstalledRepository $installed): self
     {
-        $current = $installed instanceof InstalledRepository ? $installed->all() : [];
-        $locked = $lock->packages();
+        $current = $installed->all();
+        $locked = $lock->packagesInstalledBy($installed);
         $operations = [];
 
         foreach ($locked as $name => $package) {

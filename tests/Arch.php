@@ -8,12 +8,10 @@ $core = [
     'App\ValueObjects',
 ];
 
-arch('the data holds no dependency')
-    /** @phpstan-ignore method.notFound */
-    ->expect($core)
-    ->toOnlyUse([...$core, 'App\Actions', 'App\Support']);
+arch('the data holds no dependency', function () use ($core): void {
+    expect($core)->toOnlyUse([...$core, 'App\Actions', 'App\Support']);
+});
 
-arch('exceptions carry the suffix')
-    /** @phpstan-ignore method.notFound */
-    ->expect('App\Exceptions')
-    ->toHaveSuffix('Exception');
+arch('exceptions carry the suffix', function (): void {
+    expect('App\Exceptions')->toHaveSuffix('Exception');
+});

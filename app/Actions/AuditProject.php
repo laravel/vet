@@ -192,7 +192,7 @@ final readonly class AuditProject
      */
     public function lockDiscrepancies(): array
     {
-        $locked = $this->lock->packages();
+        $locked = $this->lock->packagesInstalledBy($this->installed);
         $installed = $this->installed->all();
 
         $problems = [];

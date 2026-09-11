@@ -35,10 +35,10 @@ it('skips an entry that is not an object', function (): void {
     ]);
 });
 
-it('reads a document as minified only when composer 2 minifies it', function (array $document, bool $minified): void {
-    expect(ExpandMinifiedMetadata::isMinified($document))->toBe($minified);
+it('reads a document as minified only when composer 2 minifies it', function (string $key, string $marker, bool $minified): void {
+    expect(ExpandMinifiedMetadata::isMinified([$key => $marker]))->toBe($minified);
 })->with([
-    'composer 2' => [['minified' => 'composer/2.0'], true],
-    'a later format' => [['minified' => 'composer/3.0'], false],
-    'no marker' => [['packages' => []], false],
+    'composer 2' => ['minified', 'composer/2.0', true],
+    'a later format' => ['minified', 'composer/3.0', false],
+    'no marker' => ['packages', 'composer/2.0', false],
 ]);

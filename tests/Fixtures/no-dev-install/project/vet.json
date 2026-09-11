@@ -1,0 +1,15 @@
+{
+    "schema": 4,
+    "require": {
+        "acme/widget": {
+            "version": "1.0.0",
+            "hash": "tree-v2:9353593981e757356e4365ed9b510a3a2483c2a4ec7cdb3dfd0b9c1f1e7a9e99"
+        }
+    },
+    "require-dev": {
+        "acme/lint": {
+            "version": "1.0.0",
+            "hash": "tree-v2:eac3f8cc56e42fa54d4b8dc674cf02c1fd9bf25bae2efb813289750d90e567af"
+        }
+    }
+}

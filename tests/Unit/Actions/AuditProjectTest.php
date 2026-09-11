@@ -9,51 +9,10 @@ use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Tests\Fixtures\FakeHttp;
-use Tests\PendingUpdate;
-use Tests\StaleProject;
-
-it('renders the buckets and the changed paths of a stale package', function (): void {
-    $project = StaleProject::create();
-
-    try {
-        $status = vet(['--path' => $project->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        $project->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('1 files (delta from [1.0.0])')
-        ->toContain('runtime source (1)')
-        ->toContain('~ src/Widget.php')
-        ->toContain("+        return 'gadget';")
-        ->toContain('Read every change with [vet -v]');
-});
-
-it('renders the source of each change with -v', function (): void {
-    $project = StaleProject::create();
-
-    try {
-        $status = vet(['--path' => $project->rootPath, '-v' => true]);
-        $output = Artisan::output();
-    } finally {
-        $project->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('runtime source (1)')
-        ->toContain('~ src/Widget.php')
-        ->toContain('│ runtime source (1)')
-        ->toContain("│     +        return 'gadget';")
-        ->toContain("-        return 'widget';")
-        ->toContain("+        return 'gadget';")
-        ->toContain('[1] package(s) are not covered. Run [vet] in a terminal to record the ones that you trust.');
-});
+use Tests\Fixtures\PendingUpdate;
+use Tests\Fixtures\StaleProject;
 
 it('reads no whole tree of a package whose bytes it cannot read, or that the project does not install', function (): void {
     $project = StaleProject::create();

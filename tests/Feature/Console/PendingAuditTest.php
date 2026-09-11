@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
-use Tests\PendingUpdate;
+use Tests\Fixtures\PendingUpdate;
 
 it('reviews the whole incoming package when vendor/ holds no file of the installed tree', function (): void {
     $project = PendingUpdate::create();
@@ -175,4 +175,98 @@ it('audits the tree on disk when composer plans nothing', function (): void {
 
     expect($status)->toBe(0)
         ->and($output)->toContain('All [1] packages are covered.');
+});
+
+it('refuses the bytes that composer would write, and records the installed ones', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TARGET_VERSION);
+
+    try {
+        $status = vet(['--init' => true, '--path' => $project->rootPath]);
+        $output = Artisan::output();
+
+        $trustFile = $project->trustFile();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('to read first (1)')
+        ->toContain('composer would write [1] package(s) that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.')
+        ->and($trustFile)->toContain('"version": "1.0.0"');
+});
+
+it('offers no package to pick when vet cannot read the bytes of any package', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockWithoutDist(PendingUpdate::TARGET_VERSION);
+
+    try {
+        command('vet', ['--path' => $project->rootPath])
+            ->expectsOutputToContain('bytes not readable')
+            ->expectsQuestion('How do you want to review these packages?', 'manual')
+            ->assertExitCode(1)
+            ->run();
+    } finally {
+        $project->remove();
+    }
+});
+
+it('records the note of the covered bytes that composer would write', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TARGET_VERSION);
+
+    try {
+        trust(PendingUpdate::PACKAGE, ['--path' => $project->rootPath])->run();
+
+        $status = vet(['packages' => [PendingUpdate::PACKAGE], '--notes' => 'Read the installer.', '--path' => $project->rootPath]);
+        $output = Artisan::output();
+        $trustFile = $project->trustFile();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)
+        ->toContain('Recorded [acme/widget] [2.0.0]')
+        ->toContain('Run [composer install] to write those bytes to vendor/.')
+        ->and($trustFile)->toContain('"notes": "Read the installer."');
+});
+
+it('names the incoming bytes of one package that it cannot read', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockWithoutDist(PendingUpdate::TARGET_VERSION);
+
+    try {
+        $status = vet(['packages' => [PendingUpdate::PACKAGE], '--path' => $project->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('has no dist URL');
+});
+
+it('shows no delta of the incoming bytes when the installed tree holds no file', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TARGET_VERSION);
+
+    $installed = dirname($project->installedFile(), 2);
+
+    File::deleteDirectory($installed);
+    mkdir($installed);
+
+    try {
+        $status = vet(['packages' => [PendingUpdate::PACKAGE], '--path' => $project->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)
+        ->toContain('composer would write these bytes to vendor/')
+        ->toContain('Record these bytes with [vet].')
+        ->and(str_contains($output, 'src/Widget.php'))->toBeFalse();
 });

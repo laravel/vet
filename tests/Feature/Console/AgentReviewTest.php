@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\ValueObjects\AgentBatch;
 use Illuminate\Support\Facades\Artisan;
-use Tests\Fixture;
-use Tests\StaleProject;
+use Tests\Fixtures\Fixture;
+use Tests\Fixtures\StaleProject;
 
 it('hands each delta to the agent, and writes the verdict under the package', function (): void {
     $fixture = Fixture::open('delta-shapes');
@@ -370,4 +370,90 @@ it('refuses a model for an agent that vet does not know', function (): void {
     expect($status)->toBe(1)
         ->and($output)->toContain('Could not pass a model to [')
         ->toContain('Name one of [claude], [codex], [gemini] in [VET_AGENT_BINARY], or drop the model.');
+});
+
+it('hands every delta to the agent when you ask for it, then lets you pick', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsOutputToContain('Reading [1] delta(s) with [agent].')
+            ->expectsOutputToContain('agent  partial  [1] file(s) did not reach the agent. the delta renames one method')
+            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
+            ->assertExitCode(0)
+            ->run();
+
+        $trustFile = $fixture->read('vet.json');
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($trustFile)->toContain('"version": "2.0.0"');
+});
+
+it('asks no question about the agent when the flag names it', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent('cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
+            ->expectsOutputToContain('agent  partial  [1] file(s) did not reach the agent. the delta renames one method')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->assertExitCode(1)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
+it('names the agent that it cannot run, and still lets you pick', function (): void {
+    $fixture = Fixture::open('stale-project');
+
+    putenv('VET_AGENT_BINARY=agent-that-is-not-installed');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsOutputToContain('Could not run [agent-that-is-not-installed].')
+            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
+            ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
+            ->assertExitCode(0)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
+it('names the agent that it cannot run for one package', function (): void {
+    $fixture = Fixture::open('stale-project');
+
+    putenv('VET_AGENT_BINARY=agent-that-is-not-installed');
+
+    try {
+        $status = vet(['packages' => ['acme/widget'], '--agent' => true, '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('Could not run [agent-that-is-not-installed].');
+});
+
+it('sends nothing to the agent when the delta of one package holds no change', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+    $fixture->agent("cat > /dev/null\nexit 1");
+
+    try {
+        vet(['packages' => ['acme/moved'], '--from' => '2.0.0', '--agent' => true, '--path' => $fixture->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)
+        ->toContain('agent  not sent  This delta holds no change, so vet sent nothing.')
+        ->toContain('No files differ between [2.0.0] and [2.0.0].');
 });
