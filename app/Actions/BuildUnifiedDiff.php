@@ -91,12 +91,7 @@ final class BuildUnifiedDiff
         }
 
         foreach ($middle as $op) {
-            $ops[] = [
-                $op[0],
-                $op[1] < 0 ? -1 : $op[1] + $prefix,
-                $op[2] < 0 ? -1 : $op[2] + $prefix,
-                $op[3],
-            ];
+            $ops[] = [$op[0], $op[1] + $prefix, $op[2] + $prefix, $op[3]];
         }
 
         $tail = min($suffix, $context);
@@ -186,11 +181,11 @@ final class BuildUnifiedDiff
         $ops = [];
 
         foreach ($a as $x => $line) {
-            $ops[] = ['-', $x, -1, $line];
+            $ops[] = ['-', $x, 0, $line];
         }
 
         foreach ($b as $y => $line) {
-            $ops[] = ['+', -1, $y, $line];
+            $ops[] = ['+', count($a), $y, $line];
         }
 
         return $ops;
@@ -225,10 +220,10 @@ final class BuildUnifiedDiff
 
             if ($down) {
                 $y--;
-                $ops[] = ['+', -1, $y, $b[$y]];
+                $ops[] = ['+', $x, $y, $b[$y]];
             } else {
                 $x--;
-                $ops[] = ['-', $x, -1, $a[$x]];
+                $ops[] = ['-', $x, $y, $a[$x]];
             }
         }
 
@@ -263,7 +258,7 @@ final class BuildUnifiedDiff
         $end = $changed[0];
 
         foreach (array_slice($changed, 1) as $index) {
-            if ($index - $end <= $context * 2) {
+            if ($index - $end <= $context * 2 + 1) {
                 $end = $index;
 
                 continue;
@@ -282,22 +277,14 @@ final class BuildUnifiedDiff
             $from = max(0, $from - $context);
             $to = min(count($ops) - 1, $to + $context);
 
-            $oldStart = null;
-            $newStart = null;
+            $oldStart = $ops[$from][1];
+            $newStart = $ops[$from][2];
             $oldCount = 0;
             $newCount = 0;
             $body = '';
 
             for ($i = $from; $i <= $to; $i++) {
-                [$op, $oldIndex, $newIndex, $line] = $ops[$i];
-
-                if ($oldIndex >= 0 && $oldStart === null) {
-                    $oldStart = $oldIndex;
-                }
-
-                if ($newIndex >= 0 && $newStart === null) {
-                    $newStart = $newIndex;
-                }
+                [$op, , , $line] = $ops[$i];
 
                 if ($op !== '+') {
                     $oldCount++;
@@ -316,9 +303,9 @@ final class BuildUnifiedDiff
 
             $output .= sprintf(
                 "@@ -%d,%d +%d,%d @@\n",
-                $oldCount === 0 ? 0 : ($oldStart ?? 0) + 1,
+                $oldCount === 0 ? $oldStart : $oldStart + 1,
                 $oldCount,
-                $newCount === 0 ? 0 : ($newStart ?? 0) + 1,
+                $newCount === 0 ? $newStart : $newStart + 1,
                 $newCount,
             ).$body;
         }

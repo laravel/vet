@@ -100,6 +100,22 @@ it('reads one changed line of a large file, and names its place', function (): v
         ->and(substr_count($diff, "\n"))->toBe(11);
 });
 
+it('writes a hunk of no context at the line that it follows', function (): void {
+    $inserted = BuildUnifiedDiff::handle("a\nb\n", "a\nx\nb\n", 'a/f', 'b/f', 0);
+    $replaced = BuildUnifiedDiff::handle("a\nc\nb\n", "a\nd\nb\n", 'a/f', 'b/f', 0);
+    $removed = BuildUnifiedDiff::handle("a\nx\nb\n", "a\nb\n", 'a/f', 'b/f', 0);
+
+    expect($inserted)->toBe("--- a/f\n+++ b/f\n@@ -1,0 +2,1 @@\n+x\n")
+        ->and($replaced)->toBe("--- a/f\n+++ b/f\n@@ -2,1 +2,1 @@\n-c\n+d\n")
+        ->and($removed)->toBe("--- a/f\n+++ b/f\n@@ -2,1 +1,0 @@\n-x\n");
+});
+
+it('writes hunks in the order of the lines', function (): void {
+    $diff = BuildUnifiedDiff::handle("a\na\nb\nd\n", "a\na\nb\nd\nd\nb\nd\n", 'a/f', 'b/f', 0);
+
+    expect($diff)->toBe("--- a/f\n+++ b/f\n@@ -4,0 +5,3 @@\n+d\n+b\n+d\n");
+});
+
 it('holds its memory when a file is rewritten', function (): void {
     $before = memory_get_usage();
 

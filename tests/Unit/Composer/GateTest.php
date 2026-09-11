@@ -55,7 +55,7 @@ it('asks for a baseline rather than fail a project that holds no trust file', fu
     $gate = gateProject(trustFile: false, binary: true);
 
     expect($gate->command(verbose: false, decorated: true, planPath: null))->toBeNull()
-        ->and($gate->baselineNotice())->toContain('vet --fresh');
+        ->and($gate->baselineNotice())->toContain('vet --init');
 });
 
 it('does nothing when the binary is gone', function (): void {

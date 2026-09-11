@@ -58,7 +58,8 @@ final readonly class BuildAgentPrompt
         $blocks = [];
 
         foreach ($this->smallestFirst($changes) as $change) {
-            $block = $this->block($delta, $change, $unread);
+            $unreadOfBlock = [];
+            $block = $this->block($delta, $change, $unreadOfBlock);
             $size = mb_strlen($block, '8bit');
 
             if ($size > $budget) {
@@ -69,6 +70,7 @@ final readonly class BuildAgentPrompt
 
             $budget -= $size;
             $blocks[$change->path] = $block;
+            array_push($unread, ...$unreadOfBlock);
         }
 
         ksort($blocks, SORT_STRING);

@@ -156,6 +156,18 @@ it('skips the file that the budget cannot hold, and names it', function (): void
     expect($prompt->text)->not->toContain('+++ b/src/Big.php');
 });
 
+it('names once the file that it cannot read line by line and that the budget cannot hold', function (): void {
+    $directory = promptDirectory();
+
+    $prompt = (new BuildAgentPrompt)->handle(promptDelta([
+        promptChange($directory, 'src/Big.php', '', str_repeat(str_repeat('a', 1_198)."\n", 333).str_repeat('a', 274)."\n", BucketType::RuntimeSource),
+        promptChange($directory, 'src/Generated.php', str_repeat(str_repeat('b', 20)."\n", 12_000), str_repeat(str_repeat('c', 20)."\n", 12_000), BucketType::RuntimeSource),
+    ], false, null));
+
+    expect($prompt->unread)->toBe(['src/Generated.php'])
+        ->and($prompt->text)->toContain('This prompt holds no byte of [1] file(s): [src/Generated.php]');
+});
+
 it('names the file that it cannot read line by line', function (): void {
     $directory = promptDirectory();
 

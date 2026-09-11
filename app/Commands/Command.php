@@ -49,12 +49,11 @@ abstract class Command extends LaravelZeroCommand
      */
     protected function agentReviews(AgentBatch $batch): array
     {
-        $agent = ReviewWithAgent::default();
-
         if ($batch->isEmpty()) {
             return [];
         }
 
+        $agent = ReviewWithAgent::default();
         $agent = $agent->withModel($this->agentModel($agent));
 
         if ($this->writesProse()) {
@@ -85,7 +84,7 @@ abstract class Command extends LaravelZeroCommand
 
         $agentType = $agent->type();
 
-        if (! $agentType instanceof AgentType || ! $this->asksQuestions()) {
+        if (! $agentType instanceof AgentType || ! $this->asksQuestions() || ! $this->writesProse()) {
             return AgentModel::default();
         }
 

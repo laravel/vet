@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\RequestUrl;
 use App\Exceptions\FetchFailedException;
+use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response;
 use Tests\Fixtures\FakeHttp;
 
@@ -77,6 +78,43 @@ it('sends the github token to github hosts and drops it on a redirect to a forei
         ->and($http->header('https://api.github.com/repos/acme/widget/zipball/abc', 'Authorization'))->toBe('Bearer secret-token')
         ->and($http->header('https://codeload.github.com/acme/widget/legacy.zip/abc', 'Authorization'))->toBe('Bearer secret-token')
         ->and($http->header('https://cdn.example.test/widget.zip', 'Authorization'))->toBeNull();
+});
+
+it('reads the github token of the auth file in the xdg config home', function (): void {
+    $variables = ['VET_GITHUB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN', 'COMPOSER_AUTH_FILE', 'COMPOSER_HOME', 'HOME', 'XDG_CONFIG_HOME'];
+    $saved = [];
+
+    $directory = sys_get_temp_dir().'/vet-xdg-'.bin2hex(random_bytes(6));
+    mkdir($directory.'/home', 0o777, true);
+    mkdir($directory.'/config/composer', 0o777, true);
+    file_put_contents($directory.'/config/composer/auth.json', (string) json_encode(['github-oauth' => ['github.com' => 'xdg-token']]));
+
+    foreach ($variables as $variable) {
+        $saved[$variable] = getenv($variable);
+        putenv($variable);
+    }
+
+    putenv('HOME='.$directory.'/home');
+    putenv('XDG_CONFIG_HOME='.$directory.'/config');
+
+    $http = new FakeHttp([FakeHttp::body('zip')]);
+    app()->instance(ClientInterface::class, $http->client);
+
+    try {
+        RequestUrl::default()->get('https://github.com/acme/widget.zip');
+    } finally {
+        foreach ($saved as $variable => $value) {
+            putenv($value === false ? $variable : $variable.'='.$value);
+        }
+
+        unlink($directory.'/config/composer/auth.json');
+        rmdir($directory.'/config/composer');
+        rmdir($directory.'/config');
+        rmdir($directory.'/home');
+        rmdir($directory);
+    }
+
+    expect($http->header('https://github.com/acme/widget.zip', 'Authorization'))->toBe('Bearer xdg-token');
 });
 
 it('sends no token to a host that only ends with the letters of github.com', function (): void {

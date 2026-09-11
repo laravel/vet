@@ -44,7 +44,7 @@ final readonly class PersistTrustFile
 
         if (is_int($schema) && $schema >= 1 && $schema < self::SCHEMA) {
             throw new FailureException(sprintf(
-                'The vet file [%s] declares schema [%d], which %s. Schema [%d] records the version and the full tree hash of each package that you trust. Delete the file and run [vet --fresh] again.',
+                'The vet file [%s] declares schema [%d], which %s. Schema [%d] records the version and the full tree hash of each package that you trust. Delete the file and run [vet --init] again.',
                 $path,
                 $schema,
                 $schema === 3 ? 'recorded a truncated tree hash' : 'recorded permissions',

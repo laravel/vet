@@ -60,10 +60,10 @@ vet has one command. It audits what `vendor/` holds, and when you run it in a te
 
 ## Recording Your Baseline
 
-The `--fresh` option records every package that `vendor/` holds today, and writes `vet.json` for the first time:
+The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option does the same:
 
 ```shell
-vet --fresh
+vet --init
 ```
 
 ```
@@ -77,7 +77,7 @@ vet --fresh
    INFO  Trusted 125 package(s), and wrote vet.json.
 ```
 
-The `--fresh` option covers the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a tree that `vendor/` does not hold yet, vet leaves that tree alone and asks you to read it:
+The `--init` option covers the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a tree that `vendor/` does not hold yet, vet leaves that tree alone and asks you to read it:
 
 ```
    ERROR  composer would write 2 package(s) that vendor/ does not hold. Run `vet` in a terminal to read them, or run `composer install` first.
@@ -95,6 +95,12 @@ vet
 ```
 
 vet exits with a non-zero status when a package is not covered, which is what makes it useful in a build. Without a terminal, in your CI or inside the Composer plugin, the report is all that vet writes.
+
+Until `vet.json` exists, vet audits nothing and asks no question. It names the command that starts the trust file, and exits with a non-zero status:
+
+```
+   WARN  No trust file yet. Run vet --init to record every package that vendor/ holds today in vet.json.
+```
 
 ### Picking What to Trust
 
@@ -117,8 +123,6 @@ In a terminal, vet follows the report with a question. Every package without an 
 ```
 
 The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
-
-When the project holds no `vet.json` yet, there is no delta to hand to an agent, so vet skips the first question and shows the list right after the report. Pick the packages you trust today, or press `ctrl+a` to record every one, which is what `--fresh` does without a question.
 
 vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of delta. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
 

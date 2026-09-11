@@ -69,7 +69,7 @@ it('baselines every installed package of a project that holds no trust file', fu
     unlink($fixture->path('vet.json'));
 
     try {
-        $trusted = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
+        $trusted = vet(['--init' => true, '--path' => $fixture->rootPath]);
         $trustOutput = Artisan::output();
 
         $audited = vet(['--path' => $fixture->rootPath]);
@@ -89,7 +89,7 @@ it('rejects --from when the user trusts every package', function (): void {
     $fixture = Fixture::open('stale-project');
 
     try {
-        $status = vet(['--fresh' => true, '--from' => '1.0.0', '--path' => $fixture->rootPath]);
+        $status = vet(['--init' => true, '--from' => '1.0.0', '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
@@ -120,7 +120,7 @@ it('refuses the bytes that composer would write, and records the installed ones'
     $project->lockAt(PendingUpdate::TARGET_VERSION);
 
     try {
-        $status = vet(['--fresh' => true, '--path' => $project->rootPath]);
+        $status = vet(['--init' => true, '--path' => $project->rootPath]);
         $output = Artisan::output();
 
         $trustFile = $project->trustFile();
@@ -248,38 +248,50 @@ it('asks no question about the agent when the flag names it', function (): void 
     }
 });
 
-it('rejects --fresh when the user also names a package', function (): void {
+it('rejects --init when the user also names a package', function (): void {
     $fixture = Fixture::open('stale-project');
 
     try {
-        $status = vet(['packages' => ['acme/widget'], '--fresh' => true, '--path' => $fixture->rootPath]);
+        $status = vet(['packages' => ['acme/widget'], '--init' => true, '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('The [--fresh] option takes no package. Run [vet --fresh] or [vet <package>].');
+        ->and($output)->toContain('The [--init] option takes no package. Run [vet --init] or [vet <package>].');
 });
 
-it('skips the question about the agent when the project holds no trust file', function (): void {
+it('asks for vet --init and audits nothing when the project holds no trust file', function (): void {
     $fixture = Fixture::open('no-trust-file');
 
     try {
-        command('vet', ['--path' => $fixture->rootPath])
-            ->expectsOutputToContain('No trust file yet. [vet --fresh] records every installed package in [vet.json].')
-            ->expectsOutputToContain('to review (2, worst first)')
-            ->expectsQuestion('Which packages do you trust?', ['acme/widget', 'acme/lint'])
-            ->expectsOutputToContain('Recorded [2] package(s).')
-            ->assertExitCode(0)
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true])
+            ->expectsOutputToContain('No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].')
+            ->doesntExpectOutputToContain('to review')
+            ->assertExitCode(1)
             ->run();
 
+        $created = is_file($fixture->path('vet.json'));
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($created)->toBeFalse();
+});
+
+it('records the baseline with --fresh, the alias of --init', function (): void {
+    $fixture = Fixture::open('no-trust-file');
+
+    try {
+        $status = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
         $trustFile = $fixture->read('vet.json');
     } finally {
         $fixture->remove();
     }
 
-    expect($trustFile)
+    expect($status)->toBe(0)
+        ->and($trustFile)
         ->toContain('"acme/widget"')
         ->toContain('"acme/lint"');
 });

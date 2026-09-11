@@ -117,6 +117,8 @@ it('hands the whole tree to the agent when vet holds no earlier tree', function 
     $fixture = Fixture::open('no-trust-file');
     $written = sys_get_temp_dir().'/vet-prompt-'.bin2hex(random_bytes(6));
 
+    file_put_contents($fixture->path('vet.json'), '{"schema": 4, "require": {}, "require-dev": {}}');
+
     $fixture->agent('cat >> '.escapeshellarg($written)."\n".'echo \'{"verdict":"clear","summary":"this tree reaches outside nothing","findings":[]}\'');
 
     try {
@@ -149,6 +151,40 @@ it('names the agent that it cannot run', function (): void {
         ->and($output)->toContain('Could not run [agent-that-is-not-installed].');
 });
 
+it('needs no agent when every package is covered', function (): void {
+    $fixture = Fixture::open('audited-project');
+    $path = getenv('PATH');
+    $empty = dirname($fixture->rootPath).'/empty-path';
+
+    mkdir($empty);
+    putenv('PATH='.$empty);
+
+    try {
+        $status = vet(['--path' => $fixture->rootPath, '--agent' => true]);
+        $output = Artisan::output();
+    } finally {
+        putenv($path === false ? 'PATH' : 'PATH='.$path);
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('All [2] packages are covered.')
+        ->and(str_contains($output, 'Could not find an agent'))->toBeFalse();
+});
+
+it('asks no model when the json holds the verdict', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agentNamed('claude', 'cat > /dev/null'."\n".'echo \'{"verdict":"clear","summary":"the delta renames one method","findings":[]}\'');
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent' => true, '--json' => true])
+            ->assertExitCode(1)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
 it('invites the reader to the agent when the flag is absent', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
@@ -160,21 +196,6 @@ it('invites the reader to the agent when the flag is absent', function (): void 
     }
 
     expect($output)->toContain('Hand every change to your coding agent with [vet --agent].');
-});
-
-it('invites the reader to a baseline when no trust file exists', function (): void {
-    $fixture = Fixture::open('no-trust-file');
-
-    try {
-        vet(['--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($output)->toContain('Record this one as your baseline with [vet --fresh]')
-        ->and($output)->not->toContain('[vet --agent]')
-        ->and($output)->not->toContain('Read every change with [vet -v]');
 });
 
 it('invites the reader to a few packages at a time when the batch is over the budget', function (): void {

@@ -38,7 +38,7 @@ it('prints no control character of a version that the lock file holds', function
     }
 
     try {
-        vet(['--path' => $fixture->rootPath]);
+        vet(['--init' => true, '--path' => $fixture->rootPath]);
         $output = Artisan::output();
     } finally {
         $fixture->remove();

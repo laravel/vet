@@ -130,7 +130,7 @@ it('names the incoming bytes that it cannot read, and blocks them', function ():
         $status = vet(['--path' => $project->rootPath]);
         $output = Artisan::output();
 
-        $trusted = vet(['--fresh' => true, '--path' => $project->rootPath]);
+        $trusted = vet(['--init' => true, '--path' => $project->rootPath]);
         $trustOutput = Artisan::output();
     } finally {
         $project->remove();

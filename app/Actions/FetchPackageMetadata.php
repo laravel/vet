@@ -39,8 +39,8 @@ final class FetchPackageMetadata
 
     public static function isStable(string $version): bool
     {
-        return preg_match('/(-|\.)(dev|alpha|beta|rc|pl)([.\-]?\d+)?$/i', $version) !== 1
-            && ! str_ends_with($version, '-dev');
+        return preg_match('/^dev-|[.-]dev$/i', $version) !== 1
+            && preg_match('/\d[._-]?(alpha|a|beta|b|rc)([.-]?\d+)*$/i', $version) !== 1;
     }
 
     /**
@@ -87,7 +87,7 @@ final class FetchPackageMetadata
 
     public function previousVersion(string $package, string $version): ?string
     {
-        $versions = array_keys($this->versions($package));
+        $versions = array_map(strval(...), array_keys($this->versions($package)));
         $wantStable = self::isStable($version);
 
         $index = false;

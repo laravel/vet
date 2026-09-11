@@ -143,11 +143,20 @@ final readonly class RequestUrl
         }
 
         $composerHome = getenv('COMPOSER_HOME');
+        $xdgConfigHome = getenv('XDG_CONFIG_HOME');
         $home = getenv('HOME');
 
         if (is_string($composerHome) && $composerHome !== '') {
             $paths[] = Path::join($composerHome, 'auth.json');
-        } elseif (is_string($home) && $home !== '') {
+
+            return $paths;
+        }
+
+        if (is_string($xdgConfigHome) && $xdgConfigHome !== '') {
+            $paths[] = Path::join($xdgConfigHome, 'composer/auth.json');
+        }
+
+        if (is_string($home) && $home !== '') {
             $paths[] = Path::join($home, '.composer/auth.json');
             $paths[] = Path::join($home, '.config/composer/auth.json');
         }

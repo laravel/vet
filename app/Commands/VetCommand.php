@@ -41,7 +41,8 @@ final class VetCommand extends Command
      */
     protected $signature = 'vet
         {packages?* : Audit these packages, as vendor/name}
-        {--fresh : Record every package that vendor/ holds today, and start the trust file from them}
+        {--init : Record every package that vendor/ holds today, and start the trust file from them}
+        {--fresh : The same as --init}
         {--agent : Hand each delta to your coding agent, and show the verdict it writes}
         {--model= : The model that the coding agent uses (defaults to the one of the agent)}
         {--from= : Show the delta from this version rather than the trusted one}
@@ -82,10 +83,10 @@ final class VetCommand extends Command
         }
 
         $packages = $this->packages();
-        $fresh = $this->option('fresh') === true;
+        $init = $this->option('init') === true || $this->option('fresh') === true;
 
-        if ($packages !== [] && $fresh) {
-            $this->components->error('The [--fresh] option takes no package. Run [vet --fresh] or [vet <package>].');
+        if ($packages !== [] && $init) {
+            $this->components->error('The [--init] option takes no package. Run [vet --init] or [vet <package>].');
 
             return self::FAILURE;
         }
@@ -100,8 +101,18 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        if ($fresh) {
+        if ($init) {
             return $this->trustInstalled($project, $auditor);
+        }
+
+        if (! $auditor->trustFile->exists()) {
+            $this->newLine();
+            $this->components->warn(sprintf(
+                'No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [%s].',
+                $project->relativePath($auditor->trustFile->path),
+            ));
+
+            return self::FAILURE;
         }
 
         return $this->auditProject($project, $auditor);
@@ -172,7 +183,7 @@ final class VetCommand extends Command
 
         $reviews = $agentAsked ? $screen->agentReviews() : [];
 
-        if (! $agentAsked && $auditor->trustFile->exists()) {
+        if (! $agentAsked) {
             $batch = $screen->agentBatch();
 
             if (! $batch->fitsOneRun()) {

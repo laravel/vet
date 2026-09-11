@@ -184,8 +184,6 @@ final class RenderProjectAudit
             $this->components->error('The installed tree does not match composer.lock. Run [composer install] to install what composer.lock holds.');
         }
 
-        $this->renderBaselineWarning();
-
         if ($this->failing === []) {
             $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
 
@@ -202,8 +200,6 @@ final class RenderProjectAudit
     public function renderReport(bool $agentAsked): void
     {
         $this->output->newLine();
-
-        $this->renderBaselineWarning();
 
         if ($this->failing === []) {
             $this->components->info(sprintf('All [%d] packages are covered.', $this->report->total()));
@@ -255,18 +251,6 @@ final class RenderProjectAudit
             $reviews[$a->package]->files,
             $b->package,
         ]);
-    }
-
-    private function renderBaselineWarning(): void
-    {
-        if ($this->auditor->trustFile->exists()) {
-            return;
-        }
-
-        $this->components->warn(sprintf(
-            'No trust file yet. [vet --fresh] records every installed package in [%s].',
-            $this->project->relativePath($this->auditor->trustFile->path),
-        ));
     }
 
     private function renderFailing(bool $agentAsked): void
@@ -379,10 +363,6 @@ final class RenderProjectAudit
 
     private function tip(): string
     {
-        if (! $this->auditor->trustFile->exists()) {
-            return 'No earlier tree exists to compare these bytes to. Record this one as your baseline with [vet --fresh], thus the next [composer update] shows a delta.';
-        }
-
         if (! $this->holdsDelta()) {
             return 'No earlier tree exists to compare these bytes to. Hand one whole package to your coding agent with [vet <package> --agent].';
         }

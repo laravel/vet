@@ -95,13 +95,9 @@ it('asks for a baseline when the project holds no trust file', function (): void
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('No trust file yet')
-        ->toContain('vet.json')
-        ->toContain('acme/widget 1.0.0')
-        ->toContain('acme/lint 1.0.0 (dev)')
-        ->toContain('5 files (whole package)')
-        ->toContain('no entry; this tree is')
-        ->toContain('[2] package(s) are not covered');
+        ->toContain('No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].')
+        ->and(str_contains($output, 'acme/widget'))->toBeFalse()
+        ->and(str_contains($output, 'are not covered'))->toBeFalse();
 });
 
 it('reports a changed package before an ungranted one', function (): void {
