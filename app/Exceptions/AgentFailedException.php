@@ -16,11 +16,6 @@ final class AgentFailedException extends VetException
         ));
     }
 
-    public static function noSchemaFile(): self
-    {
-        return new self('Could not write the answer schema of the agent to a temporary file.');
-    }
-
     public static function noModelFlag(string $binary): self
     {
         return new self(sprintf(

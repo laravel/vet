@@ -18,9 +18,4 @@ enum AuditStatus: string
     {
         return $this !== self::Covered;
     }
-
-    public function label(): string
-    {
-        return $this->value;
-    }
 }

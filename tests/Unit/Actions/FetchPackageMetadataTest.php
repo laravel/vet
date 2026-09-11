@@ -135,3 +135,62 @@ it('reads packagist again when the user refuses the cache', function (): void {
     expect(array_keys($packagist->versions('acme/widget')))->toBe(['2.0.0', '1.0.0'])
         ->and($http->requests)->toHaveCount(1);
 });
+
+it('reads the dist of each version of a minified document', function (): void {
+    $document = Json::encode([
+        'minified' => 'composer/2.0',
+        'packages' => [
+            'acme/widget' => [
+                ['name' => 'acme/widget', 'version' => '2.0.0', 'type' => 'library', 'dist' => ['type' => 'zip', 'url' => 'https://packages.test/acme/widget/2.0.0.zip', 'reference' => 'bbbb2222']],
+                ['version' => '1.0.0', 'dist' => ['type' => 'zip', 'url' => 'https://packages.test/acme/widget/1.0.0.zip', 'reference' => 'aaaa1111']],
+            ],
+        ],
+    ]);
+
+    $package = cachedPackagist($document, new FakeHttp([]))->version('acme/widget', '1.0.0');
+
+    expect($package->name)->toBe('acme/widget')
+        ->and($package->type)->toBe('library')
+        ->and($package->distUrl)->toBe('https://packages.test/acme/widget/1.0.0.zip')
+        ->and($package->distReference)->toBe('aaaa1111');
+});
+
+it('skips a pre-release when it reads the release before a stable version', function (): void {
+    $packagist = cachedPackagist(packagistDocument(['2.0.0', '2.0.0-RC2', '2.0.0-RC1', '1.0.0']), new FakeHttp([]));
+
+    expect($packagist->previousVersion('acme/widget', '2.0.0'))->toBe('1.0.0')
+        ->and($packagist->previousVersion('acme/widget', 'v2.0.0'))->toBe('1.0.0')
+        ->and($packagist->previousVersion('acme/widget', '2.0.0-RC2'))->toBe('2.0.0-RC1')
+        ->and($packagist->previousVersion('acme/widget', '1.0.0'))->toBeNull()
+        ->and($packagist->previousVersion('acme/widget', '9.9.9'))->toBeNull();
+});
+
+it('refuses a package name that is not vendor/name before it reads packagist', function (string $package): void {
+    $http = new FakeHttp([]);
+
+    expect(fn (): array => coldPackagist(packagistDocument(['1.0.0']), $http)->versions($package))
+        ->toThrow(FailureException::class, sprintf('[%s] is not a valid package name', $package))
+        ->and($http->requests)->toBeEmpty();
+})->with([
+    '../../etc/passwd',
+    'acme/widget?page=2',
+    'acme',
+    'acme/widget/extra',
+]);
+
+it('refuses metadata that holds no version of the package', function (string $body, string $message): void {
+    $http = new FakeHttp([FakeHttp::body($body)]);
+
+    expect(fn (): array => coldPackagist(packagistDocument(['1.0.0']), $http)->versions('acme/widget'))
+        ->toThrow(FailureException::class, $message);
+})->with([
+    'no json' => ['<html>maintenance</html>', 'Packagist returned unreadable metadata for [acme/widget].'],
+    'no package' => ['{"packages":{}}', 'Packagist knows no released versions of [acme/widget].'],
+    'no version' => ['{"packages":{"acme/widget":[{"name":"acme/widget"}]}}', 'Packagist returned no usable version entries for [acme/widget].'],
+]);
+
+it('skips an entry of packagist that is not a version', function (): void {
+    $packagist = cachedPackagist('{"packages":{"acme/widget":["not a version",{"name":"acme/widget","version":"1.0.0"}]}}', new FakeHttp([]));
+
+    expect(array_keys($packagist->versions('acme/widget')))->toBe(['1.0.0']);
+});

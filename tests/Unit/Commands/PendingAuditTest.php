@@ -3,7 +3,25 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Tests\PendingUpdate;
+
+it('reviews the whole incoming package when vendor/ holds no file of the installed tree', function (): void {
+    $project = PendingUpdate::create();
+    $project->lockAt(PendingUpdate::TARGET_VERSION);
+
+    File::cleanDirectory(dirname($project->installedFile(), 2));
+
+    try {
+        $status = vet(['--path' => $project->rootPath]);
+        $output = Artisan::output();
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('4 files (whole package)');
+});
 
 it('audits the bytes that composer would write, and does not pass them', function (): void {
     $project = PendingUpdate::create();

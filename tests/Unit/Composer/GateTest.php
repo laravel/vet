@@ -138,3 +138,9 @@ it('runs the audit without color when composer writes no color', function (): vo
     expect($gate->command(verbose: false, decorated: false, planPath: null))
         ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--no-ansi']);
 });
+
+it('writes no plan that json cannot hold', function (): void {
+    $gate = gateProject(trustFile: true, binary: true);
+
+    expect($gate->writePlan([['package' => "acme/\xB1widget", 'change' => 'install']]))->toBeNull();
+});

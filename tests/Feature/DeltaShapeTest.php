@@ -57,6 +57,7 @@ it('renders the key of a manifest that changed, and its source', function (): vo
         ->toContain('~ composer.json  require')
         ->toContain('require: (absent) →')
         ->toContain('+    "require": {')
+        ->and(str_contains($output, '│'))->toBeFalse()
         ->and(str_contains($output, 'with -v'))->toBeFalse();
 });
 

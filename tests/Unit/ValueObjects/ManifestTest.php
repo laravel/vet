@@ -3,7 +3,40 @@
 declare(strict_types=1);
 
 use App\Exceptions\EmptyTreeException;
+use App\Exceptions\FailureException;
 use App\ValueObjects\Manifest;
+
+it('names a directory of the tree that it cannot read', function (): void {
+    $directory = manifestTree();
+
+    mkdir($directory.'/locked');
+    file_put_contents($directory.'/locked/Secret.php', "<?php\n");
+    file_put_contents($directory.'/Widget.php', "<?php\n");
+    chmod($directory.'/locked', 0o000);
+
+    try {
+        expect(fn (): Manifest => Manifest::ofDirectory($directory))
+            ->toThrow(FailureException::class, sprintf('Could not read the directory [%s].', $directory.'/locked'));
+    } finally {
+        chmod($directory.'/locked', 0o755);
+        removeManifestTree($directory);
+    }
+});
+
+it('names a file of the tree that it cannot read', function (): void {
+    $directory = manifestTree();
+
+    file_put_contents($directory.'/Widget.php', "<?php\n");
+    chmod($directory.'/Widget.php', 0o000);
+
+    try {
+        expect(fn (): Manifest => Manifest::ofDirectory($directory))
+            ->toThrow(FailureException::class, sprintf('Could not read the file [%s].', $directory.'/Widget.php'));
+    } finally {
+        chmod($directory.'/Widget.php', 0o644);
+        removeManifestTree($directory);
+    }
+});
 
 function manifestTree(): string
 {

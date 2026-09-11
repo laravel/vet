@@ -22,13 +22,7 @@ final class GithubHost
             return false;
         }
 
-        $host = (string) $parts['host'];
-
-        if ($host === '') {
-            return false;
-        }
-
-        $host = mb_strtolower(rtrim($host, '.'));
+        $host = mb_strtolower(rtrim((string) $parts['host'], '.'));
 
         return $host === self::CANONICAL || str_ends_with($host, '.'.self::CANONICAL);
     }

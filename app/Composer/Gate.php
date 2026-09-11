@@ -85,11 +85,7 @@ final readonly class Gate
             return null;
         }
 
-        $path = tempnam(sys_get_temp_dir(), 'vet-plan-');
-
-        if ($path === false) {
-            return null;
-        }
+        $path = (string) tempnam(sys_get_temp_dir(), 'vet-plan-');
 
         return file_put_contents($path, $encoded) === false ? null : $path;
     }

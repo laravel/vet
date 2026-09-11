@@ -227,12 +227,6 @@ final class BuildUnifiedDiff
             }
         }
 
-        while ($x > 0 && $y > 0) {
-            $x--;
-            $y--;
-            $ops[] = ['=', $x, $y, $a[$x]];
-        }
-
         return array_reverse($ops);
     }
 
@@ -247,10 +241,6 @@ final class BuildUnifiedDiff
             if ($op[0] !== '=') {
                 $changed[] = $index;
             }
-        }
-
-        if ($changed === []) {
-            return '';
         }
 
         $groups = [];

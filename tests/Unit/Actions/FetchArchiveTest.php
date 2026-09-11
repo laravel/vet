@@ -8,8 +8,10 @@ use App\Actions\FetchArchive;
 use App\Actions\RequestUrl;
 use App\Exceptions\FailureException;
 use App\ValueObjects\Package;
+use Illuminate\Support\Facades\File;
 use Tests\Fixtures\CraftedArchive;
 use Tests\Fixtures\FakeHttp;
+use Tests\Fixtures\Warnings;
 
 function widgetArchive(): string
 {
@@ -96,4 +98,27 @@ it('reads the bytes again when the user refuses the cache', function (): void {
     $fetcher->handle($package);
 
     expect($http->requests)->toHaveCount(2);
+});
+
+it('names the directory that it cannot move the extracted archive into', function (): void {
+    $served = (string) file_get_contents(widgetArchive());
+    $package = widgetPackage(sha1($served));
+    $fetcher = fetcherServing($served);
+
+    $directory = DiskCacheArtifact::default()->forPackage(
+        'archives',
+        'acme/widget',
+        '1.0.0-'.mb_substr(hash('sha256', 'https://example.test/acme-widget-1.0.0.zip|aaaa1111'), 0, 16),
+    );
+
+    File::ensureDirectoryExists(dirname($directory));
+    file_put_contents($directory, 'a file where the tree belongs');
+
+    try {
+        expect(static function () use ($fetcher, $package): void {
+            Warnings::silenced(static fn (): string => $fetcher->handle($package));
+        })->toThrow(FailureException::class, sprintf('Could not move the extracted archive into [%s].', $directory));
+    } finally {
+        File::deleteDirectory((string) getenv('VET_CACHE_DIR'));
+    }
 });

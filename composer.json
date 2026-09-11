@@ -65,7 +65,7 @@
             "pint --test --parallel"
         ],
         "test:types": "phpstan analyse",
-        "test:unit": "pest --parallel",
+        "test:unit": "pest --parallel --coverage",
         "test": [
             "@test:lint",
             "@test:types",

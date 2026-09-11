@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
+use App\Enums\Gutter;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
 use App\Support\ControlSafeComponents;
@@ -58,8 +59,8 @@ final class RenderProjectAudit
         private readonly Invitation $invitation,
     ) {
         $this->components = new ControlSafeComponents($output);
-        $this->renderer = new RenderDelta($output, $invitation);
-        $this->agentRenderer = new RenderAgentReview($output);
+        $this->renderer = new RenderDelta($output, $invitation, Gutter::Package);
+        $this->agentRenderer = new RenderAgentReview($output, Gutter::Package);
     }
 
     /**
@@ -269,7 +270,7 @@ final class RenderProjectAudit
             $endsWithDelta = $review->delta instanceof Delta && $this->readsDelta($audit->package, $agentAsked);
 
             if ($endsWithDelta) {
-                $this->output->newLine();
+                $this->output->writeln(Gutter::Package->blank());
                 $this->renderer->buckets($review->delta);
             }
         }

@@ -116,6 +116,26 @@ it('writes hunks in the order of the lines', function (): void {
     expect($diff)->toBe("--- a/f\n+++ b/f\n@@ -4,0 +5,3 @@\n+d\n+b\n+d\n");
 });
 
+it('writes nothing for two contents that hold the same lines', function (): void {
+    expect(BuildUnifiedDiff::handle("a\nb", "a\nb\n", 'a/f', 'b/f'))->toBe('');
+});
+
+it('writes one hunk for each change, and skips the lines between two changes that stand apart', function (): void {
+    $before = numbered('line', 20);
+    $after = $before;
+
+    $after[1] = 'FIRST';
+    $after[17] = 'SECOND';
+
+    $diff = BuildUnifiedDiff::handle(joined($before), joined($after), 'a/f', 'b/f');
+
+    expect($diff)->toBe(
+        "--- a/f\n+++ b/f\n"
+        ."@@ -1,5 +1,5 @@\n line 1\n-line 2\n+FIRST\n line 3\n line 4\n line 5\n"
+        ."@@ -15,6 +15,6 @@\n line 15\n line 16\n line 17\n-line 18\n+SECOND\n line 19\n line 20\n",
+    );
+});
+
 it('holds its memory when a file is rewritten', function (): void {
     $before = memory_get_usage();
 

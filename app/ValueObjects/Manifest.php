@@ -94,13 +94,7 @@ final readonly class Manifest
             $path = $relative === '' ? $name : $relative.DIRECTORY_SEPARATOR.$name;
 
             if (is_link($full)) {
-                $target = readlink($full);
-
-                if ($target === false) {
-                    throw new FailureException(sprintf('Could not resolve the symlink [%s].', $full));
-                }
-
-                $entries[Path::toRelativeForm($path)] = hash('sha256', $target);
+                $entries[Path::toRelativeForm($path)] = hash('sha256', (string) readlink($full));
 
                 continue;
             }

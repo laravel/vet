@@ -23,5 +23,8 @@
         <include>
             <directory>./app</directory>
         </include>
+        <exclude>
+            <file>./app/Composer/Plugin.php</file>
+        </exclude>
     </source>
 </phpunit>

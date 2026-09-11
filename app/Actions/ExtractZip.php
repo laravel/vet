@@ -16,10 +16,6 @@ final class ExtractZip
      */
     public static function handle(string $archive, string $destination): int
     {
-        if (! class_exists(ZipArchive::class)) {
-            throw new FailureException('The zip extension is required to read package archives.');
-        }
-
         $zip = new ZipArchive;
         $opened = $zip->open($archive);
 

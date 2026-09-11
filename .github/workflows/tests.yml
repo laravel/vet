@@ -23,7 +23,7 @@ jobs:
               with:
                   php-version: ${{ matrix.php }}
                   extensions: dom, curl, libxml, mbstring, zip
-                  coverage: pvoc
+                  coverage: pcov
 
             - name: Install dependencies
               run: composer install --prefer-dist --no-interaction --no-progress

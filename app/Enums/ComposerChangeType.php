@@ -23,18 +23,4 @@ enum ComposerChangeType: string
             default => self::Remove,
         };
     }
-
-    public function comparesTrees(): bool
-    {
-        return $this === self::Upgrade || $this === self::Downgrade;
-    }
-
-    public function weight(): int
-    {
-        return match ($this) {
-            self::Remove => 2,
-            self::Install => 1,
-            self::Upgrade, self::Downgrade => 0,
-        };
-    }
 }

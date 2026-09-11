@@ -13,7 +13,7 @@ use App\Composer\Gate;
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
 use App\Enums\BucketType;
-use App\Exceptions\FailureException;
+use App\Enums\Gutter;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
 use App\Support\ControlSafe;
@@ -28,6 +28,7 @@ use App\ValueObjects\Grant;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
 use App\ValueObjects\TreeHash;
+use App\ValueObjects\TrustFile;
 use Illuminate\Support\Collection;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -229,7 +230,7 @@ final class VetCommand extends Command
 
         try {
             foreach ($recorded as $audit) {
-                $auditor->trustFile->record($this->grantOf($audit));
+                $this->recordGrant($auditor->trustFile, $audit);
             }
 
             $auditor->trustFile->save();
@@ -357,7 +358,7 @@ final class VetCommand extends Command
 
         try {
             foreach ($installed as $audit) {
-                $auditor->trustFile->record($this->grantOf($audit));
+                $this->recordGrant($auditor->trustFile, $audit);
             }
 
             if ($installed->isNotEmpty()) {
@@ -495,7 +496,7 @@ final class VetCommand extends Command
         }
 
         $requested = $this->option('from') !== null || $this->option('to') !== null;
-        $renderer = new RenderDelta($this->output, Invitation::toReadTheInstalledTree());
+        $renderer = new RenderDelta($this->output, Invitation::toReadTheInstalledTree(), Gutter::None);
         $delta = null;
         $unresolved = null;
 
@@ -510,8 +511,10 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
-        if ($audit->pending() && ! $requested) {
-            $delta = $this->incomingDelta($project, $auditor, $audit);
+        $operation = $auditor->plan()->of($audit->package);
+
+        if ($audit->pending() && ! $requested && $operation instanceof ComposerOperation) {
+            $delta = $this->incomingDelta($project, $auditor, $audit, $operation);
         } elseif ($from !== null) {
             $to = $this->option('to');
             assert($to === null || is_string($to));
@@ -581,10 +584,10 @@ final class VetCommand extends Command
 
         if ($agentReview instanceof AgentReview) {
             $this->newLine();
-            (new RenderAgentReview($this->output))->verdict($agentReview);
+            (new RenderAgentReview($this->output, Gutter::None))->verdict($agentReview);
         } elseif ($agentAsked) {
             $this->newLine();
-            $agentRenderer = new RenderAgentReview($this->output);
+            $agentRenderer = new RenderAgentReview($this->output, Gutter::None);
 
             $delta instanceof Delta ? $agentRenderer->noChange() : $agentRenderer->noEarlierTree();
         }
@@ -633,7 +636,7 @@ final class VetCommand extends Command
             return self::SUCCESS;
         }
 
-        $auditor->trustFile->record($this->grantOf($audit));
+        $this->recordGrant($auditor->trustFile, $audit);
 
         $recorded->put($audit->package, $audit);
 
@@ -685,27 +688,20 @@ final class VetCommand extends Command
         ));
     }
 
-    private function grantOf(PackageAudit $audit): Grant
+    private function recordGrant(TrustFile $trustFile, PackageAudit $audit): void
     {
         $notes = $this->option('notes');
         assert($notes === null || is_string($notes));
 
-        return new Grant(
-            package: $audit->package,
-            version: $audit->version,
-            hash: $this->hashOf($audit),
-            dev: $audit->dev,
-            notes: $notes ?? $audit->grant?->notes,
-        );
-    }
-
-    private function hashOf(PackageAudit $audit): TreeHash
-    {
-        if (! $audit->hash instanceof TreeHash) {
-            throw new FailureException(sprintf('The bytes of [%s] were never read.', $audit->package));
+        if ($audit->hash instanceof TreeHash) {
+            $trustFile->record(new Grant(
+                package: $audit->package,
+                version: $audit->version,
+                hash: $audit->hash,
+                dev: $audit->dev,
+                notes: $notes ?? $audit->grant?->notes,
+            ));
         }
-
-        return $audit->hash;
     }
 
     /**
@@ -716,14 +712,8 @@ final class VetCommand extends Command
         return $audits->contains(static fn (PackageAudit $audit): bool => $audit->pending());
     }
 
-    private function incomingDelta(Project $project, AuditProject $auditor, PackageAudit $audit): ?Delta
+    private function incomingDelta(Project $project, AuditProject $auditor, PackageAudit $audit, ComposerOperation $operation): ?Delta
     {
-        $operation = $auditor->plan()->of($audit->package);
-
-        if (! $operation instanceof ComposerOperation) {
-            return null;
-        }
-
         $installed = $auditor->installed();
 
         try {

@@ -153,6 +153,33 @@ it('names a tree whose version disagrees with composer.lock', function (): void 
         ->and($output)->toContain('[acme/widget] is installed at [1.0.0] but composer.lock says [1.1.0]');
 });
 
+it('writes a tree whose version disagrees with composer.lock in the json report', function (): void {
+    $fixture = Fixture::open('version-drift');
+
+    $plan = composerPlanFile([[
+        'package' => 'acme/unrelated',
+        'change' => 'install',
+        'from' => null,
+        'to' => '1.0.0',
+    ]]);
+
+    try {
+        $status = vet(['--path' => $fixture->rootPath, '--plan' => $plan, '--json' => true]);
+        $report = json_decode(Artisan::output(), true);
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($status)->toBe(1)
+        ->and($report)->toBeArray()
+        ->and($report)->toHaveKey('lock_discrepancies', [[
+            'type' => 'version-mismatch',
+            'package' => 'acme/widget',
+            'installed' => '1.0.0',
+            'locked' => '1.1.0',
+        ]]);
+});
+
 it('asks for composer install when the project installs no package', function (): void {
     $fixture = Fixture::open('empty-vendor');
 

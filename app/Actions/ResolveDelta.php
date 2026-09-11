@@ -42,15 +42,9 @@ final readonly class ResolveDelta
             ? $this->installed->get($package)
             : null;
 
-        $newest = array_key_first($this->packagist->versions($package));
+        $newest = (string) array_key_first($this->packagist->versions($package));
 
-        $toVersion = $to ?? $installed->version ?? ($newest === null ? null : (string) $newest);
-
-        if (! is_string($toVersion)) {
-            throw new FailureException(sprintf('Could not determine which version of [%s] to compare to.', $package));
-        }
-
-        $toMetadata = $this->packagist->version($package, $toVersion);
+        $toMetadata = $this->packagist->version($package, $to ?? $installed->version ?? $newest);
         $toVersion = $toMetadata->version;
 
         $fromVersion = $from ?? $this->packagist->previousVersion($package, $toVersion);

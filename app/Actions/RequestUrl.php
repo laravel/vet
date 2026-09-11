@@ -75,10 +75,6 @@ final readonly class RequestUrl
                 throw FetchFailedException::transport($url, sprintf('could not write to [%s].', $temporary));
             }
 
-            if ((int) filesize($temporary) === 0) {
-                throw FetchFailedException::empty($url);
-            }
-
             if (! rename($temporary, $destination)) {
                 throw FetchFailedException::transport($url, sprintf('could not move the download into [%s].', $destination));
             }

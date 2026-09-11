@@ -47,3 +47,13 @@ it('carries the checksum that the lock file records', function (): void {
         ->and($package->withDist('https://example.test/other.zip', 'cccc3333', 'dddd4444')->distShasum)->toBe('dddd4444')
         ->and($package->withDist(null, null, null)->distShasum)->toBe('bbbb2222');
 });
+
+it('moves a package into the dev section and keeps the rest of it', function (): void {
+    $package = packageAutoloading('src/');
+    $dev = $package->withDev(true);
+
+    expect($package->withDev(false))->toBe($package)
+        ->and($dev->dev)->toBeTrue()
+        ->and($dev->name)->toBe('acme/widget')
+        ->and($dev->runtimeRoots())->toBe(['src', 'bin/widget']);
+});

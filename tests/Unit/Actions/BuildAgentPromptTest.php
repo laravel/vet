@@ -193,3 +193,30 @@ it('writes the keys of the manifest that changed', function (): void {
 
     expect($prompt->text)->toContain('scripts: ');
 });
+
+it('writes the caveats of the delta', function (): void {
+    $prompt = (new BuildAgentPrompt)->handle(
+        promptDelta([], false, null)->withResolution(false, ['[acme/widget] is installed from source.']),
+    );
+
+    expect($prompt->text)->toContain('caveats: [acme/widget] is installed from source.');
+});
+
+it('names the file whose bytes it cannot read', function (): void {
+    $missing = sys_get_temp_dir().'/vet-prompt-missing-'.bin2hex(random_bytes(6));
+
+    $prompt = (new BuildAgentPrompt)->handle(promptDelta([
+        new Change(
+            path: 'src/Gone.php',
+            status: ChangeStatus::Modified,
+            bucket: BucketType::RuntimeSource,
+            oldHash: 'aaaa',
+            newHash: 'bbbb',
+            oldFile: $missing.'/old.php',
+            newFile: $missing.'/new.php',
+        ),
+    ], false, null));
+
+    expect($prompt->text)->toContain('Vet cannot read these bytes, so this prompt does not hold them.')
+        ->and($prompt->unread)->toBe(['src/Gone.php']);
+});

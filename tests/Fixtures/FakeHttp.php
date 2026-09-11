@@ -9,6 +9,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
+use Throwable;
 
 final class FakeHttp
 {
@@ -20,7 +21,7 @@ final class FakeHttp
     public readonly Client $client;
 
     /**
-     * @param  array<int, Response>  $responses
+     * @param  array<int, Response|Throwable>  $responses
      */
     public function __construct(array $responses)
     {

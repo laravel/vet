@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\BucketType;
+use App\Enums\Gutter;
 use App\Support\ControlSafeComponents;
 use App\Support\Invitation;
 use App\ValueObjects\Change;
@@ -22,6 +23,7 @@ final readonly class RenderDelta
     public function __construct(
         private OutputStyle $output,
         private Invitation $invitation,
+        private Gutter $gutter,
     ) {
         $this->components = new ControlSafeComponents($output);
     }
@@ -103,12 +105,12 @@ final readonly class RenderDelta
                 continue;
             }
 
-            $this->output->writeln(sprintf(
-                '  <options=bold>%s</> <fg=gray>(%d)</>%s',
+            $this->output->writeln($this->gutter->line(sprintf(
+                '<options=bold>%s</> <fg=gray>(%d)</>%s',
                 $bucket->label(),
                 count($changes),
                 $bucket === BucketType::Opaque ? '  <fg=red>cannot be reviewed — trust and provenance only</>' : '',
-            ));
+            )));
 
             $shown = $verbose ? $changes : array_slice($changes, 0, self::MAX_PATHS);
 
@@ -123,14 +125,14 @@ final readonly class RenderDelta
             $hidden = count($changes) - count($shown);
 
             if ($hidden > 0) {
-                $this->output->writeln(sprintf(
-                    '    <fg=gray>… and %d more, with [%s]</>',
+                $this->output->writeln($this->gutter->line(sprintf(
+                    '  <fg=gray>… and %d more, with [%s]</>',
                     $hidden,
                     $this->invitation->command,
-                ));
+                )));
             }
 
-            $this->output->newLine();
+            $this->output->writeln($this->gutter->blank());
         }
     }
 
@@ -144,21 +146,21 @@ final readonly class RenderDelta
 
         $annotation = $change->annotation($delta->manifestChange);
 
-        $this->output->writeln(sprintf(
-            '    <fg=%s>%s</> %s%s',
+        $this->output->writeln($this->gutter->line(sprintf(
+            '  <fg=%s>%s</> %s%s',
             $color,
             $change->status->symbol(),
             OutputFormatter::escape($change->path),
             $annotation === null ? '' : sprintf('  <fg=gray>%s</>', OutputFormatter::escape($annotation)),
-        ));
+        )));
 
         if ($change->bucket === BucketType::InstallManifest && $delta->manifestChange instanceof ManifestChange) {
             foreach ($delta->manifestChange->changedKeys() as $key) {
-                $this->output->writeln(sprintf(
-                    '        <fg=gray>%s:</> %s',
+                $this->output->writeln($this->gutter->line(sprintf(
+                    '      <fg=gray>%s:</> %s',
                     OutputFormatter::escape($key),
                     OutputFormatter::escape($delta->manifestChange->render($key)),
-                ));
+                )));
             }
         }
     }
@@ -169,8 +171,8 @@ final readonly class RenderDelta
         $new = $change->newFile === null ? null : $this->read($change->newFile);
 
         if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {
-            $this->output->writeln('      <fg=gray>this file holds no readable source, so its bytes are not shown</>');
-            $this->output->newLine();
+            $this->output->writeln($this->gutter->line('    <fg=gray>this file holds no readable source, so its bytes are not shown</>'));
+            $this->output->writeln($this->gutter->blank());
 
             return;
         }
@@ -182,15 +184,15 @@ final readonly class RenderDelta
         }
 
         foreach (array_slice(explode("\n", rtrim($diff, "\n")), 2) as $line) {
-            $this->output->writeln('      '.match (true) {
+            $this->output->writeln($this->gutter->line('    '.match (true) {
                 str_starts_with($line, '+') => sprintf('<fg=green>%s</>', OutputFormatter::escape($line)),
                 str_starts_with($line, '-') => sprintf('<fg=red>%s</>', OutputFormatter::escape($line)),
                 str_starts_with($line, '@@') => sprintf('<fg=cyan>%s</>', OutputFormatter::escape($line)),
                 default => sprintf('<fg=gray>%s</>', OutputFormatter::escape($line)),
-            });
+            }));
         }
 
-        $this->output->newLine();
+        $this->output->writeln($this->gutter->blank());
     }
 
     private function renderVerdict(Delta $delta, bool $verbose): void

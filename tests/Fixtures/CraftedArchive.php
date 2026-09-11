@@ -6,6 +6,8 @@ namespace Tests\Fixtures;
 
 final class CraftedArchive
 {
+    public const int IMPLODED = 6;
+
     private const int LOCAL_SIGNATURE = 0x04034B50;
 
     private const int CENTRAL_SIGNATURE = 0x02014B50;
@@ -20,6 +22,14 @@ final class CraftedArchive
      * @param  array<int, array{name: string, contents: string}>  $entries  the entries, in the order that the archive holds them
      */
     public static function write(string $path, array $entries): string
+    {
+        return self::writeWithMethod($path, $entries, self::STORED);
+    }
+
+    /**
+     * @param  array<int, array{name: string, contents: string}>  $entries  the entries, in the order that the archive holds them
+     */
+    public static function writeWithMethod(string $path, array $entries, int $method): string
     {
         $local = '';
         $central = '';
@@ -36,7 +46,7 @@ final class CraftedArchive
                 self::LOCAL_SIGNATURE,
                 self::VERSION,
                 0,
-                self::STORED,
+                $method,
                 0,
                 0,
                 $crc,
@@ -52,7 +62,7 @@ final class CraftedArchive
                 self::VERSION,
                 self::VERSION,
                 0,
-                self::STORED,
+                $method,
                 0,
                 0,
                 $crc,

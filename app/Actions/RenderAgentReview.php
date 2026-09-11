@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Enums\Gutter;
 use App\ValueObjects\AgentFinding;
 use App\ValueObjects\AgentReview;
 use Illuminate\Console\OutputStyle;
@@ -15,16 +16,17 @@ final readonly class RenderAgentReview
 
     public function __construct(
         private OutputStyle $output,
+        private Gutter $gutter,
     ) {}
 
     public function verdict(AgentReview $agentReview): void
     {
-        $this->output->writeln(sprintf(
-            '    <fg=gray>agent</>  <fg=%s;options=bold>%s</>  <fg=gray>%s</>',
+        $this->output->writeln($this->gutter->line(sprintf(
+            '  <fg=gray>agent</>  <fg=%s;options=bold>%s</>  <fg=gray>%s</>',
             $agentReview->verdict->color(),
             $agentReview->verdict->label(),
             OutputFormatter::escape($agentReview->summary),
-        ));
+        )));
 
         $shown = array_slice($agentReview->findings, 0, self::MAX_FINDINGS);
 
@@ -35,7 +37,7 @@ final readonly class RenderAgentReview
         $hidden = count($agentReview->findings) - count($shown);
 
         if ($hidden > 0) {
-            $this->output->writeln(sprintf('           <fg=gray>and %d more finding(s)</>', $hidden));
+            $this->output->writeln($this->gutter->line(sprintf('         <fg=gray>and %d more finding(s)</>', $hidden)));
         }
     }
 
@@ -51,18 +53,18 @@ final readonly class RenderAgentReview
 
     private function finding(AgentFinding $agentFinding): void
     {
-        $this->output->writeln(sprintf(
-            '           <fg=yellow>%s</>  <fg=gray>%s</>',
+        $this->output->writeln($this->gutter->line(sprintf(
+            '         <fg=yellow>%s</>  <fg=gray>%s</>',
             OutputFormatter::escape($agentFinding->path),
             OutputFormatter::escape($agentFinding->reason),
-        ));
+        )));
     }
 
     private function notSent(string $reason): void
     {
-        $this->output->writeln(sprintf(
-            '    <fg=gray>agent</>  <fg=yellow;options=bold>not sent</>  <fg=gray>%s</>',
+        $this->output->writeln($this->gutter->line(sprintf(
+            '  <fg=gray>agent</>  <fg=yellow;options=bold>not sent</>  <fg=gray>%s</>',
             OutputFormatter::escape($reason),
-        ));
+        )));
     }
 }

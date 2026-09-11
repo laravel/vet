@@ -26,6 +26,7 @@ final readonly class ReviewWithAgent
     public function __construct(
         private string $binary,
         private AgentModel $model,
+        private int $timeout,
     ) {}
 
     public static function default(): self
@@ -33,14 +34,14 @@ final readonly class ReviewWithAgent
         $binary = getenv('VET_AGENT_BINARY');
 
         if (is_string($binary) && $binary !== '') {
-            return new self($binary, AgentModel::default());
+            return new self($binary, AgentModel::default(), self::TIMEOUT);
         }
 
         $finder = new ExecutableFinder;
 
         foreach (AgentType::cases() as $agentType) {
             if ($finder->find($agentType->value) !== null) {
-                return new self($agentType->value, AgentModel::default());
+                return new self($agentType->value, AgentModel::default(), self::TIMEOUT);
             }
         }
 
@@ -53,7 +54,7 @@ final readonly class ReviewWithAgent
             throw AgentFailedException::noModelFlag($this->binary);
         }
 
-        return new self($this->binary, $model);
+        return new self($this->binary, $model, $this->timeout);
     }
 
     public function name(): string
@@ -99,7 +100,7 @@ final readonly class ReviewWithAgent
             while ($queue !== [] && count($running) < self::CONCURRENCY) {
                 $package = array_key_first($queue);
                 $process = new Process([$executable, ...$arguments], null, null, $queue[$package]->text);
-                $process->setTimeout(self::TIMEOUT);
+                $process->setTimeout($this->timeout);
                 $process->start();
 
                 $running[$package] = $process;
@@ -126,15 +127,15 @@ final readonly class ReviewWithAgent
     private function settled(string $package, AgentPrompt $prompt, Process $process, ?AgentType $agentType): ?AgentReview
     {
         try {
+            $process->checkTimeout();
+
             if ($process->isRunning()) {
                 return null;
             }
         } catch (ProcessTimedOutException) {
-            $process->stop(0);
-
             return $this->unreadable($package, sprintf(
                 'The agent gave no answer in [%d] second(s).',
-                self::TIMEOUT,
+                $this->timeout,
             ));
         }
 
@@ -191,13 +192,7 @@ final readonly class ReviewWithAgent
 
     private function firstLine(string $output): string
     {
-        $lines = preg_split('/\R/', trim($output));
-
-        if ($lines === false || $lines === []) {
-            return 'The agent wrote nothing.';
-        }
-
-        return trim($lines[0]);
+        return trim((string) preg_replace('/\R.*/s', '', trim($output)));
     }
 
     private function clamp(string $line): string
@@ -209,11 +204,9 @@ final readonly class ReviewWithAgent
 
     private function schemaFile(): string
     {
-        $path = tempnam(sys_get_temp_dir(), 'vet-agent-schema-');
+        $path = (string) tempnam(sys_get_temp_dir(), 'vet-agent-schema-');
 
-        if ($path === false || file_put_contents($path, AgentAnswer::schema()) === false) {
-            throw AgentFailedException::noSchemaFile();
-        }
+        file_put_contents($path, AgentAnswer::schema());
 
         return $path;
     }

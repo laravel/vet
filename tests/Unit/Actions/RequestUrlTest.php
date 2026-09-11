@@ -5,8 +5,12 @@ declare(strict_types=1);
 use App\Actions\RequestUrl;
 use App\Exceptions\FetchFailedException;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Support\Facades\File;
 use Tests\Fixtures\FakeHttp;
+use Tests\Fixtures\Warnings;
 
 it('follows a redirect chain to the final response', function (): void {
     $http = new FakeHttp([
@@ -158,4 +162,164 @@ it('refuses an empty body', function (): void {
 
     expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/empty'))
         ->toThrow(FetchFailedException::class, 'returned an empty body');
+});
+
+it('reads the github token in the order that composer reads it', function (): void {
+    $directory = sys_get_temp_dir().'/vet-auth-'.bin2hex(random_bytes(6));
+
+    mkdir($directory.'/home/.composer', 0o777, true);
+    mkdir($directory.'/composer-home', 0o777, true);
+    file_put_contents($directory.'/home/.composer/auth.json', (string) json_encode(['github-oauth' => ['github.com' => 'home-token']]));
+
+    $http = new FakeHttp([FakeHttp::body('zip'), FakeHttp::body('zip'), FakeHttp::body('zip')]);
+    app()->instance(ClientInterface::class, $http->client);
+
+    $environment = [
+        'VET_GITHUB_TOKEN' => null,
+        'GITHUB_TOKEN' => null,
+        'GH_TOKEN' => null,
+        'COMPOSER_AUTH_FILE' => null,
+        'COMPOSER_HOME' => null,
+        'XDG_CONFIG_HOME' => null,
+        'HOME' => $directory.'/home',
+    ];
+
+    try {
+        withEnvironment([...$environment, 'GH_TOKEN' => 'gh-token', 'VET_GITHUB_TOKEN' => 'vet-token'], static fn (): string => RequestUrl::default()->get('https://github.com/acme/variable.zip'));
+        withEnvironment($environment, static fn (): string => RequestUrl::default()->get('https://github.com/acme/home.zip'));
+        withEnvironment([...$environment, 'COMPOSER_HOME' => $directory.'/composer-home'], static fn (): string => RequestUrl::default()->get('https://github.com/acme/composer-home.zip'));
+    } finally {
+        File::deleteDirectory($directory);
+    }
+
+    expect($http->header('https://github.com/acme/variable.zip', 'Authorization'))->toBe('Bearer vet-token')
+        ->and($http->header('https://github.com/acme/home.zip', 'Authorization'))->toBe('Bearer home-token')
+        ->and($http->header('https://github.com/acme/composer-home.zip', 'Authorization'))->toBeNull();
+});
+
+it('names the url that the transport fails to reach', function (): void {
+    $http = new FakeHttp([new ConnectException('Could not resolve host [example.test]', new Request('GET', 'https://example.test/widget.zip'))]);
+
+    expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https://example.test/widget.zip'))
+        ->toThrow(FetchFailedException::class, 'Request to [https://example.test/widget.zip] failed: Could not resolve host [example.test]');
+});
+
+it('moves a download into place, and writes no file for a failed download', function (): void {
+    $directory = sys_get_temp_dir().'/vet-download-'.bin2hex(random_bytes(6));
+    $http = new FakeHttp([FakeHttp::body('zip bytes'), new Response(500, [], 'boom')]);
+    $request = new RequestUrl('vet-test', [], $http->client);
+
+    try {
+        $request->download('https://example.test/widget.zip', $directory.'/widget.zip');
+
+        expect(function () use ($request, $directory): void {
+            $request->download('https://example.test/gadget.zip', $directory.'/gadget.zip');
+        })->toThrow(FetchFailedException::class, 'failed with HTTP [500]');
+
+        $files = glob($directory.'/*');
+        $contents = file_get_contents($directory.'/widget.zip');
+    } finally {
+        File::deleteDirectory($directory);
+    }
+
+    expect($files)->toBe([$directory.'/widget.zip'])
+        ->and($contents)->toBe('zip bytes');
+});
+
+it('skips an auth file that it cannot read or decode', function (): void {
+    $directory = sys_get_temp_dir().'/vet-auth-'.bin2hex(random_bytes(6));
+
+    mkdir($directory.'/composer-home', 0o777, true);
+    file_put_contents($directory.'/locked.json', (string) json_encode(['github-oauth' => ['github.com' => 'locked-token']]));
+    file_put_contents($directory.'/named.json', (string) json_encode(['github-oauth' => ['github.com' => 'named-token']]));
+    file_put_contents($directory.'/composer-home/auth.json', 'not json');
+    chmod($directory.'/locked.json', 0o000);
+
+    $http = new FakeHttp([FakeHttp::body('zip'), FakeHttp::body('zip')]);
+    app()->instance(ClientInterface::class, $http->client);
+
+    $environment = [
+        'VET_GITHUB_TOKEN' => null,
+        'GITHUB_TOKEN' => null,
+        'GH_TOKEN' => null,
+        'XDG_CONFIG_HOME' => null,
+        'HOME' => $directory,
+        'COMPOSER_HOME' => $directory.'/composer-home',
+    ];
+
+    try {
+        withEnvironment([...$environment, 'COMPOSER_AUTH_FILE' => $directory.'/locked.json'], static fn (): string => RequestUrl::default()->get('https://github.com/acme/skipped.zip'));
+        withEnvironment([...$environment, 'COMPOSER_AUTH_FILE' => $directory.'/named.json'], static fn (): string => RequestUrl::default()->get('https://github.com/acme/named.zip'));
+    } finally {
+        chmod($directory.'/locked.json', 0o644);
+        File::deleteDirectory($directory);
+    }
+
+    expect($http->header('https://github.com/acme/skipped.zip', 'Authorization'))->toBeNull()
+        ->and($http->header('https://github.com/acme/named.zip', 'Authorization'))->toBe('Bearer named-token');
+});
+
+it('refuses a relative redirect from a url that holds no host', function (): void {
+    $http = new FakeHttp([FakeHttp::redirect('next.zip')]);
+
+    expect(fn (): string => (new RequestUrl('vet-test', [], $http->client))->get('https:widget.zip'))
+        ->toThrow(FetchFailedException::class, 'Request to [next.zip] refused: vet reads https URLs only.');
+});
+
+it('names the directory of a download that it cannot create', function (): void {
+    $directory = sys_get_temp_dir().'/vet-download-'.bin2hex(random_bytes(6));
+    $request = new RequestUrl('vet-test', [], (new FakeHttp([]))->client);
+
+    File::ensureDirectoryExists($directory);
+    file_put_contents($directory.'/archives', 'a file where a directory belongs');
+
+    try {
+        expect(static function () use ($request, $directory): void {
+            Warnings::silenced(static function () use ($request, $directory): void {
+                $request->download('https://example.test/widget.zip', $directory.'/archives/widget.zip');
+            });
+        })->toThrow(FetchFailedException::class, sprintf('Request to [https://example.test/widget.zip] failed: could not create the directory [%s/archives].', $directory));
+    } finally {
+        File::deleteDirectory($directory);
+    }
+});
+
+it('names the download that it cannot write', function (): void {
+    $directory = sys_get_temp_dir().'/vet-download-'.bin2hex(random_bytes(6));
+    $request = new RequestUrl('vet-test', [], (new FakeHttp([FakeHttp::body('zip bytes')]))->client);
+
+    mkdir($directory);
+    chmod($directory, 0o555);
+
+    try {
+        expect(static function () use ($request, $directory): void {
+            Warnings::silenced(static function () use ($request, $directory): void {
+                $request->download('https://example.test/widget.zip', $directory.'/widget.zip');
+            });
+        })->toThrow(FetchFailedException::class, sprintf('Request to [https://example.test/widget.zip] failed: could not write to [%s/widget.zip.', $directory));
+    } finally {
+        chmod($directory, 0o755);
+        File::deleteDirectory($directory);
+    }
+});
+
+it('names the download that it cannot move into place, and leaves no partial file', function (): void {
+    $directory = sys_get_temp_dir().'/vet-download-'.bin2hex(random_bytes(6));
+    $request = new RequestUrl('vet-test', [], (new FakeHttp([FakeHttp::body('zip bytes')]))->client);
+
+    mkdir($directory.'/widget.zip/taken', 0o777, true);
+
+    try {
+        expect(static function () use ($request, $directory): void {
+            Warnings::silenced(static function () use ($request, $directory): void {
+                $request->download('https://example.test/widget.zip', $directory.'/widget.zip');
+            });
+        })->toThrow(FetchFailedException::class, sprintf('Request to [https://example.test/widget.zip] failed: could not move the download into [%s/widget.zip].', $directory));
+
+        $files = glob($directory.'/*');
+    } finally {
+        File::deleteDirectory($directory);
+    }
+
+    expect($files)->toBe([$directory.'/widget.zip']);
 });

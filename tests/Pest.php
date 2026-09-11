@@ -78,3 +78,29 @@ function trust(string $package, array $parameters): PendingCommand
         ->expectsQuestion('How do you want to review these packages?', 'manual')
         ->expectsQuestion('Which packages do you trust?', [$package]);
 }
+
+/**
+ * @template TResult
+ *
+ * @param  array<string, string|null>  $variables
+ * @param  Closure(): TResult  $callback
+ * @return TResult
+ */
+function withEnvironment(array $variables, Closure $callback): mixed
+{
+    $saved = [];
+
+    foreach ($variables as $variable => $value) {
+        $saved[$variable] = getenv($variable);
+
+        putenv($value === null ? $variable : $variable.'='.$value);
+    }
+
+    try {
+        return $callback();
+    } finally {
+        foreach ($saved as $variable => $value) {
+            putenv($value === false ? $variable : $variable.'='.$value);
+        }
+    }
+}

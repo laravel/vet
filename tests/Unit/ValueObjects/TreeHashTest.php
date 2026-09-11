@@ -29,6 +29,11 @@ it('refuses a truncated digest and the scheme that truncated it', function (): v
         ->toThrow(FailureException::class, 'expected 64 lowercase hex characters');
 });
 
+it('refuses a tree hash that names no algorithm', function (): void {
+    expect(fn (): TreeHash => TreeHash::parse('abcdef'))
+        ->toThrow(FailureException::class, 'Malformed tree hash [abcdef]: expected "<algorithm>:<digest>".');
+});
+
 it('reads a full digest back', function (): void {
     $hash = TreeHash::fromManifest("abc  src/Widget.php\n");
 
