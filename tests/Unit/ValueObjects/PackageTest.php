@@ -48,6 +48,20 @@ it('carries the checksum that the lock file records', function (): void {
         ->and($package->withDist(null, null, null)->distShasum)->toBe('bbbb2222');
 });
 
+it('keeps the reference of the lock file when composer gives an empty reference', function (): void {
+    $package = Package::fromLockEntry([
+        'name' => 'acme/widget',
+        'version' => '1.0.0',
+        'dist' => ['url' => 'https://example.test/widget.zip', 'reference' => 'aaaa1111', 'shasum' => 'bbbb2222'],
+    ], false);
+
+    $moved = $package->withDist('https://example.test/other.zip', '', '');
+
+    expect($moved->distUrl)->toBe('https://example.test/other.zip')
+        ->and($moved->distReference)->toBe('aaaa1111')
+        ->and($moved->distShasum)->toBeNull();
+});
+
 it('moves a package into the dev section and keeps the rest of it', function (): void {
     $package = packageAutoloading('src/');
     $dev = $package->withDev(true);

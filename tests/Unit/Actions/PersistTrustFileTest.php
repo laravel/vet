@@ -66,3 +66,16 @@ it('names the vet file that it cannot write', function (): void {
         File::deleteDirectory($directory);
     }
 });
+
+it('names no schema for a vet file that declares none', function (): void {
+    $directory = trustFileDirectory();
+
+    file_put_contents($directory.'/vet.json', '{"require":{}}');
+
+    try {
+        expect(static fn (): PersistTrustFile => PersistTrustFile::atPath($directory.'/vet.json'))
+            ->toThrow(FailureException::class, sprintf('The vet file [%s/vet.json] declares schema [none]; this build of vet reads schema [4].', $directory));
+    } finally {
+        File::deleteDirectory($directory);
+    }
+});

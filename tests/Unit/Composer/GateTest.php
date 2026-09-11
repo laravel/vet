@@ -144,3 +144,21 @@ it('writes no plan that json cannot hold', function (): void {
 
     expect($gate->writePlan([['package' => "acme/\xB1widget", 'change' => 'install']]))->toBeNull();
 });
+
+it('reads the installed tree in the vendor directory that composer configures', function (): void {
+    $gate = gateProject(trustFile: true, binary: true);
+    $configured = new Gate($gate->rootPath, $gate->rootPath.'/vendor/bin', $gate->rootPath.'/libraries');
+
+    mkdir($gate->rootPath.'/libraries/composer', 0o777, true);
+    file_put_contents($gate->rootPath.'/libraries/composer/installed.json', '{"packages":[]}');
+
+    try {
+        expect($configured->hasInstalledTree())->toBeTrue()
+            ->and($configured->firstInstallNotice())->toBeNull()
+            ->and($gate->hasInstalledTree())->toBeFalse();
+    } finally {
+        unlink($gate->rootPath.'/libraries/composer/installed.json');
+        rmdir($gate->rootPath.'/libraries/composer');
+        rmdir($gate->rootPath.'/libraries');
+    }
+});

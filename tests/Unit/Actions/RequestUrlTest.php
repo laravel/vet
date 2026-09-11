@@ -49,6 +49,38 @@ it('resolves a relative location against the current url', function (): void {
         ]);
 });
 
+it('keeps the port of the current url on a redirect to a path', function (): void {
+    $http = new FakeHttp([
+        FakeHttp::redirect('/root'),
+        FakeHttp::redirect('next.zip'),
+        FakeHttp::body('done'),
+    ]);
+
+    $body = (new RequestUrl('vet-test', [], $http->client))->get('https://example.test:8443/dir/start');
+
+    expect($body)->toBe('done')
+        ->and($http->urls())->toBe([
+            'https://example.test:8443/dir/start',
+            'https://example.test:8443/root',
+            'https://example.test:8443/next.zip',
+        ]);
+});
+
+it('resolves a relative location against a url that holds no path', function (): void {
+    $http = new FakeHttp([
+        FakeHttp::redirect('next.zip'),
+        FakeHttp::body('done'),
+    ]);
+
+    $body = (new RequestUrl('vet-test', [], $http->client))->get('https://example.test');
+
+    expect($body)->toBe('done')
+        ->and($http->urls())->toBe([
+            'https://example.test',
+            'https://example.test/next.zip',
+        ]);
+});
+
 it('follows five redirects and refuses the sixth', function (): void {
     $chain = [];
 
