@@ -19,12 +19,12 @@ final readonly class LockFile
     public static function fromProject(Project $project): self
     {
         $path = $project->lockPath();
-        $data = Json::readFile($path, 'the lock file');
+        $document = Json::readFile($path, 'the lock file');
 
         $packages = [];
 
         foreach (['packages' => false, 'packages-dev' => true] as $key => $dev) {
-            foreach (Json::array($data, $key) as $entry) {
+            foreach (Json::array($document, $key) as $entry) {
                 if (! is_array($entry)) {
                     continue;
                 }
@@ -41,7 +41,7 @@ final readonly class LockFile
         }
 
         if ($packages === []) {
-            throw InvalidJsonException::shape($path, 'the lock file lists no packages.');
+            throw InvalidJsonException::structure($path, 'the lock file lists no packages.');
         }
 
         ksort($packages, SORT_STRING);

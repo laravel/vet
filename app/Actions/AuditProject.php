@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\AuditStatus;
+use App\Enums\InstallSourceType;
 use App\Enums\PackageStatus;
 use App\Exceptions\PackageInstallsNoTreeException;
 use App\Exceptions\VetException;
@@ -27,7 +28,7 @@ use App\ValueObjects\TrustFile;
 
 final readonly class AuditProject
 {
-    public function __construct(
+    private function __construct(
         public Project $project,
         public TrustFile $trustFile,
         private InstalledRepository $installed,
@@ -37,25 +38,17 @@ final readonly class AuditProject
         private FetchPackageMetadata $packagist,
     ) {}
 
-    public static function forProject(Project $project, ?ComposerPlan $plan = null): self
+    public static function forProject(Project $project): self
     {
         $installed = InstalledRepository::fromProject($project);
         $lock = LockFile::fromProject($project);
 
-        return new self(
-            project: $project,
-            trustFile: TrustFile::forProject($project),
-            installed: $installed,
-            fingerprinter: new FingerprintPackage(FetchArchive::default()),
-            lock: $lock,
-            plan: $plan ?? ComposerPlan::between($lock, $installed),
-            packagist: FetchPackageMetadata::default(),
-        );
+        return self::of($project, $installed, $lock, ComposerPlan::between($lock, $installed));
     }
 
-    public function installed(): InstalledRepository
+    public static function forPlan(Project $project, ComposerPlan $plan): self
     {
-        return $this->installed;
+        return self::of($project, InstalledRepository::fromProject($project), LockFile::fromProject($project), $plan);
     }
 
     public function plan(): ComposerPlan
@@ -65,17 +58,17 @@ final readonly class AuditProject
 
     public function report(): AuditReport
     {
-        $results = [];
+        $audits = [];
 
         foreach ($this->installed->all() as $name => $package) {
             if ($this->plan->touches($name) || ! $this->installsTree($name)) {
                 continue;
             }
 
-            $results[$name] = $this->auditOf($package);
+            $audits[$name] = $this->auditOf($package);
         }
 
-        return $this->reportOf([...$results, ...$this->auditsOfPlan()]);
+        return $this->reportOf([...$audits, ...$this->auditsOfPlan()]);
     }
 
     public function auditOfName(string $name): PackageAudit
@@ -110,6 +103,22 @@ final readonly class AuditProject
         }
     }
 
+    public function incomingTree(PackageAudit $audit, ComposerOperation $operation): ?Delta
+    {
+        if (! $this->installed->has($audit->package)) {
+            return null;
+        }
+
+        try {
+            return ResolveDelta::forProject($this->project)->incoming(
+                $this->target($operation, $audit->version, $audit->dev),
+                $this->installed->get($audit->package),
+            );
+        } catch (VetException) {
+            return null;
+        }
+    }
+
     public function auditOf(Package $package): PackageAudit
     {
         $fingerprint = $this->fingerprinter->ofPackage($package);
@@ -125,6 +134,9 @@ final readonly class AuditProject
             bytes: $fingerprint->bytes,
             grant: $grant,
             source: $fingerprint->source,
+            state: PackageStatus::Installed,
+            from: null,
+            cause: null,
             path: $fingerprint->path,
         );
     }
@@ -148,6 +160,7 @@ final readonly class AuditProject
                 files: 0,
                 bytes: 0,
                 grant: $grant,
+                source: InstallSourceType::Dist,
                 state: PackageStatus::Pending,
                 from: $operation->from,
                 cause: sprintf(
@@ -155,6 +168,7 @@ final readonly class AuditProject
                     $version,
                     $vetException->getMessage(),
                 ),
+                path: null,
             );
         }
 
@@ -170,6 +184,7 @@ final readonly class AuditProject
             source: $fingerprint->source,
             state: PackageStatus::Pending,
             from: $operation->from,
+            cause: null,
             path: $fingerprint->path,
         );
     }
@@ -188,7 +203,7 @@ final readonly class AuditProject
     }
 
     /**
-     * @return array<int, LockDiscrepancy> the discrepancies found
+     * @return array<int, LockDiscrepancy>
      */
     public function lockDiscrepancies(): array
     {
@@ -222,32 +237,45 @@ final readonly class AuditProject
         return $problems;
     }
 
+    private static function of(Project $project, InstalledRepository $installed, LockFile $lock, ComposerPlan $plan): self
+    {
+        return new self(
+            project: $project,
+            trustFile: TrustFile::forProject($project),
+            installed: $installed,
+            fingerprinter: new FingerprintPackage(FetchArchive::default()),
+            lock: $lock,
+            plan: $plan,
+            packagist: FetchPackageMetadata::default(),
+        );
+    }
+
     /**
      * @return array<string, PackageAudit>
      */
     private function auditsOfPlan(): array
     {
-        $results = [];
+        $audits = [];
 
         foreach ($this->plan->incoming() as $operation) {
             if (! $this->installsTree($operation->package)) {
                 continue;
             }
 
-            $results[$operation->package] = $this->auditOfIncoming($operation);
+            $audits[$operation->package] = $this->auditOfIncoming($operation);
         }
 
-        return $results;
+        return $audits;
     }
 
     /**
-     * @param  array<string, PackageAudit>  $results
+     * @param  array<string, PackageAudit>  $audits
      */
-    private function reportOf(array $results): AuditReport
+    private function reportOf(array $audits): AuditReport
     {
-        ksort($results, SORT_STRING);
+        ksort($audits, SORT_STRING);
 
-        return new AuditReport($results);
+        return new AuditReport($audits);
     }
 
     private function treeOf(PackageAudit $audit): ?Package

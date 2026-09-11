@@ -13,7 +13,7 @@ final class Json
     /**
      * @return array<string, mixed>
      */
-    public static function readFile(string $path, string $what = 'file'): array
+    public static function readFile(string $path, string $what): array
     {
         if (! is_file($path) || ! is_readable($path)) {
             throw FileNotFoundException::at($path, $what);
@@ -32,7 +32,7 @@ final class Json
         }
 
         if (! is_array($decoded)) {
-            throw InvalidJsonException::shape($path, 'expected a JSON object at the top level.');
+            throw InvalidJsonException::structure($path, 'expected a JSON object at the top level.');
         }
 
         /** @var array<string, mixed> $decoded */
@@ -40,12 +40,12 @@ final class Json
     }
 
     /**
-     * @param  array<array-key, mixed>  $data
+     * @param  array<array-key, mixed>  $document
      */
-    public static function encode(array $data): string
+    public static function encode(array $document): string
     {
         $encoded = json_encode(
-            $data,
+            $document,
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
         );
 
@@ -53,23 +53,23 @@ final class Json
     }
 
     /**
-     * @param  array<array-key, mixed>  $data
+     * @param  array<array-key, mixed>  $document
      */
-    public static function string(array $data, string $key): ?string
+    public static function string(array $document, string $key): ?string
     {
-        $value = $data[$key] ?? null;
+        $field = $document[$key] ?? null;
 
-        return is_string($value) ? $value : null;
+        return is_string($field) ? $field : null;
     }
 
     /**
-     * @param  array<array-key, mixed>  $data
+     * @param  array<array-key, mixed>  $document
      * @return array<array-key, mixed>
      */
-    public static function array(array $data, string $key): array
+    public static function array(array $document, string $key): array
     {
-        $value = $data[$key] ?? null;
+        $field = $document[$key] ?? null;
 
-        return is_array($value) ? $value : [];
+        return is_array($field) ? $field : [];
     }
 }

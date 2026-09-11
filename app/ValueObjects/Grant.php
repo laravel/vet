@@ -14,19 +14,19 @@ final readonly class Grant
         public string $version,
         public TreeHash $hash,
         public bool $dev,
-        public ?string $notes = null,
+        public ?string $notes,
     ) {}
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $entry
      */
-    public static function fromArray(array $data, string $package, bool $dev): self
+    public static function fromArray(array $entry, string $package, bool $dev): self
     {
-        $version = Json::string($data, 'version');
-        $hash = Json::string($data, 'hash');
+        $version = Json::string($entry, 'version');
+        $hash = Json::string($entry, 'hash');
 
         if ($version === null || $hash === null) {
-            throw new FailureException(sprintf('The entry for [%s] needs a "version" and a "hash".', $package));
+            throw new FailureException(sprintf('The entry for [%s] needs a [version] and a [hash].', $package));
         }
 
         return new self(
@@ -34,7 +34,7 @@ final readonly class Grant
             version: $version,
             hash: TreeHash::parse($hash),
             dev: $dev,
-            notes: Json::string($data, 'notes'),
+            notes: Json::string($entry, 'notes'),
         );
     }
 
@@ -53,15 +53,15 @@ final readonly class Grant
      */
     public function toArray(): array
     {
-        $data = [
+        $entry = [
             'version' => $this->version,
             'hash' => (string) $this->hash,
         ];
 
         if ($this->notes !== null) {
-            $data['notes'] = $this->notes;
+            $entry['notes'] = $this->notes;
         }
 
-        return $data;
+        return $entry;
     }
 }

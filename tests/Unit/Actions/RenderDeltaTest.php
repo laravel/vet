@@ -33,9 +33,11 @@ function renderedDeltaReport(array $changes, array $notes): string
         changes: $changes,
         manifestChange: null,
         firstInstall: false,
-    )->withResolution(false, $notes);
+        toIsLocalInstall: false,
+        notes: $notes,
+    );
 
-    new RenderDelta(new OutputStyle(new ArrayInput([]), $buffer), Invitation::toReadTheInstalledTree(), Gutter::None)->report($delta);
+    new RenderDelta(new OutputStyle(new ArrayInput([]), $buffer), Invitation::toReadTheInstalledTree(), Gutter::None)->report($delta, BucketType::inReviewOrder());
 
     return $buffer->fetch();
 }
@@ -64,4 +66,28 @@ it('counts the changes that it does not show, and writes no patch of a change th
         ->toContain('… and 1 more, with [vet -v]')
         ->toContain('[1] change(s) are not shown. Read them with [vet -v].')
         ->and(str_contains($output, '@@'))->toBeFalse();
+});
+
+it('says that it cannot read a file whose bytes it cannot open', function (): void {
+    $file = sys_get_temp_dir().'/vet-render-'.bin2hex(random_bytes(6));
+
+    file_put_contents($file, "<?php\n");
+    chmod($file, 0o000);
+
+    try {
+        $output = renderedDeltaReport([new Change(
+            path: 'src/Locked.php',
+            status: ChangeStatus::Modified,
+            bucket: BucketType::RuntimeSource,
+            oldHash: 'old',
+            newHash: 'new',
+            oldFile: $file,
+            newFile: null,
+        )], []);
+    } finally {
+        chmod($file, 0o644);
+        unlink($file);
+    }
+
+    expect($output)->toContain('vet cannot read this file, so its bytes are not shown');
 });

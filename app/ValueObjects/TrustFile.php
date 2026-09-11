@@ -6,7 +6,7 @@ namespace App\ValueObjects;
 
 use App\Actions\PersistTrustFile;
 
-final class TrustFile
+final readonly class TrustFile
 {
     private const array SECTIONS = ['require' => false, 'require-dev' => true];
 
@@ -14,8 +14,8 @@ final class TrustFile
      * @param  array<string, Grant>  $grants
      */
     private function __construct(
-        public readonly string $path,
-        private readonly PersistTrustFile $document,
+        public string $path,
+        private PersistTrustFile $document,
         private array $grants,
     ) {}
 
@@ -52,9 +52,9 @@ final class TrustFile
         return $this->grants[$package] ?? null;
     }
 
-    public function record(Grant $grant): void
+    public function withGrant(Grant $grant): self
     {
-        $this->grants[$grant->package] = $grant;
+        return new self($this->path, $this->document, [...$this->grants, $grant->package => $grant]);
     }
 
     public function save(): void

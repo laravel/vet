@@ -32,6 +32,8 @@ it('reads no manifest change when one of the two trees holds no composer.json', 
             toDirectory: $directory.'/new',
             toMetadata: $package,
             source: InstallSourceType::Dist,
+            toIsLocalInstall: false,
+            notes: [],
         );
     } finally {
         File::deleteDirectory($directory);

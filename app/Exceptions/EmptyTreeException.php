@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
-final class EmptyTreeException extends VetException
+use RuntimeException;
+
+final class EmptyTreeException extends RuntimeException implements VetException
 {
     public static function at(string $directory): self
     {

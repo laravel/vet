@@ -16,9 +16,9 @@ final readonly class ComposerOperation
         public ComposerChangeType $change,
         public ?string $from,
         public ?string $to,
-        public ?string $distUrl = null,
-        public ?string $distReference = null,
-        public ?string $distShasum = null,
+        public ?string $distUrl,
+        public ?string $distReference,
+        public ?string $distShasum,
     ) {}
 
     public static function parse(string $line): ?self
@@ -31,12 +31,12 @@ final readonly class ComposerOperation
         $versions = array_map(self::version(...), explode('=>', $matches[3]));
 
         if (count($versions) > 1) {
-            return new self($matches[2], $change, $versions[0], $versions[1]);
+            return new self($matches[2], $change, $versions[0], $versions[1], null, null, null);
         }
 
         return $change === ComposerChangeType::Remove
-            ? new self($matches[2], $change, $versions[0], null)
-            : new self($matches[2], $change, null, $versions[0]);
+            ? new self($matches[2], $change, $versions[0], null, null, null, null)
+            : new self($matches[2], $change, null, $versions[0], null, null, null);
     }
 
     /**

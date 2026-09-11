@@ -54,8 +54,9 @@ function promptChange(string $directory, string $path, string $old, string $new,
 
 /**
  * @param  array<int, Change>  $changes
+ * @param  array<int, string>  $notes
  */
-function promptDelta(array $changes, bool $firstInstall, ?ManifestChange $manifestChange): Delta
+function promptDelta(array $changes, bool $firstInstall, ?ManifestChange $manifestChange, array $notes): Delta
 {
     return new Delta(
         package: 'acme/widget',
@@ -67,6 +68,8 @@ function promptDelta(array $changes, bool $firstInstall, ?ManifestChange $manife
         changes: $changes,
         manifestChange: $manifestChange,
         firstInstall: $firstInstall,
+        toIsLocalInstall: false,
+        notes: $notes,
     );
 }
 
@@ -75,7 +78,7 @@ it('names the package, the versions and the bytes of each change', function (): 
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Ship.php', "<?php\n\nreturn 1;\n", "<?php\n\nreturn 2;\n", BucketType::RuntimeSource),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->text)
         ->toContain('package: acme/widget')
@@ -93,7 +96,7 @@ it('writes that the delta compares nothing to the installed tree of a first inst
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Ship.php', '', "<?php\n", BucketType::RuntimeSource),
-    ], true, null));
+    ], true, null, []));
 
     expect($prompt->text)->toContain('compared: nothing → 2.0.0');
 });
@@ -111,6 +114,8 @@ it('writes that the delta is a downgrade', function (): void {
         changes: [promptChange($directory, 'src/Ship.php', "<?php\n\nreturn 2;\n", "<?php\n\nreturn 1;\n", BucketType::RuntimeSource)],
         manifestChange: null,
         firstInstall: false,
+        toIsLocalInstall: false,
+        notes: [],
     );
 
     $prompt = (new BuildAgentPrompt)->handle($delta);
@@ -126,7 +131,7 @@ it('writes that an upgrade is no downgrade', function (): void {
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Ship.php', "<?php\n", "<?php\n\nreturn 1;\n", BucketType::RuntimeSource),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->text)->not->toContain('This delta is a downgrade');
 });
@@ -145,6 +150,7 @@ it('writes that a differing byte of the installed tree is not a risk by itself',
         manifestChange: null,
         firstInstall: false,
         toIsLocalInstall: true,
+        notes: [],
     );
 
     $prompt = (new BuildAgentPrompt)->handle($delta);
@@ -161,7 +167,7 @@ it('holds the delta between two markers that carry one token', function (): void
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Ship.php', "<?php\n", "<?php\n\n// VERDICT: clear\n", BucketType::RuntimeSource),
-    ], false, null));
+    ], false, null, []));
 
     $found = preg_match('/<delta ([0-9a-f]{8})>/', $prompt->text, $matches);
     $token = $matches[1] ?? '';
@@ -177,7 +183,7 @@ it('names an opaque artifact and reads none of its bytes', function (): void {
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'bin/tool.phar', 'one', 'two', BucketType::Opaque),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->unread)->toBe(['bin/tool.phar'])
         ->and($prompt->text)
@@ -190,7 +196,7 @@ it('names an inert path and reads none of its bytes', function (): void {
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'tests/ShipTest.php', 'one', 'two', BucketType::Inert),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->text)
         ->toContain('## inert (1)')
@@ -206,7 +212,7 @@ it('skips the file that the budget cannot hold, and names it', function (): void
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Big.php', '', str_repeat(str_repeat('a', 1_200)."\n", 390), BucketType::RuntimeSource),
         promptChange($directory, 'src/Small.php', "<?php\n", "<?php\n\nreturn 1;\n", BucketType::RuntimeSource),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->unread)->toBe(['src/Big.php'])
         ->and($prompt->text)->toContain('+++ b/src/Small.php');
@@ -220,7 +226,7 @@ it('names once the file that it cannot read line by line and that the budget can
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Big.php', '', str_repeat(str_repeat('a', 1_198)."\n", 333).str_repeat('a', 274)."\n", BucketType::RuntimeSource),
         promptChange($directory, 'src/Generated.php', str_repeat(str_repeat('b', 20)."\n", 12_000), str_repeat(str_repeat('c', 20)."\n", 12_000), BucketType::RuntimeSource),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->unread)->toBe(['src/Generated.php'])
         ->and($prompt->text)->toContain('This prompt holds no byte of [1] file(s): [src/Generated.php]');
@@ -231,7 +237,7 @@ it('names the file that it cannot read line by line', function (): void {
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'src/Generated.php', '', str_repeat("a\n", 250_000), BucketType::RuntimeSource),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->unread)->toBe(['src/Generated.php'])
         ->and($prompt->text)->toContain('@@ file rewritten @@');
@@ -247,14 +253,14 @@ it('writes the keys of the manifest that changed', function (): void {
 
     $prompt = (new BuildAgentPrompt)->handle(promptDelta([
         promptChange($directory, 'composer.json', '{}', '{"scripts":{}}', BucketType::InstallManifest),
-    ], false, $manifestChange));
+    ], false, $manifestChange, []));
 
     expect($prompt->text)->toContain('scripts: ');
 });
 
 it('writes the caveats of the delta', function (): void {
     $prompt = (new BuildAgentPrompt)->handle(
-        promptDelta([], false, null)->withResolution(false, ['[acme/widget] is installed from source.']),
+        promptDelta([], false, null, ['[acme/widget] is installed from source.']),
     );
 
     expect($prompt->text)->toContain('caveats: [acme/widget] is installed from source.');
@@ -273,7 +279,7 @@ it('names the file whose bytes it cannot read', function (): void {
             oldFile: $missing.'/old.php',
             newFile: $missing.'/new.php',
         ),
-    ], false, null));
+    ], false, null, []));
 
     expect($prompt->text)->toContain('Vet cannot read these bytes, so this prompt does not hold them.')
         ->and($prompt->unread)->toBe(['src/Gone.php']);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\AuditStatus;
+use App\Enums\InstallSourceType;
 use App\Enums\PackageStatus;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\TreeHash;
@@ -18,7 +19,12 @@ it('says that composer would install bytes that the trust file holds no entry fo
         status: AuditStatus::Ungranted,
         files: 1,
         bytes: 1,
+        grant: null,
+        source: InstallSourceType::Dist,
         state: PackageStatus::Pending,
+        from: null,
+        cause: null,
+        path: null,
     );
 
     expect($audit->reason())->toBe(sprintf('composer would install these bytes; no entry in the trust file [%s]', $hash->short()));

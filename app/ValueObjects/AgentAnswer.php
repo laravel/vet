@@ -34,7 +34,7 @@ final readonly class AgentAnswer
         return self::SCHEMA;
     }
 
-    public static function shape(): string
+    public static function example(): string
     {
         return '{"verdict": "clear or risk", "summary": "one sentence of '
             .self::MAX_SUMMARY
@@ -78,22 +78,22 @@ final readonly class AgentAnswer
     /**
      * @return array<int, AgentFinding>
      */
-    private static function findings(mixed $value): array
+    private static function findings(mixed $entries): array
     {
-        if (! is_array($value)) {
+        if (! is_array($entries)) {
             return [];
         }
 
         $findings = [];
 
-        foreach (array_slice($value, 0, self::MAX_FINDINGS) as $item) {
-            if (! is_array($item) || ! is_string($item['path'] ?? null)) {
+        foreach (array_slice($entries, 0, self::MAX_FINDINGS) as $entry) {
+            if (! is_array($entry) || ! is_string($entry['path'] ?? null)) {
                 continue;
             }
 
-            $reason = $item['reason'] ?? '';
+            $reason = $entry['reason'] ?? '';
 
-            $findings[] = new AgentFinding($item['path'], is_string($reason) ? $reason : '');
+            $findings[] = new AgentFinding($entry['path'], is_string($reason) ? $reason : '');
         }
 
         return $findings;

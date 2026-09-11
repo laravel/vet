@@ -37,12 +37,6 @@ final class FetchPackageMetadata
         return new self(RequestUrl::default(), app(CacheArtifact::class));
     }
 
-    public static function isStable(string $version): bool
-    {
-        return preg_match('/^dev-|[.-]dev$/i', $version) !== 1
-            && preg_match('/\d[._-]?(alpha|a|beta|b|rc)([.-]?\d+)*$/i', $version) !== 1;
-    }
-
     /**
      * @return array<string, Package>
      */
@@ -83,38 +77,6 @@ final class FetchPackageMetadata
             $package,
             implode(', ', array_slice(array_keys($this->versions($package)), 0, 8)),
         ));
-    }
-
-    public function previousVersion(string $package, string $version): ?string
-    {
-        $versions = array_map(strval(...), array_keys($this->versions($package)));
-        $wantStable = self::isStable($version);
-
-        $index = false;
-
-        foreach ($this->aliasesOf($version) as $candidate) {
-            $found = array_search($candidate, $versions, true);
-
-            if ($found !== false) {
-                $index = $found;
-
-                break;
-            }
-        }
-
-        if ($index === false) {
-            return null;
-        }
-
-        $counter = count($versions);
-
-        for ($i = $index + 1; $i < $counter; $i++) {
-            if (! $wantStable || self::isStable($versions[$i])) {
-                return $versions[$i];
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -219,7 +181,7 @@ final class FetchPackageMetadata
     private function assertValidName(string $package): void
     {
         if (preg_match('#^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$#i', $package) !== 1) {
-            throw new FailureException(sprintf('[%s] is not a valid package name; expected "vendor/name".', $package));
+            throw new FailureException(sprintf('[%s] is not a valid package name; expected [vendor/name].', $package));
         }
     }
 }

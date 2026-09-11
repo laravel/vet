@@ -16,7 +16,7 @@ final readonly class Delta
 
     /**
      * @param  array<int, Change>  $changes
-     * @param  array<int, string>  $notes  caveats about what was actually compared
+     * @param  array<int, string>  $notes
      */
     public function __construct(
         public string $package,
@@ -28,32 +28,12 @@ final readonly class Delta
         array $changes,
         public ?ManifestChange $manifestChange,
         public bool $firstInstall,
-        public bool $toIsLocalInstall = false,
-        public array $notes = [],
+        public bool $toIsLocalInstall,
+        public array $notes,
     ) {
         usort($changes, static fn (Change $a, Change $b): int => [$a->bucket->weight(), $a->path] <=> [$b->bucket->weight(), $b->path]);
 
         $this->changes = $changes;
-    }
-
-    /**
-     * @param  array<int, string>  $notes
-     */
-    public function withResolution(bool $toIsLocalInstall, array $notes): self
-    {
-        return new self(
-            $this->package,
-            $this->from,
-            $this->to,
-            $this->fromHash,
-            $this->toHash,
-            $this->source,
-            $this->changes,
-            $this->manifestChange,
-            $this->firstInstall,
-            $toIsLocalInstall,
-            $notes,
-        );
     }
 
     public function comparesPublishedToInstalled(): bool
@@ -148,7 +128,7 @@ final readonly class Delta
                 '[%d] opaque %s cannot be read: [%s].',
                 count($opaque),
                 count($opaque) === 1 ? 'artifact' : 'artifacts',
-                implode(', ', array_map(static fn (Change $c): string => $c->path, array_slice($opaque, 0, 3))),
+                implode(', ', array_map(static fn (Change $change): string => $change->path, array_slice($opaque, 0, 3))),
             );
         }
 

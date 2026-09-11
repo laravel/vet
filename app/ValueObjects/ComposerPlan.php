@@ -59,11 +59,17 @@ final readonly class ComposerPlan
         $operations = [];
 
         foreach ($locked as $name => $package) {
-            $operation = self::operationFor($package, $current[$name] ?? null);
+            if (! isset($current[$name])) {
+                $operations[] = self::installOf($package);
 
-            if ($operation instanceof ComposerOperation) {
-                $operations[] = $operation;
+                continue;
             }
+
+            if (self::unchanged($package, $current[$name])) {
+                continue;
+            }
+
+            $operations[] = self::changeOf($package, $current[$name]);
         }
 
         foreach ($current as $name => $package) {
@@ -115,27 +121,32 @@ final readonly class ComposerPlan
             change: ComposerChangeType::Remove,
             from: $installed->version,
             to: null,
+            distUrl: null,
+            distReference: null,
+            distShasum: null,
         );
     }
 
-    private static function operationFor(Package $locked, ?Package $installed): ?ComposerOperation
+    private static function installOf(Package $locked): ComposerOperation
     {
-        if (! $installed instanceof Package) {
-            return new ComposerOperation(
-                package: $locked->name,
-                change: ComposerChangeType::Install,
-                from: null,
-                to: $locked->version,
-                distUrl: $locked->distUrl,
-                distReference: $locked->distReference,
-                distShasum: $locked->distShasum,
-            );
-        }
+        return new ComposerOperation(
+            package: $locked->name,
+            change: ComposerChangeType::Install,
+            from: null,
+            to: $locked->version,
+            distUrl: $locked->distUrl,
+            distReference: $locked->distReference,
+            distShasum: $locked->distShasum,
+        );
+    }
 
-        if ($installed->version === $locked->version && $installed->distReference === $locked->distReference) {
-            return null;
-        }
+    private static function unchanged(Package $locked, Package $installed): bool
+    {
+        return $installed->version === $locked->version && $installed->distReference === $locked->distReference;
+    }
 
+    private static function changeOf(Package $locked, Package $installed): ComposerOperation
+    {
         return new ComposerOperation(
             package: $locked->name,
             change: version_compare($locked->version, $installed->version, '<')

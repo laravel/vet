@@ -25,13 +25,13 @@ final readonly class DiskCacheArtifact implements CacheArtifact
         $xdg = getenv('XDG_CACHE_HOME');
         $home = getenv('HOME');
 
-        $base = match (true) {
+        $cacheHome = match (true) {
             is_string($xdg) && $xdg !== '' => $xdg,
             is_string($home) && $home !== '' => Path::join($home, '.cache'),
             default => sys_get_temp_dir(),
         };
 
-        return new self(Path::normalize(Path::join($base, 'vet')));
+        return new self(Path::normalize(Path::join($cacheHome, 'vet')));
     }
 
     public function forPackage(string $section, string $package, string ...$segments): string
@@ -39,7 +39,7 @@ final readonly class DiskCacheArtifact implements CacheArtifact
         $parts = explode('/', $package);
 
         if (count($parts) !== 2) {
-            throw new FailureException(sprintf('[%s] is not a valid package name; expected "vendor/name".', $package));
+            throw new FailureException(sprintf('[%s] is not a valid package name; expected [vendor/name].', $package));
         }
 
         return $this->path($section, ...array_map($this->segment(...), [...$parts, ...$segments]));
@@ -87,9 +87,9 @@ final readonly class DiskCacheArtifact implements CacheArtifact
         return Path::normalize(Path::join($this->rootPath, ...$segments));
     }
 
-    private function segment(string $value): string
+    private function segment(string $text): string
     {
-        $safe = (string) preg_replace('/[^A-Za-z0-9._-]+/', '-', $value);
+        $safe = (string) preg_replace('/[^A-Za-z0-9._-]+/', '-', $text);
 
         return trim($safe, '.') === '' ? '-' : $safe;
     }

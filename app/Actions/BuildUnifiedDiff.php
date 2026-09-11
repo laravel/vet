@@ -13,11 +13,11 @@ final class BuildUnifiedDiff
     private const int MAX_CHANGED_LINES = 20_000;
 
     public static function handle(
-        ?string $old,
-        ?string $new,
+        string $old,
+        string $new,
         string $oldLabel,
         string $newLabel,
-        int $context = 3,
+        int $context,
     ): string {
         $oldLines = self::lines($old);
         $newLines = self::lines($new);
@@ -48,9 +48,9 @@ final class BuildUnifiedDiff
     /**
      * @return array<int, string>
      */
-    private static function lines(?string $content): array
+    private static function lines(string $content): array
     {
-        if ($content === null || $content === '') {
+        if ($content === '') {
             return [];
         }
 

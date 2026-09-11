@@ -22,9 +22,6 @@ final readonly class FetchArchive
         return new self(RequestUrl::default(), app(CacheArtifact::class));
     }
 
-    /**
-     * @return string the directory containing the extracted package tree
-     */
     public function handle(Package $package): string
     {
         if ($package->distUrl === null || $package->distUrl === '') {

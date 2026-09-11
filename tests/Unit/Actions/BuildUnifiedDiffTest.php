@@ -26,6 +26,7 @@ it('reads a file that changed within its budget', function (): void {
         joined(numbered('new', 100)),
         'a/f',
         'b/f',
+        3,
     );
 
     expect($diff)
@@ -41,6 +42,7 @@ it('writes every line of a file that changed more than it reads line by line', f
         joined(numbered('new', 300)),
         'a/f',
         'b/f',
+        3,
     );
 
     expect($diff)
@@ -52,7 +54,7 @@ it('writes every line of a file that changed more than it reads line by line', f
 });
 
 it('writes every line of a file that the delta adds', function (): void {
-    $diff = BuildUnifiedDiff::handle(null, joined(numbered('new', 757)), 'a/f', 'b/f');
+    $diff = BuildUnifiedDiff::handle('', joined(numbered('new', 757)), 'a/f', 'b/f', 3);
 
     expect($diff)
         ->toContain('@@ -0,0 +1,757 @@')
@@ -62,7 +64,7 @@ it('writes every line of a file that the delta adds', function (): void {
 });
 
 it('writes every line of a file that the delta removes', function (): void {
-    $diff = BuildUnifiedDiff::handle(joined(numbered('old', 757)), null, 'a/f', 'b/f');
+    $diff = BuildUnifiedDiff::handle(joined(numbered('old', 757)), '', 'a/f', 'b/f', 3);
 
     expect($diff)
         ->toContain('@@ -1,757 +0,0 @@')
@@ -80,6 +82,7 @@ it('counts the lines of the region that changed, and not the whole file', functi
         joined([...$head, ...numbered('new', 15_000), ...$tail]),
         'a/f',
         'b/f',
+        3,
     );
 
     expect($diff)->toContain('- 15000 line(s) replaced by 15000 line(s)');
@@ -91,7 +94,7 @@ it('reads one changed line of a large file, and names its place', function (): v
 
     $lines[9_999] = 'TAMPERED';
 
-    $diff = BuildUnifiedDiff::handle($before, joined($lines), 'a/f', 'b/f');
+    $diff = BuildUnifiedDiff::handle($before, joined($lines), 'a/f', 'b/f', 3);
 
     expect($diff)
         ->toContain('@@ -9997,7 +9997,7 @@')
@@ -117,7 +120,7 @@ it('writes hunks in the order of the lines', function (): void {
 });
 
 it('writes nothing for two contents that hold the same lines', function (): void {
-    expect(BuildUnifiedDiff::handle("a\nb", "a\nb\n", 'a/f', 'b/f'))->toBe('');
+    expect(BuildUnifiedDiff::handle("a\nb", "a\nb\n", 'a/f', 'b/f', 3))->toBe('');
 });
 
 it('writes one hunk for each change, and skips the lines between two changes that stand apart', function (): void {
@@ -127,7 +130,7 @@ it('writes one hunk for each change, and skips the lines between two changes tha
     $after[1] = 'FIRST';
     $after[17] = 'SECOND';
 
-    $diff = BuildUnifiedDiff::handle(joined($before), joined($after), 'a/f', 'b/f');
+    $diff = BuildUnifiedDiff::handle(joined($before), joined($after), 'a/f', 'b/f', 3);
 
     expect($diff)->toBe(
         "--- a/f\n+++ b/f\n"
@@ -144,6 +147,7 @@ it('holds its memory when a file is rewritten', function (): void {
         joined(numbered('new', 5_000)),
         'a/f',
         'b/f',
+        3,
     );
 
     expect(memory_get_peak_usage() - $before)->toBeLessThan(32 * 1024 * 1024);

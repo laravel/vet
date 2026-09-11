@@ -32,11 +32,11 @@ final readonly class ManifestChange
 
     /**
      * @param  array<int, string>  $changedKeys
-     * @param  array<string, array{old: mixed, new: mixed}>  $values
+     * @param  array<string, array{old: mixed, new: mixed}>  $transitions
      */
     private function __construct(
         private array $changedKeys,
-        private array $values,
+        private array $transitions,
     ) {}
 
     /**
@@ -46,7 +46,7 @@ final readonly class ManifestChange
     public static function between(array $old, array $new): self
     {
         $changed = [];
-        $values = [];
+        $transitions = [];
 
         foreach (self::WATCHED as $key) {
             $before = self::dig($old, $key);
@@ -54,11 +54,11 @@ final readonly class ManifestChange
 
             if ($before !== $after) {
                 $changed[] = $key;
-                $values[$key] = ['old' => $before, 'new' => $after];
+                $transitions[$key] = ['old' => $before, 'new' => $after];
             }
         }
 
-        return new self($changed, $values);
+        return new self($changed, $transitions);
     }
 
     /**
@@ -81,21 +81,21 @@ final readonly class ManifestChange
 
     public function render(string $key): string
     {
-        $value = $this->values[$key] ?? null;
+        $transition = $this->transitions[$key] ?? null;
 
-        if ($value === null) {
+        if ($transition === null) {
             return '';
         }
 
-        return sprintf('%s → %s', $this->inline($value['old']), $this->inline($value['new']));
+        return sprintf('%s → %s', $this->inline($transition['old']), $this->inline($transition['new']));
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $manifest
      */
-    private static function dig(array $data, string $key): mixed
+    private static function dig(array $manifest, string $key): mixed
     {
-        $current = $data;
+        $current = $manifest;
 
         foreach (explode('.', $key) as $segment) {
             if (! is_array($current) || ! array_key_exists($segment, $current)) {
@@ -108,16 +108,16 @@ final readonly class ManifestChange
         return $current;
     }
 
-    private function inline(mixed $value): string
+    private function inline(mixed $setting): string
     {
-        if ($value === null) {
+        if ($setting === null) {
             return '(absent)';
         }
 
-        if (is_scalar($value)) {
-            return (string) (is_bool($value) ? ($value ? 'true' : 'false') : $value);
+        if (is_scalar($setting)) {
+            return (string) (is_bool($setting) ? ($setting ? 'true' : 'false') : $setting);
         }
 
-        return trim(str_replace("\n", ' ', Json::encode(is_array($value) ? $value : [$value])));
+        return trim(str_replace("\n", ' ', Json::encode(is_array($setting) ? $setting : [$setting])));
     }
 }

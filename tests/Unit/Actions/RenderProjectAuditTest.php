@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\AuditProject;
 use App\Actions\RenderProjectAudit;
 use App\Enums\AuditStatus;
+use App\Enums\InstallSourceType;
 use App\Enums\PackageStatus;
 use App\Support\Invitation;
 use App\ValueObjects\AuditReport;
@@ -19,9 +20,8 @@ use Tests\Fixtures\StaleProject;
 
 function projectAuditScreen(AuditProject $auditor, AuditReport $report, BufferedOutput $buffer): RenderProjectAudit
 {
-    return new RenderProjectAudit(
+    return RenderProjectAudit::of(
         new OutputStyle(new ArrayInput([]), $buffer),
-        $auditor->project,
         $auditor,
         $report,
         Invitation::toReadTheInstalledTree(),
@@ -36,7 +36,6 @@ it('reports that every package is covered', function (): void {
         $auditor = AuditProject::forProject(Project::at($fixture->rootPath));
         $screen = projectAuditScreen($auditor, $auditor->report(), $buffer);
 
-        $screen->deltas();
         $screen->renderReport(false);
     } finally {
         $fixture->remove();
@@ -54,7 +53,6 @@ it('says why the agent read no delta of a package', function (): void {
         $auditor = AuditProject::forProject(Project::at($project->rootPath));
         $screen = projectAuditScreen($auditor, $auditor->report(), $buffer);
 
-        $screen->deltas();
         $status = $screen->render([], true);
     } finally {
         $project->remove();
@@ -81,7 +79,12 @@ it('reviews the whole package of a pending audit that the plan does not hold', f
                 status: AuditStatus::Ungranted,
                 files: 4,
                 bytes: 0,
+                grant: null,
+                source: InstallSourceType::Dist,
                 state: PackageStatus::Pending,
+                from: null,
+                cause: null,
+                path: null,
             ),
         ]), new BufferedOutput)->deltas();
     } finally {

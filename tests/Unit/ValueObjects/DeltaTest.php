@@ -17,6 +17,8 @@ it('asks for a review of a delta that holds no change', function (): void {
         changes: [],
         manifestChange: null,
         firstInstall: false,
+        toIsLocalInstall: false,
+        notes: [],
     );
 
     expect($delta->isEmpty())->toBeTrue()
@@ -36,6 +38,7 @@ it('reads a downgrade from the two versions', function (string $from, string $to
         manifestChange: null,
         firstInstall: $firstInstall,
         toIsLocalInstall: $toIsLocalInstall,
+        notes: [],
     );
 
     expect($delta->isDowngrade())->toBe($downgrade);

@@ -18,12 +18,12 @@ final readonly class PackageAudit
         public AuditStatus $status,
         public int $files,
         public int $bytes,
-        public ?Grant $grant = null,
-        public InstallSourceType $source = InstallSourceType::Dist,
-        public PackageStatus $state = PackageStatus::Installed,
-        public ?string $from = null,
-        public ?string $cause = null,
-        public ?string $path = null,
+        public ?Grant $grant,
+        public InstallSourceType $source,
+        public PackageStatus $state,
+        public ?string $from,
+        public ?string $cause,
+        public ?string $path,
     ) {}
 
     public function fails(): bool
@@ -67,10 +67,10 @@ final readonly class PackageAudit
         if ($this->pending()) {
             return $this->grant instanceof Grant && $this->grant->version === $this->version
                 ? sprintf(
-                    'composer would install [%s] again, and its bytes changed ([%s], not [%s])',
+                    'composer would install [%s] again, and its bytes changed from [%s] to [%s]',
                     $this->version,
-                    $this->shortHash(),
                     $this->grant->hash->short(),
+                    $this->shortHash(),
                 )
                 : sprintf('composer would install these bytes; you trust [%s]', $granted);
         }
@@ -80,10 +80,10 @@ final readonly class PackageAudit
         }
 
         $reason = sprintf(
-            '[%s] is still installed but its bytes changed ([%s], not [%s])',
+            '[%s] is still installed but its bytes changed from [%s] to [%s]',
             $this->version,
-            $this->shortHash(),
             $this->grant->hash->short(),
+            $this->shortHash(),
         );
 
         if ($this->source === InstallSourceType::Source) {

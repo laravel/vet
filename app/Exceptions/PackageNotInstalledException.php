@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
-final class PackageNotInstalledException extends VetException
+use RuntimeException;
+
+final class PackageNotInstalledException extends RuntimeException implements VetException
 {
     public static function named(string $name): self
     {

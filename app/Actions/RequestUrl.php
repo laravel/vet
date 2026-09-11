@@ -91,10 +91,10 @@ final readonly class RequestUrl
     private static function discoverGithubHeaders(): array
     {
         foreach (['VET_GITHUB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN'] as $variable) {
-            $value = getenv($variable);
+            $token = getenv($variable);
 
-            if (is_string($value) && $value !== '') {
-                return self::bearer($value);
+            if (is_string($token) && $token !== '') {
+                return self::bearer($token);
             }
         }
 
@@ -224,13 +224,13 @@ final readonly class RequestUrl
         }
     }
 
-    private function absolute(string $base, string $location): string
+    private function absolute(string $requested, string $location): string
     {
         if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.\-]*://#', $location) === 1) {
             return $location;
         }
 
-        $parts = parse_url($base);
+        $parts = parse_url($requested);
 
         if (! is_array($parts) || ! isset($parts['scheme'], $parts['host'])) {
             return $location;

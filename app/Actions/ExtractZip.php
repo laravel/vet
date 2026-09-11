@@ -11,16 +11,13 @@ use ZipArchive;
 
 final class ExtractZip
 {
-    /**
-     * @return int the number of files written
-     */
     public static function handle(string $archive, string $destination): int
     {
         $zip = new ZipArchive;
         $opened = $zip->open($archive);
 
         if ($opened !== true) {
-            throw new FailureException(sprintf('Could not open the archive [%s] (zip error [%d]).', $archive, (int) $opened));
+            throw new FailureException(sprintf('Could not open the archive [%s]: zip error [%d].', $archive, (int) $opened));
         }
 
         try {

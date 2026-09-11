@@ -31,12 +31,12 @@ final readonly class TreeHash implements Stringable
         );
     }
 
-    public static function parse(string $value): self
+    public static function parse(string $text): self
     {
-        $parts = explode(':', $value, 2);
+        $parts = explode(':', $text, 2);
 
         if (count($parts) !== 2) {
-            throw new FailureException(sprintf('Malformed tree hash [%s]: expected "<algorithm>:<digest>".', $value));
+            throw new FailureException(sprintf('Malformed tree hash [%s]: expected [<algorithm>:<digest>].', $text));
         }
 
         [$algorithm, $digest] = $parts;
@@ -46,7 +46,7 @@ final readonly class TreeHash implements Stringable
         }
 
         if (preg_match('/^[0-9a-f]{'.self::LENGTH.'}$/', $digest) !== 1) {
-            throw new FailureException(sprintf('Malformed tree hash digest [%s]: expected %d lowercase hex characters.', $digest, self::LENGTH));
+            throw new FailureException(sprintf('Malformed tree hash digest [%s]: expected [%d] lowercase hex characters.', $digest, self::LENGTH));
         }
 
         return new self($algorithm, $digest);

@@ -87,18 +87,18 @@ enum AgentType: string
         }
 
         foreach ($keys as $key) {
-            $value = $decoded[$key] ?? null;
+            $field = $decoded[$key] ?? null;
 
-            if (is_array($value)) {
-                $encoded = json_encode($value);
+            if (is_array($field)) {
+                $encoded = json_encode($field);
 
                 if ($encoded !== false) {
                     return $encoded;
                 }
             }
 
-            if (is_string($value) && $value !== '') {
-                return $value;
+            if (is_string($field) && $field !== '') {
+                return $field;
             }
         }
 

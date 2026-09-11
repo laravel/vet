@@ -24,17 +24,17 @@ final class ExpandMinifiedMetadata
 
             /** @var array<string, mixed> $version */
             if ($current === null) {
-                $current = array_filter($version, static fn (mixed $value): bool => $value !== self::UNSET);
+                $current = array_filter($version, static fn (mixed $field): bool => $field !== self::UNSET);
                 $expanded[] = $current;
 
                 continue;
             }
 
-            foreach ($version as $key => $value) {
-                if ($value === self::UNSET) {
+            foreach ($version as $key => $field) {
+                if ($field === self::UNSET) {
                     unset($current[$key]);
                 } else {
-                    $current[$key] = $value;
+                    $current[$key] = $field;
                 }
             }
 

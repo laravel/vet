@@ -31,11 +31,10 @@ final readonly class ClassifyPath
 
     /**
      * @param  array<int, string>  $runtimeRoots
-     * @param  bool  $wholePackage  an autoload prefix maps to the package root
      */
     public function __construct(
         private array $runtimeRoots,
-        private bool $wholePackage = false,
+        private bool $wholePackage,
     ) {}
 
     public static function forPackages(Package ...$packages): self
@@ -54,11 +53,7 @@ final readonly class ClassifyPath
         return new self(array_values(array_unique($roots)), $wholePackage);
     }
 
-    /**
-     * @param  string  $path  relative to the package root
-     * @param  string|null  $file  absolute path to the file, when it exists on disk
-     */
-    public function handle(string $path, ?string $file = null): BucketType
+    public function handle(string $path, string $file): BucketType
     {
         if ($this->isOpaque($path, $file)) {
             return BucketType::Opaque;
@@ -75,7 +70,7 @@ final readonly class ClassifyPath
         return BucketType::Inert;
     }
 
-    private function isExecutable(string $path, ?string $file): bool
+    private function isExecutable(string $path, string $file): bool
     {
         $name = mb_strtolower(basename($path));
 
@@ -94,9 +89,9 @@ final readonly class ClassifyPath
         return $this->startsWithShebang($file);
     }
 
-    private function startsWithShebang(?string $file): bool
+    private function startsWithShebang(string $file): bool
     {
-        if ($file === null || ! is_file($file)) {
+        if (! is_file($file)) {
             return false;
         }
 
@@ -112,7 +107,7 @@ final readonly class ClassifyPath
         return $head === '#!';
     }
 
-    private function isOpaque(string $path, ?string $file): bool
+    private function isOpaque(string $path, string $file): bool
     {
         $extension = mb_strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
@@ -124,7 +119,7 @@ final readonly class ClassifyPath
             return false;
         }
 
-        if ($file === null || ! is_file($file)) {
+        if (! is_file($file)) {
             return false;
         }
 

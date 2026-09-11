@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Exceptions;
 
 use App\Enums\AgentType;
+use RuntimeException;
 
-final class AgentFailedException extends VetException
+final class AgentFailedException extends RuntimeException implements VetException
 {
     public static function missing(): self
     {

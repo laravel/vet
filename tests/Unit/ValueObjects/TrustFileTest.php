@@ -39,9 +39,10 @@ it('writes each grant that it records in its section, and an empty section as an
     try {
         $trustFile = TrustFile::fromDocument(PersistTrustFile::atPath($root.'/vet.json'));
 
-        $trustFile->record(new Grant('acme/widget', '1.0.0', $hash, false, 'Read it.'));
-        $trustFile->record(new Grant('acme/gadget', '2.0.0', $hash, false));
-        $trustFile->save();
+        $trustFile
+            ->withGrant(new Grant('acme/widget', '1.0.0', $hash, false, 'Read it.'))
+            ->withGrant(new Grant('acme/gadget', '2.0.0', $hash, false, null))
+            ->save();
 
         $written = json_decode((string) file_get_contents($root.'/vet.json'), true);
     } finally {

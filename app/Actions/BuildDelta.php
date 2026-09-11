@@ -16,6 +16,9 @@ use App\ValueObjects\TreeHash;
 
 final class BuildDelta
 {
+    /**
+     * @param  array<int, string>  $notes
+     */
     public function handle(
         string $package,
         string $fromVersion,
@@ -25,6 +28,8 @@ final class BuildDelta
         string $toDirectory,
         Package $toMetadata,
         InstallSourceType $source,
+        bool $toIsLocalInstall,
+        array $notes,
     ): Delta {
         $before = Manifest::ofDirectory($fromDirectory);
         $after = Manifest::ofDirectory($toDirectory);
@@ -85,6 +90,8 @@ final class BuildDelta
             changes: $changes,
             manifestChange: $this->manifestChange($fromDirectory, $toDirectory),
             firstInstall: false,
+            toIsLocalInstall: $toIsLocalInstall,
+            notes: $notes,
         );
     }
 
@@ -119,6 +126,8 @@ final class BuildDelta
             changes: $changes,
             manifestChange: null,
             firstInstall: true,
+            toIsLocalInstall: false,
+            notes: [],
         );
     }
 

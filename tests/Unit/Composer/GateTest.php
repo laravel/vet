@@ -28,13 +28,13 @@ function gateProject(bool $trustFile, bool $binary): Gate
         @rmdir($root);
     });
 
-    return new Gate($root, $binDir);
+    return new Gate($root, $binDir, $root.'/vendor');
 }
 
 it('runs the audit in color when the project holds a trust file and the binary', function (): void {
     $gate = gateProject(trustFile: true, binary: true);
 
-    expect($gate->command(verbose: false, decorated: true, planPath: null))
+    expect($gate->command(verbose: false, decorated: true))
         ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi'])
         ->and($gate->baselineNotice())->toBeNull();
 });
@@ -42,7 +42,7 @@ it('runs the audit in color when the project holds a trust file and the binary',
 it('passes the verbosity of composer to the audit', function (): void {
     $gate = gateProject(trustFile: true, binary: true);
 
-    expect($gate->command(verbose: true, decorated: true, planPath: null))
+    expect($gate->command(verbose: true, decorated: true))
         ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi', '-v']);
 });
 
@@ -54,7 +54,7 @@ it('tells the audit that composer runs it', function (): void {
 it('asks for a baseline rather than fail a project that holds no trust file', function (): void {
     $gate = gateProject(trustFile: false, binary: true);
 
-    expect($gate->command(verbose: false, decorated: true, planPath: null))->toBeNull()
+    expect($gate->command(verbose: false, decorated: true))->toBe([])
         ->and($gate->baselineNotice())->toContain('vet --init');
 });
 
@@ -62,14 +62,14 @@ it('does nothing when the binary is gone', function (): void {
     $gate = gateProject(trustFile: true, binary: false);
 
     expect($gate->binary())->toBeNull()
-        ->and($gate->command(verbose: false, decorated: true, planPath: null))->toBeNull()
+        ->and($gate->command(verbose: false, decorated: true))->toBe([])
         ->and($gate->baselineNotice())->toBeNull();
 });
 
 it('reads the binary of the repository of vet itself', function (): void {
     $root = dirname(__DIR__, 3);
 
-    expect(new Gate($root, $root.'/vendor/bin')->binary())->toBe($root.'/vet');
+    expect(new Gate($root, $root.'/vendor/bin', $root.'/vendor')->binary())->toBe($root.'/vet');
 });
 
 it('gives the audit the plan that composer holds', function (): void {
@@ -85,7 +85,7 @@ it('gives the audit the plan that composer holds', function (): void {
     ]]);
 
     expect($path)->toBeString()
-        ->and($gate->command(verbose: false, decorated: true, planPath: $path))
+        ->and($gate->commandWithPlan(verbose: false, decorated: true, planPath: (string) $path))
         ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi', '--plan='.$path]);
 
     $plan = ComposerPlan::fromFile((string) $path);
@@ -93,7 +93,7 @@ it('gives the audit the plan that composer holds', function (): void {
     expect($plan->of('acme/widget')?->to)->toBe('2.0.0')
         ->and($plan->of('acme/widget')?->distReference)->toBe('bbbb2222');
 
-    $gate->deletePlan($path);
+    $gate->deletePlan((string) $path);
 
     expect(is_file((string) $path))->toBeFalse();
 });
@@ -135,7 +135,7 @@ it('knows that it runs inside a composer that vet started', function (): void {
 it('runs the audit without color when composer writes no color', function (): void {
     $gate = gateProject(trustFile: true, binary: true);
 
-    expect($gate->command(verbose: false, decorated: false, planPath: null))
+    expect($gate->command(verbose: false, decorated: false))
         ->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--no-ansi']);
 });
 

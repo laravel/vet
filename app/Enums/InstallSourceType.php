@@ -9,8 +9,8 @@ enum InstallSourceType: string
     case Dist = 'dist';
     case Source = 'source';
 
-    public static function fromComposer(?string $value): self
+    public static function fromComposer(?string $source): self
     {
-        return $value === 'source' ? self::Source : self::Dist;
+        return $source === 'source' ? self::Source : self::Dist;
     }
 }

@@ -30,55 +30,56 @@ final readonly class Package
         public array $provide,
         public array $autoload,
         public array $bin,
-        public ?InstallSourceType $installSource = null,
-        public ?string $installPath = null,
+        public ?InstallSourceType $installSource,
+        public ?string $installPath,
     ) {}
 
     /**
-     * @param  array<string, mixed>  $data  a package entry from composer.lock
+     * @param  array<string, mixed>  $entry
      */
-    public static function fromLockEntry(array $data, bool $dev): self
+    public static function fromLockEntry(array $entry, bool $dev): self
     {
-        $dist = Json::array($data, 'dist');
+        $dist = Json::array($entry, 'dist');
 
         return new self(
-            name: Json::string($data, 'name') ?? '',
-            version: Json::string($data, 'version') ?? '',
-            type: Json::string($data, 'type') ?? 'library',
+            name: Json::string($entry, 'name') ?? '',
+            version: Json::string($entry, 'version') ?? '',
+            type: Json::string($entry, 'type') ?? 'library',
             dev: $dev,
             distUrl: Json::string($dist, 'url'),
             distReference: Json::string($dist, 'reference'),
             distShasum: Json::string($dist, 'shasum'),
-            replace: self::constraints($data, 'replace'),
-            provide: self::constraints($data, 'provide'),
-            autoload: Json::array($data, 'autoload'),
-            bin: self::strings($data, 'bin'),
+            replace: self::constraints($entry, 'replace'),
+            provide: self::constraints($entry, 'provide'),
+            autoload: Json::array($entry, 'autoload'),
+            bin: self::strings($entry, 'bin'),
+            installSource: null,
+            installPath: null,
         );
     }
 
     /**
-     * @param  array<string, mixed>  $data  a package entry from installed.json
-     * @param  string  $vendorComposerPath  the directory `install-path` is relative to
+     * @param  array<string, mixed>  $entry
      */
-    public static function fromInstalledEntry(array $data, bool $dev, string $vendorComposerPath): self
+    public static function fromInstalledEntry(array $entry, bool $dev, string $vendorComposerPath): self
     {
-        $base = self::fromLockEntry($data, $dev);
+        $package = self::fromLockEntry($entry, $dev);
 
-        $installPath = Json::string($data, 'install-path');
+        $installPath = Json::string($entry, 'install-path');
 
         return new self(
-            name: $base->name,
-            version: $base->version,
-            type: $base->type,
-            dev: $base->dev,
-            distUrl: $base->distUrl,
-            distReference: $base->distReference,
-            distShasum: $base->distShasum,
-            replace: $base->replace,
-            provide: $base->provide,
-            autoload: $base->autoload,
-            bin: $base->bin,
-            installSource: InstallSourceType::fromComposer(Json::string($data, 'installation-source')),
+            name: $package->name,
+            version: $package->version,
+            type: $package->type,
+            dev: $package->dev,
+            distUrl: $package->distUrl,
+            distReference: $package->distReference,
+            distShasum: $package->distShasum,
+            replace: $package->replace,
+            provide: $package->provide,
+            autoload: $package->autoload,
+            bin: $package->bin,
+            installSource: InstallSourceType::fromComposer(Json::string($entry, 'installation-source')),
             installPath: $installPath === null
                 ? null
                 : Path::normalize(Path::join($vendorComposerPath, $installPath)),
@@ -167,29 +168,29 @@ final readonly class Package
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $entry
      * @return array<string, string>
      */
-    private static function constraints(array $data, string $key): array
+    private static function constraints(array $entry, string $key): array
     {
-        $result = [];
+        $constraints = [];
 
-        foreach (Json::array($data, $key) as $name => $constraint) {
+        foreach (Json::array($entry, $key) as $name => $constraint) {
             if (is_string($name) && is_string($constraint)) {
-                $result[$name] = $constraint;
+                $constraints[$name] = $constraint;
             }
         }
 
-        return $result;
+        return $constraints;
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $entry
      * @return array<int, string>
      */
-    private static function strings(array $data, string $key): array
+    private static function strings(array $entry, string $key): array
     {
-        return array_values(array_filter(Json::array($data, $key), is_string(...)));
+        return array_values(array_filter(Json::array($entry, $key), is_string(...)));
     }
 
     /**

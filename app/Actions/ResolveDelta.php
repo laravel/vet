@@ -17,69 +17,54 @@ final readonly class ResolveDelta
         private FetchPackageMetadata $packagist,
         private FetchArchive $fetcher,
         private BuildDelta $builder,
-        private ?InstalledRepository $installed = null,
+        private InstalledRepository $installed,
     ) {}
 
-    public static function forProject(?Project $project): self
+    public static function forProject(Project $project): self
     {
-        $installed = null;
-
-        if ($project instanceof Project && is_file($project->installedJsonPath())) {
-            $installed = InstalledRepository::fromProject($project);
-        }
-
         return new self(
             FetchPackageMetadata::default(),
             FetchArchive::default(),
             new BuildDelta,
-            $installed,
+            InstalledRepository::fromProject($project),
         );
     }
 
-    public function resolve(string $package, ?string $from = null, ?string $to = null): Delta
+    public function resolve(string $package, string $from, string $to): Delta
     {
-        $installed = $this->installed instanceof InstalledRepository && $this->installed->has($package)
-            ? $this->installed->get($package)
-            : null;
+        $toMetadata = $this->packagist->version($package, $to);
+        $fromMetadata = $this->packagist->version($package, $from);
 
-        $newest = (string) array_key_first($this->packagist->versions($package));
+        $this->assertDifferent($package, $fromMetadata->version, $toMetadata->version);
 
-        $toMetadata = $this->packagist->version($package, $to ?? $installed->version ?? $newest);
-        $toVersion = $toMetadata->version;
+        return $this->between($package, $fromMetadata, $toMetadata, $this->fetcher->handle($toMetadata), InstallSourceType::Dist, false, []);
+    }
 
-        $fromVersion = $from ?? $this->packagist->previousVersion($package, $toVersion);
-
-        if ($fromVersion === null) {
-            throw new FailureException(sprintf(
-                '[%s@%s] has no earlier release to compare against. Pass an explicit version: [vet %s --from=<version>].',
-                $package,
-                $toVersion,
-                $package,
-            ));
+    public function resolveInstalled(string $package, string $from): Delta
+    {
+        if (! $this->installed->has($package)) {
+            return $this->resolve($package, $from, $this->newest($package));
         }
 
-        $fromMetadata = $this->packagist->version($package, $fromVersion);
-        $fromVersion = $fromMetadata->version;
+        $installed = $this->installed->get($package);
+        $toMetadata = $this->packagist->version($package, $installed->version);
 
-        $notes = [];
-        [$toDirectory, $toIsLocal, $source] = $this->toTree($installed, $toMetadata, $to, $notes);
-
-        if ($fromVersion === $toVersion && ! $toIsLocal) {
-            throw new FailureException(sprintf('[%s] [%s] and [%s] are the same version.', $package, $fromVersion, $toVersion));
+        if ($installed->installPath === null || ! is_dir($installed->installPath) || $installed->version !== $toMetadata->version) {
+            return $this->resolve($package, $from, $installed->version);
         }
 
-        $delta = $this->builder->handle(
-            package: $package,
-            fromVersion: $fromVersion,
-            fromDirectory: $this->fetcher->handle($fromMetadata),
-            fromMetadata: $fromMetadata,
-            toVersion: $toVersion,
-            toDirectory: $toDirectory,
-            toMetadata: $toMetadata,
-            source: $source,
-        );
+        $fromMetadata = $this->packagist->version($package, $from);
 
-        return $delta->withResolution($toIsLocal, $notes);
+        if ($installed->installSource === InstallSourceType::Source) {
+            $this->assertDifferent($package, $fromMetadata->version, $toMetadata->version);
+
+            return $this->between($package, $fromMetadata, $toMetadata, $this->fetcher->handle($toMetadata), InstallSourceType::Source, false, [sprintf(
+                '[%s] is installed from source; comparing dist archives instead. An audit of this delta does not cover your source install.',
+                $installed->name,
+            )]);
+        }
+
+        return $this->between($package, $fromMetadata, $toMetadata, $installed->installPath, InstallSourceType::Dist, true, []);
     }
 
     public function fromNothing(Package $target): Delta
@@ -95,13 +80,17 @@ final readonly class ResolveDelta
         );
     }
 
-    public function incoming(Package $target, ?Package $installed): ?Delta
+    public function incoming(Package $target, Package $installed): Delta
     {
-        if (! $installed instanceof Package || $installed->installPath === null || ! is_dir($installed->installPath)) {
-            return null;
+        if ($installed->installPath === null) {
+            throw new FailureException(sprintf('The package [%s] has no recorded install path.', $installed->name));
         }
 
-        $delta = $this->builder->handle(
+        if (! is_dir($installed->installPath)) {
+            throw new FailureException(sprintf('The install path [%s] of [%s] is not a directory.', $installed->installPath, $installed->name));
+        }
+
+        return $this->builder->handle(
             package: $target->name,
             fromVersion: $installed->version,
             fromDirectory: $installed->installPath,
@@ -110,46 +99,39 @@ final readonly class ResolveDelta
             toDirectory: $this->fetcher->handle($target),
             toMetadata: $target,
             source: $installed->installSource ?? InstallSourceType::Dist,
+            toIsLocalInstall: false,
+            notes: [],
         );
+    }
 
-        return $delta->withResolution(false, []);
+    private function newest(string $package): string
+    {
+        return (string) array_key_first($this->packagist->versions($package));
     }
 
     /**
      * @param  array<int, string>  $notes
-     * @return array{0: string, 1: bool, 2: InstallSourceType}
      */
-    private function toTree(
-        ?Package $installed,
-        Package $toMetadata,
-        ?string $explicitTo,
-        array &$notes,
-    ): array {
-        $usable = $explicitTo === null
-            && $installed instanceof Package
-            && $installed->version === $toMetadata->version
-            && $installed->installPath !== null
-            && is_dir($installed->installPath);
+    private function between(string $package, Package $from, Package $to, string $toDirectory, InstallSourceType $source, bool $toIsLocalInstall, array $notes): Delta
+    {
+        return $this->builder->handle(
+            package: $package,
+            fromVersion: $from->version,
+            fromDirectory: $this->fetcher->handle($from),
+            fromMetadata: $from,
+            toVersion: $to->version,
+            toDirectory: $toDirectory,
+            toMetadata: $to,
+            source: $source,
+            toIsLocalInstall: $toIsLocalInstall,
+            notes: $notes,
+        );
+    }
 
-        if (! $usable) {
-            return [$this->fetcher->handle($toMetadata), false, InstallSourceType::Dist];
+    private function assertDifferent(string $package, string $from, string $to): void
+    {
+        if ($from === $to) {
+            throw new FailureException(sprintf('[%s] [%s] and [%s] are the same version.', $package, $from, $to));
         }
-
-        /** @var Package $installed */
-        $source = $installed->installSource ?? InstallSourceType::Dist;
-
-        if ($source === InstallSourceType::Source) {
-            $notes[] = sprintf(
-                '[%s] is installed from source; comparing dist archives instead. An audit of this delta does not cover your source install.',
-                $installed->name,
-            );
-
-            return [$this->fetcher->handle($toMetadata), false, InstallSourceType::Source];
-        }
-
-        /** @var string $path */
-        $path = $installed->installPath;
-
-        return [$path, true, InstallSourceType::Dist];
     }
 }

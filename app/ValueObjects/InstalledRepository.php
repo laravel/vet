@@ -11,7 +11,7 @@ use App\Support\Json;
 final readonly class InstalledRepository
 {
     /**
-     * @param  array<string, Package>  $packages  keyed by package name
+     * @param  array<string, Package>  $packages
      */
     private function __construct(
         private array $packages,
@@ -21,16 +21,16 @@ final readonly class InstalledRepository
     public static function fromProject(Project $project): self
     {
         $path = $project->installedJsonPath();
-        $data = Json::readFile($path, 'the installed package list');
+        $document = Json::readFile($path, 'the installed package list');
 
-        $entries = Json::array($data, 'packages');
-        $installsDev = ($data['dev'] ?? null) !== false;
+        $entries = Json::array($document, 'packages');
+        $installsDev = ($document['dev'] ?? null) !== false;
 
         if ($entries === [] && $installsDev) {
-            throw InvalidJsonException::shape($path, 'expected a non-empty "packages" array. Run [composer install] first.');
+            throw InvalidJsonException::structure($path, 'expected a non-empty [packages] array. Run [composer install] first.');
         }
 
-        $devNames = array_flip(array_filter(Json::array($data, 'dev-package-names'), is_string(...)));
+        $devNames = array_flip(array_filter(Json::array($document, 'dev-package-names'), is_string(...)));
         $vendorComposerPath = dirname($path);
 
         $packages = [];
@@ -51,7 +51,7 @@ final readonly class InstalledRepository
         }
 
         if ($packages === [] && $entries !== []) {
-            throw InvalidJsonException::shape($path, 'no package entries carried a name.');
+            throw InvalidJsonException::structure($path, 'no package entries carried a name.');
         }
 
         ksort($packages, SORT_STRING);

@@ -40,6 +40,8 @@ function batchDelta(string $package, array $changes): Delta
         changes: $changes,
         manifestChange: null,
         firstInstall: false,
+        toIsLocalInstall: false,
+        notes: [],
     );
 }
 

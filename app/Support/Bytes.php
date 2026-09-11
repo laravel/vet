@@ -9,16 +9,16 @@ final class Bytes
     public static function human(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];
-        $value = (float) $bytes;
+        $amount = (float) $bytes;
         $unit = 0;
 
-        while ($value >= 1024 && $unit < count($units) - 1) {
-            $value /= 1024;
+        while ($amount >= 1024 && $unit < count($units) - 1) {
+            $amount /= 1024;
             $unit++;
         }
 
         return $unit === 0
-            ? sprintf('%d %s', $value, $units[$unit])
-            : sprintf('%.1f %s', $value, $units[$unit]);
+            ? sprintf('%d %s', $amount, $units[$unit])
+            : sprintf('%.1f %s', $amount, $units[$unit]);
     }
 }

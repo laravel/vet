@@ -104,29 +104,6 @@ it('names the versions that packagist knows when it knows no such version', func
         ->toThrow(FailureException::class, 'Packagist has no version [9.9.9] of [acme/widget]');
 });
 
-it('reads the release before a version that php stores as a number', function (): void {
-    $packagist = cachedPackagist(packagistDocument(['3', '2', '1']), new FakeHttp([]));
-
-    expect($packagist->previousVersion('acme/widget', '3'))->toBe('2');
-});
-
-it('reads the stability of a version as composer reads it', function (string $version, bool $stable): void {
-    expect(FetchPackageMetadata::isStable($version))->toBe($stable);
-})->with([
-    ['1.0.0', true],
-    ['v2.1.3', true],
-    ['1.0.0-patch1', true],
-    ['1.0.0-pl1', true],
-    ['1.0.0-p1', true],
-    ['dev-main', false],
-    ['1.0.x-dev', false],
-    ['1.0.0-RC1', false],
-    ['1.0.0-beta.2', false],
-    ['1.0.0-b1', false],
-    ['v2.0.0-alpha', false],
-    ['1.0.0-a1', false],
-]);
-
 it('reads packagist again when the user refuses the cache', function (): void {
     $http = new FakeHttp([new Response(200, [], packagistDocument(['2.0.0', '1.0.0']))]);
 
@@ -153,16 +130,6 @@ it('reads the dist of each version of a minified document', function (): void {
         ->and($package->type)->toBe('library')
         ->and($package->distUrl)->toBe('https://packages.test/acme/widget/1.0.0.zip')
         ->and($package->distReference)->toBe('aaaa1111');
-});
-
-it('skips a pre-release when it reads the release before a stable version', function (): void {
-    $packagist = cachedPackagist(packagistDocument(['2.0.0', '2.0.0-RC2', '2.0.0-RC1', '1.0.0']), new FakeHttp([]));
-
-    expect($packagist->previousVersion('acme/widget', '2.0.0'))->toBe('1.0.0')
-        ->and($packagist->previousVersion('acme/widget', 'v2.0.0'))->toBe('1.0.0')
-        ->and($packagist->previousVersion('acme/widget', '2.0.0-RC2'))->toBe('2.0.0-RC1')
-        ->and($packagist->previousVersion('acme/widget', '1.0.0'))->toBeNull()
-        ->and($packagist->previousVersion('acme/widget', '9.9.9'))->toBeNull();
 });
 
 it('refuses a package name that is not vendor/name before it reads packagist', function (string $package): void {

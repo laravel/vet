@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
-use RuntimeException;
+use Throwable;
 
-abstract class VetException extends RuntimeException
-{
-    //
-}
+interface VetException extends Throwable {}

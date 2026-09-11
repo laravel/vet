@@ -192,7 +192,7 @@ it('asks for composer install when the project installs no package', function ()
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('expected a non-empty "packages" array')
+        ->toContain('expected a non-empty [packages] array')
         ->toContain('Run [composer install] first.');
 });
 

@@ -4,4 +4,6 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
-final class FailureException extends VetException {}
+use RuntimeException;
+
+final class FailureException extends RuntimeException implements VetException {}

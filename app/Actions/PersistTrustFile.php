@@ -20,11 +20,11 @@ final readonly class PersistTrustFile
     ];
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $contents
      */
     private function __construct(
         public string $path,
-        private array $data,
+        private array $contents,
     ) {}
 
     public static function forProject(Project $project): self
@@ -38,9 +38,9 @@ final readonly class PersistTrustFile
             return new self($path, []);
         }
 
-        $data = Json::readFile($path, 'the vet file');
+        $contents = Json::readFile($path, 'the vet file');
 
-        $schema = $data['schema'] ?? null;
+        $schema = $contents['schema'] ?? null;
 
         if (is_int($schema) && $schema >= 1 && $schema < self::SCHEMA) {
             throw new FailureException(sprintf(
@@ -61,12 +61,12 @@ final readonly class PersistTrustFile
             ));
         }
 
-        return new self($path, $data);
+        return new self($path, $contents);
     }
 
     public function has(string $section): bool
     {
-        return isset($this->data[$section]);
+        return isset($this->contents[$section]);
     }
 
     /**
@@ -74,7 +74,7 @@ final readonly class PersistTrustFile
      */
     public function section(string $section): array
     {
-        return Json::array($this->data, $section);
+        return Json::array($this->contents, $section);
     }
 
     /**
@@ -90,7 +90,7 @@ final readonly class PersistTrustFile
             throw new FailureException(sprintf('Could not create the directory [%s].', $directory));
         }
 
-        $merged = [...self::atPath($this->path)->data, ...$sections, 'schema' => self::SCHEMA];
+        $merged = [...self::atPath($this->path)->contents, ...$sections, 'schema' => self::SCHEMA];
 
         $ordered = [];
 
@@ -100,9 +100,9 @@ final readonly class PersistTrustFile
             }
         }
 
-        foreach ($merged as $key => $value) {
+        foreach ($merged as $key => $section) {
             if (! array_key_exists($key, $ordered)) {
-                $ordered[$key] = $value;
+                $ordered[$key] = $section;
             }
         }
 

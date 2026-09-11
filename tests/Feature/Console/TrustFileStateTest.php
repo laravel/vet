@@ -50,7 +50,7 @@ it('names the entry that holds no hash', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('The entry for [acme/widget] needs a "version" and a "hash".');
+        ->and($output)->toContain('The entry for [acme/widget] needs a [version] and a [hash].');
 });
 
 it('ignores an entry of a package that the project does not install', function (): void {

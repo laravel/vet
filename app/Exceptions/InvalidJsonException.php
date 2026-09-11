@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
-final class InvalidJsonException extends VetException
+use RuntimeException;
+
+final class InvalidJsonException extends RuntimeException implements VetException
 {
     public static function at(string $path, string $reason): self
     {
         return new self(sprintf('The file [%s] does not contain valid JSON: %s', $path, $reason));
     }
 
-    public static function shape(string $path, string $expectation): self
+    public static function structure(string $path, string $expectation): self
     {
         return new self(sprintf('Unexpected structure in [%s]: %s', $path, $expectation));
     }

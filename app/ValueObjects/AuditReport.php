@@ -18,7 +18,7 @@ final readonly class AuditReport
     /**
      * @return array<string, PackageAudit>
      */
-    public function withStatus(AuditStatus $status): array
+    public function ofStatus(AuditStatus $status): array
     {
         return array_filter(
             $this->packages,
@@ -31,7 +31,7 @@ final readonly class AuditReport
      */
     public function failing(): array
     {
-        return array_filter($this->packages, static fn (PackageAudit $c): bool => $c->fails());
+        return array_filter($this->packages, static fn (PackageAudit $audit): bool => $audit->fails());
     }
 
     public function total(): int
@@ -52,7 +52,7 @@ final readonly class AuditReport
         $counts = [];
 
         foreach (AuditStatus::cases() as $status) {
-            $counts[$status->value] = count($this->withStatus($status));
+            $counts[$status->value] = count($this->ofStatus($status));
         }
 
         return $counts;

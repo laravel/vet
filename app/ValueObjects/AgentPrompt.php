@@ -7,8 +7,8 @@ namespace App\ValueObjects;
 final readonly class AgentPrompt
 {
     /**
-     * @param  array<int, string>  $unread  the paths whose bytes the prompt does not hold
-     * @param  array<int, string>  $paths  every path that the delta holds
+     * @param  array<int, string>  $unread
+     * @param  array<int, string>  $paths
      */
     public function __construct(
         public string $text,

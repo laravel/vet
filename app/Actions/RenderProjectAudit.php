@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
+use App\Enums\BucketType;
 use App\Enums\Gutter;
 use App\Exceptions\VetException;
 use App\Support\Bytes;
@@ -20,47 +21,68 @@ use App\ValueObjects\Delta;
 use App\ValueObjects\LockDiscrepancy;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\PackageReview;
-use App\ValueObjects\Project;
 use Illuminate\Console\OutputStyle;
 use Symfony\Component\Console\Output\OutputInterface;
 
-final class RenderProjectAudit
+final readonly class RenderProjectAudit
 {
     private const int SUCCESS = 0;
 
     private const int FAILURE = 1;
 
-    private readonly ControlSafeComponents $components;
+    private ControlSafeComponents $components;
 
-    private readonly RenderDelta $renderer;
+    private RenderDelta $renderer;
 
-    private readonly RenderAgentReview $agentRenderer;
-
-    /**
-     * @var array<string, PackageAudit>
-     */
-    private array $failing = [];
+    private RenderAgentReview $agentRenderer;
 
     /**
-     * @var array<string, PackageReview>
+     * @param  array<string, PackageAudit>  $failing
+     * @param  array<string, PackageReview>  $reviews
+     * @param  array<string, AgentReview>  $agentReviews
      */
-    private array $reviews = [];
-
-    /**
-     * @var array<string, AgentReview>
-     */
-    private array $agentReviews = [];
-
-    public function __construct(
-        private readonly OutputStyle $output,
-        private readonly Project $project,
-        private readonly AuditProject $auditor,
-        private readonly AuditReport $report,
-        private readonly Invitation $invitation,
+    private function __construct(
+        private OutputStyle $output,
+        private AuditProject $auditor,
+        private AuditReport $report,
+        private Invitation $invitation,
+        private array $failing,
+        private array $reviews,
+        private array $agentReviews,
     ) {
         $this->components = new ControlSafeComponents($output);
         $this->renderer = new RenderDelta($output, $invitation, Gutter::Package);
         $this->agentRenderer = new RenderAgentReview($output, Gutter::Package);
+    }
+
+    public static function of(OutputStyle $output, AuditProject $auditor, AuditReport $report, Invitation $invitation): self
+    {
+        $failing = $report->failing();
+        $reviews = [];
+
+        foreach ($failing as $audit) {
+            $reviews[$audit->package] = self::review($auditor, $audit);
+        }
+
+        uasort($failing, static fn (PackageAudit $a, PackageAudit $b): int => [
+            $a->status->weight(),
+            $reviews[$b->package]->files,
+            $a->package,
+        ] <=> [
+            $b->status->weight(),
+            $reviews[$a->package]->files,
+            $b->package,
+        ]);
+
+        return new self($output, $auditor, $report, $invitation, $failing, $reviews, []);
+    }
+
+    /**
+     * @param  array<string, AgentReview>  $agentReviews
+     */
+    public function withAgentReviews(array $agentReviews): self
+    {
+        return new self($this->output, $this->auditor, $this->report, $this->invitation, $this->failing, $this->reviews, $agentReviews);
     }
 
     /**
@@ -68,10 +90,6 @@ final class RenderProjectAudit
      */
     public function deltas(): array
     {
-        if ($this->reviews === []) {
-            $this->collectReviews();
-        }
-
         $deltas = [];
 
         foreach ($this->reviews as $package => $review) {
@@ -115,19 +133,11 @@ final class RenderProjectAudit
         return $this->agentReviews;
     }
 
-    /**
-     * @param  array<string, AgentReview>  $agentReviews
-     */
-    public function withAgentReviews(array $agentReviews): void
-    {
-        $this->agentReviews = $agentReviews;
-    }
-
     public function renderAgentReviews(): void
     {
         foreach ($this->failing as $audit) {
             $this->renderRow($audit, $this->reviews[$audit->package]);
-            $this->renderAgent($audit, $this->reviews[$audit->package]->delta, true);
+            $this->renderAgent($audit, $this->reviews[$audit->package], true);
         }
 
         $this->output->newLine();
@@ -212,6 +222,41 @@ final class RenderProjectAudit
         $this->renderAudited();
     }
 
+    private static function review(AuditProject $auditor, PackageAudit $audit): PackageReview
+    {
+        if ($audit->status === AuditStatus::Unknown) {
+            return PackageReview::unreadable();
+        }
+
+        if ($audit->pending()) {
+            return self::pendingReview($auditor, $audit);
+        }
+
+        $from = $auditor->trustFile->grantFor($audit->package)?->version;
+
+        if ($from === null) {
+            return PackageReview::ofWholePackage($audit->files);
+        }
+
+        try {
+            $delta = ResolveDelta::forProject($auditor->project)->resolveInstalled($audit->package, $from);
+        } catch (VetException) {
+            return PackageReview::ofWholePackage($audit->files);
+        }
+
+        return PackageReview::ofDelta($delta);
+    }
+
+    private static function pendingReview(AuditProject $auditor, PackageAudit $audit): PackageReview
+    {
+        $operation = $auditor->plan()->of($audit->package);
+        $delta = $operation instanceof ComposerOperation ? $auditor->incomingTree($audit, $operation) : null;
+
+        return $delta instanceof Delta
+            ? PackageReview::ofDelta($delta)
+            : PackageReview::ofWholePackage($audit->files);
+    }
+
     private function overBudgetTip(AgentBatch $batch): string
     {
         return sprintf(
@@ -221,27 +266,6 @@ final class RenderProjectAudit
             $batch->count(),
             Bytes::human($batch->bytes()),
         );
-    }
-
-    private function collectReviews(): void
-    {
-        $this->failing = $this->report->failing();
-
-        foreach ($this->failing as $audit) {
-            $this->reviews[$audit->package] = $this->review($audit);
-        }
-
-        $reviews = $this->reviews;
-
-        uasort($this->failing, static fn (PackageAudit $a, PackageAudit $b): int => [
-            $a->status->weight(),
-            $reviews[$b->package]->files,
-            $a->package,
-        ] <=> [
-            $b->status->weight(),
-            $reviews[$a->package]->files,
-            $b->package,
-        ]);
     }
 
     private function renderFailing(bool $agentAsked): void
@@ -255,13 +279,13 @@ final class RenderProjectAudit
             $review = $this->reviews[$audit->package];
 
             $this->renderRow($audit, $review);
-            $this->renderAgent($audit, $review->delta, $agentAsked);
+            $this->renderAgent($audit, $review, $agentAsked);
 
             $endsWithDelta = $review->delta instanceof Delta && $this->readsDelta($audit->package, $agentAsked);
 
             if ($endsWithDelta) {
                 $this->output->writeln(Gutter::Package->blank());
-                $this->renderer->buckets($review->delta);
+                $this->renderer->buckets($review->delta, BucketType::inReviewOrder());
             }
         }
 
@@ -301,7 +325,7 @@ final class RenderProjectAudit
         return ($this->agentReviews[$package] ?? null)?->verdict !== AgentVerdict::Clear;
     }
 
-    private function renderAgent(PackageAudit $audit, ?Delta $delta, bool $agentAsked): void
+    private function renderAgent(PackageAudit $audit, PackageReview $review, bool $agentAsked): void
     {
         $agentReview = $this->agentReviews[$audit->package] ?? null;
 
@@ -312,7 +336,7 @@ final class RenderProjectAudit
         }
 
         if ($agentAsked) {
-            $delta instanceof Delta
+            $review->delta instanceof Delta
                 ? $this->agentRenderer->noChange()
                 : $this->agentRenderer->noEarlierTree();
         }
@@ -376,62 +400,5 @@ final class RenderProjectAudit
     private function verdict(array $discrepancies): int
     {
         return $this->failing === [] && $discrepancies === [] ? self::SUCCESS : self::FAILURE;
-    }
-
-    private function review(PackageAudit $audit): PackageReview
-    {
-        if ($audit->status === AuditStatus::Unknown) {
-            return PackageReview::unreadable();
-        }
-
-        if ($audit->pending()) {
-            return $this->pendingReview($audit);
-        }
-
-        $from = $this->auditor->trustFile->grantFor($audit->package)?->version;
-
-        if ($from === null) {
-            return PackageReview::ofWholePackage($audit->files);
-        }
-
-        try {
-            $delta = ResolveDelta::forProject($this->project)->resolve(
-                package: $audit->package,
-                from: $from,
-            );
-        } catch (VetException) {
-            return PackageReview::ofWholePackage($audit->files);
-        }
-
-        return PackageReview::ofDelta($delta);
-    }
-
-    private function pendingReview(PackageAudit $audit): PackageReview
-    {
-        $delta = $this->incomingDelta($audit);
-
-        return $delta instanceof Delta
-            ? PackageReview::ofDelta($delta)
-            : PackageReview::ofWholePackage($audit->files);
-    }
-
-    private function incomingDelta(PackageAudit $audit): ?Delta
-    {
-        $operation = $this->auditor->plan()->of($audit->package);
-
-        if (! $operation instanceof ComposerOperation) {
-            return null;
-        }
-
-        $installed = $this->auditor->installed();
-
-        try {
-            return ResolveDelta::forProject($this->project)->incoming(
-                target: $this->auditor->target($operation, $audit->version, $audit->dev),
-                installed: $installed->has($audit->package) ? $installed->get($audit->package) : null,
-            );
-        } catch (VetException) {
-            return null;
-        }
     }
 }

@@ -26,12 +26,12 @@ it('refuses a truncated digest and the scheme that truncated it', function (): v
     expect(fn (): TreeHash => TreeHash::parse('tree-v1:'.$truncated))
         ->toThrow(FailureException::class, 'Unknown tree hash algorithm [tree-v1]')
         ->and(fn (): TreeHash => TreeHash::parse('tree-v2:'.$truncated))
-        ->toThrow(FailureException::class, 'expected 64 lowercase hex characters');
+        ->toThrow(FailureException::class, 'expected [64] lowercase hex characters');
 });
 
 it('refuses a tree hash that names no algorithm', function (): void {
     expect(fn (): TreeHash => TreeHash::parse('abcdef'))
-        ->toThrow(FailureException::class, 'Malformed tree hash [abcdef]: expected "<algorithm>:<digest>".');
+        ->toThrow(FailureException::class, 'Malformed tree hash [abcdef]: expected [<algorithm>:<digest>].');
 });
 
 it('reads a full digest back', function (): void {

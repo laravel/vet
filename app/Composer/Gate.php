@@ -11,7 +11,7 @@ final readonly class Gate
     public function __construct(
         public string $rootPath,
         private string $binDir,
-        private string $vendorDir = '',
+        private string $vendorDir,
     ) {}
 
     public function binary(): ?string
@@ -32,33 +32,23 @@ final readonly class Gate
 
     public function hasInstalledTree(): bool
     {
-        $vendorDir = $this->vendorDir === '' ? $this->rootPath.'/vendor' : $this->vendorDir;
-
-        return is_file($vendorDir.'/composer/installed.json');
+        return is_file($this->vendorDir.'/composer/installed.json');
     }
 
     /**
-     * @return array<int, string>|null
+     * @return array<int, string>
      */
-    public function command(bool $verbose, bool $decorated, ?string $planPath): ?array
+    public function command(bool $verbose, bool $decorated): array
     {
-        $binary = $this->binary();
+        return $this->arguments($verbose, $decorated, []);
+    }
 
-        if ($binary === null || ! $this->hasTrustFile()) {
-            return null;
-        }
-
-        $command = [PHP_BINARY, $binary, $decorated ? '--ansi' : '--no-ansi'];
-
-        if ($planPath !== null) {
-            $command[] = '--plan='.$planPath;
-        }
-
-        if ($verbose) {
-            $command[] = '-v';
-        }
-
-        return $command;
+    /**
+     * @return array<int, string>
+     */
+    public function commandWithPlan(bool $verbose, bool $decorated, string $planPath): array
+    {
+        return $this->arguments($verbose, $decorated, ['--plan='.$planPath]);
     }
 
     /**
@@ -90,9 +80,9 @@ final readonly class Gate
         return file_put_contents($path, $encoded) === false ? null : $path;
     }
 
-    public function deletePlan(?string $path): void
+    public function deletePlan(string $path): void
     {
-        if ($path !== null && is_file($path)) {
+        if (is_file($path)) {
             @unlink($path);
         }
     }
@@ -113,5 +103,20 @@ final readonly class Gate
         }
 
         return 'Vet audits an update against the installed tree. This project installs no package yet, so the audit runs after this install.';
+    }
+
+    /**
+     * @param  array<int, string>  $extra
+     * @return array<int, string>
+     */
+    private function arguments(bool $verbose, bool $decorated, array $extra): array
+    {
+        $binary = $this->binary();
+
+        if ($binary === null || ! $this->hasTrustFile()) {
+            return [];
+        }
+
+        return [PHP_BINARY, $binary, $decorated ? '--ansi' : '--no-ansi', ...$extra, ...($verbose ? ['-v'] : [])];
     }
 }

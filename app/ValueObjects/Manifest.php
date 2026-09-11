@@ -11,7 +11,7 @@ use App\Support\Path;
 final readonly class Manifest
 {
     /**
-     * @param  array<string, string>  $entries  relative path => sha256 of contents
+     * @param  array<string, string>  $entries
      */
     private function __construct(
         private array $entries,
@@ -75,9 +75,9 @@ final readonly class Manifest
     /**
      * @param  array<string, string>  $entries
      */
-    private static function walk(string $base, string $relative, array &$entries, int &$bytes): void
+    private static function walk(string $root, string $relative, array &$entries, int &$bytes): void
     {
-        $directory = $relative === '' ? $base : $base.DIRECTORY_SEPARATOR.$relative;
+        $directory = $relative === '' ? $root : $root.DIRECTORY_SEPARATOR.$relative;
 
         $names = @scandir($directory);
 
@@ -100,7 +100,7 @@ final readonly class Manifest
             }
 
             if (is_dir($full)) {
-                self::walk($base, $path, $entries, $bytes);
+                self::walk($root, $path, $entries, $bytes);
 
                 continue;
             }

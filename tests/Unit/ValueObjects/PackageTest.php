@@ -21,7 +21,7 @@ it('reads an autoload path that traverses as the directory that it lands in', fu
 });
 
 it('reads a file of an autoload path that traverses as runtime source', function (): void {
-    $bucket = ClassifyPath::forPackages(packageAutoloading('src/../src/'))->handle('src/Widget.php');
+    $bucket = ClassifyPath::forPackages(packageAutoloading('src/../src/'))->handle('src/Widget.php', (string) tempnam(sys_get_temp_dir(), 'vet-widget-'));
 
     expect($bucket)->toBe(BucketType::RuntimeSource);
 });

@@ -54,7 +54,10 @@ final readonly class RenderDelta
         ];
     }
 
-    public function report(Delta $delta, ?string $only = null): void
+    /**
+     * @param  array<int, BucketType>  $buckets
+     */
+    public function report(Delta $delta, array $buckets): void
     {
         $this->output->newLine();
         $this->output->writeln(sprintf(
@@ -85,20 +88,19 @@ final readonly class RenderDelta
             return;
         }
 
-        $this->buckets($delta, $only);
+        $this->buckets($delta, $buckets);
 
         $this->renderVerdict($delta, $this->output->isVerbose());
     }
 
-    public function buckets(Delta $delta, ?string $only = null): void
+    /**
+     * @param  array<int, BucketType>  $buckets
+     */
+    public function buckets(Delta $delta, array $buckets): void
     {
         $verbose = $this->output->isVerbose();
 
-        foreach (BucketType::inReviewOrder() as $bucket) {
-            if ($only !== null && $only !== $bucket->value) {
-                continue;
-            }
-
+        foreach ($buckets as $bucket) {
             $changes = $delta->inBucket($bucket);
 
             if ($changes === []) {
@@ -167,8 +169,15 @@ final readonly class RenderDelta
 
     private function renderPatch(Change $change): void
     {
-        $old = $change->oldFile === null ? null : $this->read($change->oldFile);
-        $new = $change->newFile === null ? null : $this->read($change->newFile);
+        $old = $change->oldFile === null ? '' : $this->read($change->oldFile);
+        $new = $change->newFile === null ? '' : $this->read($change->newFile);
+
+        if ($old === false || $new === false) {
+            $this->output->writeln($this->gutter->line('    <fg=gray>vet cannot read this file, so its bytes are not shown</>'));
+            $this->output->writeln($this->gutter->blank());
+
+            return;
+        }
 
         if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {
             $this->output->writeln($this->gutter->line('    <fg=gray>this file holds no readable source, so its bytes are not shown</>'));
@@ -177,7 +186,7 @@ final readonly class RenderDelta
             return;
         }
 
-        $diff = BuildUnifiedDiff::handle($old, $new, 'a/'.$change->path, 'b/'.$change->path);
+        $diff = BuildUnifiedDiff::handle($old, $new, 'a/'.$change->path, 'b/'.$change->path, 3);
 
         if ($diff === '') {
             return;
@@ -239,15 +248,13 @@ final readonly class RenderDelta
         return $hidden;
     }
 
-    private function read(string $file): ?string
+    private function read(string $file): string|false
     {
-        $contents = @file_get_contents($file);
-
-        return $contents === false ? null : $contents;
+        return @file_get_contents($file);
     }
 
-    private function holdsNoSource(?string $contents): bool
+    private function holdsNoSource(string $contents): bool
     {
-        return $contents !== null && str_contains($contents, "\0");
+        return str_contains($contents, "\0");
     }
 }

@@ -76,7 +76,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
         }
 
         try {
-            $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated(), $planPath));
+            $this->run($gate, $io, $gate->commandWithPlan($io->isVerbose(), $io->isDecorated(), $planPath));
         } finally {
             $gate->deletePlan($planPath);
         }
@@ -95,15 +95,15 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
             return;
         }
 
-        $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated(), null));
+        $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated()));
     }
 
     /**
-     * @param  array<int, string>|null  $command
+     * @param  array<int, string>  $command
      */
-    private function run(Gate $gate, IOInterface $io, ?array $command): void
+    private function run(Gate $gate, IOInterface $io, array $command): void
     {
-        if ($command === null) {
+        if ($command === []) {
             return;
         }
 
@@ -130,13 +130,14 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
     private function gateOf(Composer $composer): Gate
     {
         $config = $composer->getConfig();
+        $rootPath = (string) getcwd();
         $binDir = $config->get('bin-dir');
         $vendorDir = $config->get('vendor-dir');
 
         return new Gate(
-            (string) getcwd(),
+            $rootPath,
             is_string($binDir) ? $binDir : '',
-            is_string($vendorDir) ? $vendorDir : '',
+            is_string($vendorDir) && $vendorDir !== '' ? $vendorDir : $rootPath.'/vendor',
         );
     }
 
