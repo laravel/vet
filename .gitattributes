@@ -6,6 +6,7 @@ builds/vet -text
 /.gitattributes export-ignore
 /.github export-ignore
 /.gitignore export-ignore
+/.hod export-ignore
 /AGENTS.md export-ignore
 /app/Actions export-ignore
 /app/Commands export-ignore
