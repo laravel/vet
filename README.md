@@ -4,63 +4,63 @@ Laravel Vet is a dependency audit for PHP. It **shows you the code** that `compo
 
 If you know `cargo vet` from the Rust world, this is the same idea for Composer. If you don't, here is the whole idea: every update brings new code into your project that nobody on your team has read. Vet shows you that code, one package at a time, **before it lands**. Once you trust a package, vet remembers it, so the next update **only asks about what changed**.
 
-**You don't have to read it all yourself.** Vet hands each change to the coding agent already on your machine, such as Claude Code, Codex or Gemini, and the agent reads it for you and reports back: clear, or a risk with the file and the reason. You read the risks, press enter on the rest, and get on with your day.
+**You don't have to read it all yourself.** Vet hands each change to the coding agent already on your machine, such as Claude Code, Codex or Gemini, and the agent reads it for you and reports back: `PASS`, or `FAIL` with the file and the reason. You read the fails, press enter on the rest, and get on with your day.
 
 **Vet works with any PHP project.** Laravel, Symfony, WordPress, or plain PHP: if you have a `composer.json`, you can use it. It ships as a Composer plugin, so it runs after every `composer install` and before every `composer update` writes anything. **There is no step to add.**
 
 ```
 ❯ composer update
 
-  to review (1, worst first)
+  to review (1)
 
-  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0  2 files to review (delta from 3.1.0)
-      composer would install these bytes; you trust 3.1.0  ·  8.0 KB
+  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0 .............. 2 files changed
+  │
+  │ runtime source (2)
+  │   ~ src/Carbon/Doctrine/DateTimeImmutableType.php
+  │     @@ -17,7 +17,7 @@
+  │          /**
+  │           * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+  │           */
+  │     -    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?DateTimeImmutable
+  │     +    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?CarbonImmutable
+  │          {
+  │              return $this->doConvertToPHPValue($value);
+  │          }
+  │
+  │   ~ src/Carbon/Doctrine/DateTimeType.php
+  │     @@ -17,7 +17,7 @@
+  │          /**
+  │           * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+  │           */
+  │     -    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?DateTime
+  │     +    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?Carbon
+  │          {
+  │              return $this->doConvertToPHPValue($value);
+  │          }
+  │
 
-  runtime source (2)
-    ~ src/Carbon/Doctrine/DateTimeImmutableType.php
-      @@ -17,7 +17,7 @@
-           /**
-            * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-            */
-      -    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?DateTimeImmutable
-      +    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?CarbonImmutable
-           {
-               return $this->doConvertToPHPValue($value);
-           }
+  Packages: 1 to review, 124 trusted
 
-    ~ src/Carbon/Doctrine/DateTimeType.php
-      @@ -17,7 +17,7 @@
-           /**
-            * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-            */
-      -    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?DateTime
-      +    public function convertToPHPValue(mixed $value, AbstractPlatform $platform): ?Carbon
-           {
-               return $this->doConvertToPHPValue($value);
-           }
+   ERROR  [1] package is not trusted. Read every change with [vet -v]. Run [vet] in a terminal to pick the ones that you trust.
 
-
-  audited .................................................. 124 / 125 (99.2%)
-
-   ERROR  1 package(s) are not covered. Read every change with `composer update -v`. Run `vet` in a terminal to record the ones that you trust.
-
+   TIP  Hand every change to your coding agent with [vet --agent].
 ```
 
-You read the change, or you let your agent read it, and vet writes your decision down. Your build then holds you to it: **a package that nobody has trusted fails the build** until someone reads it.
+You read the changes, or you let your agent read them, and vet writes your decision down. Your build then holds you to it: **a package that nobody has trusted fails the build** until someone reads it.
 
 ```shell
 vet --agent
 ```
 
 ```
-  to review (3, worst first)
+  to review (2)
 
-  acme/logger 1.2.0 → 2.0.0  you trust 1.2.0     12 files (delta from 1.2.0)
-    agent  RISK  src/Ship.php reads .env and sends it to an unknown host
-           src/Ship.php  it posts the contents of [.env] to [telemetry.example.com]
+  acme/logger 1.2.0 → 2.0.0 ................................. 12 files changed
+  │  FAIL   src/Ship.php reads .env and sends it to an unknown host
+  │         src/Ship.php  it posts the contents of [.env] to [telemetry.example.com]
 
-  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0   2 files (delta from 3.1.0)
-    agent  clear  the delta changes two return types
+  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0 .............. 2 files changed
+  │  PASS   the changes narrow two return types
 ```
 
 ## Installation
@@ -79,7 +79,7 @@ Composer asks whether to allow the plugin the first time. Answer yes, and vet ru
 ./vendor/bin/vet
 ```
 
-**Vet has one command.** It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the uncovered packages you trust. You can read the changes yourself, or ask your coding agent to read them first, and the `--agent` option does that from the start. Until `vet.json` exists, vet has no earlier tree to compare an update against, so the first step is to record the packages you trust today.
+**Vet has one command.** It audits what `vendor/` holds, and when you run it in a terminal, it asks which of the untrusted packages you trust. You can read the changes yourself, or ask your coding agent to read them first, and the `--agent` option does that from the start. Until `vet.json` exists, vet has no earlier version to compare an update against, so the first step is to record the packages you trust today.
 
 ## Recording Your Baseline
 
@@ -92,42 +92,47 @@ vet --init
 ```
   to trust (125)
 
-  brianium/paratest v7.24.0 (dev) ........ no entry; this tree is 3629153db155
-  brick/math 0.18.0 ...................... no entry; this tree is 2874e68aa900
-  carbonphp/carbon-doctrine-types 3.2.0 .. no entry; this tree is ad33848c07e8
+  brianium/paratest v7.24.0 (dev) .............................. never trusted
+  brick/math 0.18.0 ............................................ never trusted
+  carbonphp/carbon-doctrine-types 3.2.0 ........................ never trusted
   …
 
-   INFO  Trusted 125 package(s), and wrote vet.json.
+   INFO  Trusted [125] packages, and wrote [vet.json].
 ```
 
-The `--init` option covers the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a tree that `vendor/` does not hold yet, vet leaves that tree alone and asks you to read it:
+The `--init` option trusts the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a version that `vendor/` does not hold yet, vet leaves that version alone and asks you to read it:
 
 ```
-   ERROR  composer would write 2 package(s) that vendor/ does not hold. Run `vet` in a terminal to read them, or run `composer install` first.
+  to read first (2)
+
+  acme/logger 1.2.0 → 2.0.0 .................................... never trusted
+  acme/tooling 4.1.0 → 4.2.0 ................................... never trusted
+
+   ERROR  composer would write [2] packages that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.
 ```
 
 ## Auditing Your Dependencies
 
-Once the trust file exists, `vet` tells you where you stand. It reads the tree of every installed package, compares it against your entries, and names the packages that have none:
+Once the trust file exists, `vet` tells you where you stand. It reads every installed package, compares it against your entries, and names the packages that have none:
 
 ```shell
 vet
 
-   INFO  All 125 packages are covered.
+   INFO  All [125] packages are trusted.
 
 ```
 
-Vet exits with a non-zero status when a package is not covered, which is what makes it useful in a build. Without a terminal, in your CI or inside the Composer plugin, the report is all that vet writes.
+Vet exits with a non-zero status when a package is not trusted, which is what makes it useful in a build. Without a terminal, in your CI or inside the Composer plugin, the report is all that vet writes.
 
 Until `vet.json` exists, vet audits nothing and asks no question. It names the command that starts the trust file, and exits with a non-zero status:
 
 ```
-   WARN  No trust file yet. Run vet --init to record every package that vendor/ holds today in vet.json.
+   WARN  No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].
 ```
 
 ### Picking What to Trust
 
-In a terminal, vet follows the report with a question. Every package without an entry appears in the list, marked `installed` or `incoming`, so you always know whether the bytes are on your disk or on their way in. Press the space bar to pick a package, `ctrl+a` to pick every package, and enter to record the ones that you picked. The delta of each package sits in the report above the list, so you read first and pick second:
+In a terminal, vet follows the report with a question. Every package that you do not trust yet appears in the list. Press the space bar to pick a package, `ctrl+a` to pick every package, and enter to record the ones that you picked. The changes of each package sit in the report above the list, so you read first and pick second:
 
 ```
  ┌ How do you want to review these packages? ───────────────────┐
@@ -136,22 +141,22 @@ In a terminal, vet follows the report with a question. Every package without an 
  └──────────────────────────────────────────────────────────────┘
 
  ┌ Which packages do you trust? ────────────────────────────────┐
- │ ◼ acme/logger  1.2.0 → 2.0.0  12 files  incoming             │
- │ ◻ acme/tooling  4.1.0 → 4.2.0  8 files  incoming             │
- │ ◻ brick/math  0.18.0  31 files  installed                    │
+ │ ◼ acme/logger   1.2.0 → 2.0.0                                │
+ │ ◻ acme/tooling  4.1.0 → 4.2.0                                │
+ │ ◻ brick/math    0.18.0                                       │
  └──────────────────────────────────────────────────────────────┘
 
-   INFO  Recorded 1 package(s).
-   INFO  Run composer install to write those bytes to vendor/.
+   INFO  Recorded [acme/logger] [2.0.0] at [8002bb9cf6c9].
+   INFO  Run [composer install] to write those bytes to vendor/.
 ```
 
-The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until every package is covered. A package you skip fails the run, in the same way it fails your build.
+The `--notes` option records a note alongside each entry that the run writes. The run exits with a non-zero status until you trust every package. A package you skip fails the run, in the same way it fails your build.
 
-Vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of delta. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
+Vet offers the agent when the batch fits one run: at most 20 packages, and at most 2 MB of changes. A `composer update` that touches 200 packages is more than that, so vet skips the first question, shows the list, and names `vet <package> --agent` so you can hand a few packages at a time to the agent.
 
 ### Auditing a Single Package
 
-You may audit one package, or a few, by passing their names. Vet shows you the tree, and records nothing:
+You may audit one package, or a few, by passing their names. Vet shows you the package, and records nothing:
 
 ```shell
 vet acme/logger acme/tooling
@@ -163,9 +168,20 @@ vet acme/logger acme/tooling
   source ..................................................... dist
   contents ......................................... 12 files, 41.2 KB
   path ......................................... vendor/acme/logger
+
+  delta ([1.2.0] → [2.0.0])
+  identity ....................... 3629153db155 → 8002bb9cf6c9 (dist)
+  compared against .............................. your installed tree
+
+  runtime source (1)
+    ~ src/Logger.php
+      @@ -12,7 +12,7 @@
+      …
+
+   INFO  Record these bytes with [vet].
 ```
 
-When the trust file already covers the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the delta. The `--from` and `--to` options compare any two versions, and the `--notes` option writes a note on the entry of a package that you already trust:
+When the trust file already trusts the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the changes. The `--from` and `--to` options compare any two versions, and the `--notes` option writes a note on the entry of a package that you already trust:
 
 ```shell
 vet carbonphp/carbon-doctrine-types --from=3.1.0
@@ -173,18 +189,18 @@ vet carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
 vet acme/logger --notes="Read with the team on Friday."
 ```
 
-### Reading a Delta
+### Reading the Changes
 
-Vet sorts the files of a delta into four buckets, and shows you the ones that can hurt you first:
+Vet sorts the changed files into four buckets, and shows you the ones that can hurt you first:
 
 | Bucket | What it holds |
 | --- | --- |
-| `install-manifest` | The `composer.json` of the package, which can add a script that runs at install time |
-| `opaque` | Bytes that nobody can read, such as a `.phar` or a compiled library |
-| `runtime-source` | The source that your application autoloads and executes |
+| `install-time manifest` | The `composer.json` of the package, which can add a script that runs at install time |
+| `opaque artifact` | Bytes that nobody can read, such as a `.phar` or a compiled library |
+| `runtime source` | The source that your application autoloads and executes |
 | `inert` | Everything else, such as tests, documentation and images |
 
-The `--bucket` option reads one bucket at a time:
+The `--bucket` option reads one bucket at a time, and takes `install-manifest`, `opaque`, `runtime-source` or `inert`:
 
 ```shell
 vet symfony/console --bucket=runtime-source
@@ -192,31 +208,43 @@ vet symfony/console --bucket=runtime-source
 
 ## Handing a Review to Your Agent
 
-Reading every delta by hand takes time, and most of the time you won't want to. The `--agent` option hands each delta to the coding agent already on your machine, and prints the verdict it writes next to the package. **You still make the call.** The agent reads, and you decide:
+Reading every change by hand takes time, and most of the time you won't want to. The `--agent` option hands the changes of each package to the coding agent already on your machine, and prints the result next to the package. **You still make the call.** The agent reads, and you decide:
 
 ```shell
 vet --agent
 ```
 
 ```
-  to review (3, worst first)
+   INFO  [claude] reviews [3] packages (58.1 KB). This takes a moment.
 
-  acme/logger 1.2.0 → 2.0.0  you trust 1.2.0     12 files (delta from 1.2.0)
-    agent  RISK  src/Ship.php reads .env and sends it to an unknown host
-           src/Ship.php  it posts the contents of [.env] to [telemetry.example.com]
+  to review (3)
 
-  acme/tooling 4.1.0 → 4.2.0  you trust 4.1.0     8 files (delta from 4.1.0)
-    agent  partial  [1] file(s) did not reach the agent. the delta adds two commands
+  acme/logger 1.2.0 → 2.0.0 ................................. 12 files changed
+  │  FAIL   src/Ship.php reads .env and sends it to an unknown host
+  │         src/Ship.php  it posts the contents of [.env] to [telemetry.example.com]
 
-  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0   2 files (delta from 3.1.0)
-    agent  clear  the delta changes two return types
+  acme/tooling 4.1.0 → 4.2.0 ................................. 8 files changed
+  │  WARN   the changes add two commands
+  │         The agent did not read [1] file, because it is too big. Read it yourself:
+  │         resources/schema.php  612.4 KB
 
-  audited .................................................. 123 / 125 (98.4%)
+  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0 .............. 2 files changed
+  │  PASS   the changes narrow two return types
+
+  Packages: 3 to review, 122 trusted
 ```
 
-A verdict is one of four. `clear` means the agent read every byte and found no attack. `RISK` comes with one line for each file the agent names. `partial` means one file never reached the prompt, such as a `.phar` that holds no readable text, so nobody read it. `no verdict` means the answer did not arrive, or it named a file that the delta does not hold.
+A result is one of four. `PASS` means the agent read every file and found no attack. `FAIL` comes with one line for each file the agent names. `WARN` means the rest of the reading is yours: the agent did not read every file, or its answer did not arrive. When a file is too big for the prompt, or holds no text, such as a `.phar`, `WARN` names that file, the reason and its size. `SKIP` means vet sent nothing, because no file changed or vet cannot read the files of the package.
 
-In a terminal, each verdict sits on its row of the list, and vet picks every `clear` row for you before you read it. One `enter` records the packages the agent cleared, and you read `RISK` before you decide. The first question offers the agent too, so you can ask for it without the option.
+In a terminal, each result sits on its row of the list, and vet picks every `PASS` row for you before you read it. One `enter` records those packages, and you read each `FAIL` and `WARN` before you decide. The first question offers the agent too, so you can ask for it without the option:
+
+```
+ ┌ Which packages do you trust? ────────────────────────────────┐
+ │ ◻ FAIL  acme/logger                     1.2.0 → 2.0.0        │
+ │ ◻ WARN  acme/tooling                    4.1.0 → 4.2.0  1 file too big │
+ │ ◼ PASS  carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0        │
+ └──────────────────────────────────────────────────────────────┘
+```
 
 Before the agent reads, vet asks which model it uses. Pick one from the list, type a name, or press `enter` to keep the default model of the agent:
 
@@ -237,7 +265,7 @@ The `--model` option gives the answer without the question, which is what a scri
 vet --agent --model=opus
 ```
 
-**The agent runs only when you ask for it.** The Composer plugin never asks, and a verdict writes nothing to `vet.json` until you answer the question, so the decision stays yours.
+**The agent runs only when you ask for it.** The Composer plugin never asks, and a result writes nothing to `vet.json` until you answer the question, so the decision stays yours.
 
 The `--agent` option reads every package in the batch, whatever its size. Vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
 
@@ -245,13 +273,13 @@ The `--agent` option reads every package in the batch, whatever its size. Vet pr
 
 Vet looks for `claude`, then `codex`, then `gemini` on your `PATH`, and gives it the prompt on standard input. The `VET_AGENT_BINARY` environment variable names a different one.
 
-Vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the delta and does nothing else. The delta stands inside a marker that carries a token of the run, and vet checks every file the answer names against the files the delta holds.
+Vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the changes and does nothing else. The changes stand inside a marker that carries a token of the run, and vet checks every file the answer names against the files it sent.
 
-A package with no entry in your trust file has no earlier tree to compare against. Vet sends its whole tree instead, because that is the package you know least.
+A package with no entry in your trust file has no earlier version to compare against. Vet sends the whole package instead, because that is the package you know least.
 
 ## The Trust File
 
-The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. **You should commit it.** It holds one entry for each package: the version you read, and the hash of the tree you read:
+The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. **You should commit it.** It holds one entry for each package: the version you read, and the hash of the files you read:
 
 ```json
 {
@@ -271,7 +299,7 @@ The trust file lives in `vet.json`, at the root of your project, next to `compos
 }
 ```
 
-The hash covers every file of the tree. When a package ships the same version with different bytes, the entry stops covering it, and vet asks you to read the difference.
+The hash covers every file of the package. When a package ships the same version with different bytes, the entry stops trusting it, and vet asks you to read the difference.
 
 ## Continuous Integration
 
