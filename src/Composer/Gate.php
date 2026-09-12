@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Composer;
+namespace Laravel\Vet\Composer;
 
 final readonly class Gate
 {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Actions\CacheArtifact;
 use App\Actions\ColdCacheArtifact;
-use App\Composer\Gate;
 use Illuminate\Support\Facades\Artisan;
+use Laravel\Vet\Composer\Gate;
 use Tests\Fixtures\Fixture;
 use Tests\Fixtures\StaleProject;
 
