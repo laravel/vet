@@ -13,6 +13,7 @@ use App\ValueObjects\Change;
 use App\ValueObjects\Delta;
 use App\ValueObjects\ManifestChange;
 use Illuminate\Console\OutputStyle;
+use Illuminate\Support\Str;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final readonly class RenderDelta
@@ -117,8 +118,9 @@ final readonly class RenderDelta
 
         if ($hiddenLines > 0) {
             $this->output->writeln($this->gutter->line(sprintf(
-                '  <fg=gray>… and %d more lines, with [vet %s]</>',
+                '  <fg=gray>… and %d more %s, with [vet %s]</>',
                 $hiddenLines,
+                Str::plural('line', $hiddenLines),
                 OutputFormatter::escape($delta->package),
             )));
             $this->output->writeln($this->gutter->blank());
@@ -222,8 +224,10 @@ final readonly class RenderDelta
 
         if ($hidden > 0) {
             $this->components->info(sprintf(
-                '[%d] change(s) are not shown. Read them with [%s].',
+                '[%d] %s not shown. Read %s with [%s].',
                 $hidden,
+                $hidden === 1 ? 'change is' : 'changes are',
+                $hidden === 1 ? 'it' : 'them',
                 $this->invitation->command,
             ));
         }

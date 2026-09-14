@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use Illuminate\Support\Str;
+
 final class BuildUnifiedDiff
 {
     public const string REWRITTEN = '@@ file rewritten @@';
@@ -33,10 +35,15 @@ final class BuildUnifiedDiff
         if ($ops === null) {
             [$prefix, $suffix] = self::commonEdges($oldLines, $newLines);
 
+            $removed = count($oldLines) - $prefix - $suffix;
+            $added = count($newLines) - $prefix - $suffix;
+
             return $header.sprintf(
-                self::REWRITTEN."\n- %d line(s) replaced by %d line(s)\n",
-                count($oldLines) - $prefix - $suffix,
-                count($newLines) - $prefix - $suffix,
+                self::REWRITTEN."\n- %d %s replaced by %d %s\n",
+                $removed,
+                Str::plural('line', $removed),
+                $added,
+                Str::plural('line', $added),
             );
         }
 

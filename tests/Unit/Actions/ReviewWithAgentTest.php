@@ -197,7 +197,7 @@ it('writes no verdict when the agent gives no answer in its time', function (): 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
     expect($review->verdict)->toBe(AgentVerdict::NoVerdict)
-        ->and($review->summary)->toBe('The agent gave no answer in [1] second(s).')
+        ->and($review->summary)->toBe('The agent gave no answer in [1] second.')
         ->and(microtime(true) - $started)->toBeLessThan(4.0);
 });
 

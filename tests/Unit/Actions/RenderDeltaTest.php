@@ -68,7 +68,7 @@ it('counts the changes that it does not show, and writes no patch of a change th
     expect($output)
         ->toContain('src/File5.php')
         ->toContain('… and 1 more, with [vet -v]')
-        ->toContain('[1] change(s) are not shown. Read them with [vet -v].')
+        ->toContain('[1] change is not shown. Read it with [vet -v].')
         ->and(str_contains($output, '@@'))->toBeFalse();
 });
 

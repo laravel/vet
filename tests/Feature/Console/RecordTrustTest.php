@@ -26,7 +26,7 @@ it('records the review of one package, and turns the gate green', function (): v
 
     expect($trustFile)->toContain('"version": "2.0.0"')
         ->and($audited)->toBe(0)
-        ->and($auditOutput)->toContain('All [1] packages are trusted.');
+        ->and($auditOutput)->toContain('All [1] package is trusted.');
 });
 
 it('audits one package, and records nothing', function (): void {

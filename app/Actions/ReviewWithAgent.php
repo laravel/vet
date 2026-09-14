@@ -13,6 +13,7 @@ use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
+use Illuminate\Support\Str;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -138,8 +139,9 @@ final readonly class ReviewWithAgent
             }
         } catch (ProcessTimedOutException) {
             return $this->unreadable($package, sprintf(
-                'The agent gave no answer in [%d] second(s).',
+                'The agent gave no answer in [%d] %s.',
                 $this->timeout,
+                Str::plural('second', $this->timeout),
             ));
         }
 

@@ -17,7 +17,7 @@ it('reads the vendor directory that composer.json configures', function (): void
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are trusted.');
+        ->and($output)->toContain('All [1] package is trusted.');
 });
 
 it('says that a tree came from --prefer-source rather than report a change of bytes alone', function (): void {
@@ -317,7 +317,7 @@ it('reads no dev package of composer.lock as missing after composer install --no
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are trusted.')
+        ->and($output)->toContain('All [1] package is trusted.')
         ->and(str_contains($output, 'acme/lint'))->toBeFalse();
 });
 
@@ -333,7 +333,7 @@ it('names no lock discrepancy for a dev package that composer install --no-dev s
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are trusted.')
+        ->and($output)->toContain('All [1] package is trusted.')
         ->and(str_contains($output, 'does not match composer.lock'))->toBeFalse();
 });
 

@@ -64,7 +64,7 @@ it('ignores an entry of a package that the project does not install', function (
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are trusted.');
+        ->and($output)->toContain('All [1] package is trusted.');
 });
 
 it('writes the dev package of a baseline in require-dev', function (): void {

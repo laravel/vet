@@ -85,7 +85,7 @@ it('counts the lines of the region that changed, and not the whole file', functi
         3,
     );
 
-    expect($diff)->toContain('- 15000 line(s) replaced by 15000 line(s)');
+    expect($diff)->toContain('- 15000 lines replaced by 15000 lines');
 });
 
 it('reads one changed line of a large file, and names its place', function (): void {

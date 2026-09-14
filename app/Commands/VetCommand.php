@@ -446,7 +446,11 @@ final class VetCommand extends Command
         $this->newLine();
 
         if ($targets === []) {
-            $this->components->info(sprintf('All [%d] packages are already trusted.', $report->total()));
+            $this->components->info(sprintf(
+                'All [%d] %s already trusted.',
+                $report->total(),
+                $report->total() === 1 ? 'package is' : 'packages are',
+            ));
 
             return self::SUCCESS;
         }
@@ -666,7 +670,7 @@ final class VetCommand extends Command
         $this->components->twoColumnDetail('source', $audit->source->value);
         $this->components->twoColumnDetail(
             'contents',
-            sprintf('%d files, %s', $audit->files, Bytes::human($audit->bytes)),
+            sprintf('%d %s, %s', $audit->files, Str::plural('file', $audit->files), Bytes::human($audit->bytes)),
         );
         $this->components->twoColumnDetail(
             'path',

@@ -174,7 +174,7 @@ it('audits the tree on disk when composer plans nothing', function (): void {
     }
 
     expect($status)->toBe(0)
-        ->and($output)->toContain('All [1] packages are trusted.');
+        ->and($output)->toContain('All [1] package is trusted.');
 });
 
 it('refuses the bytes that composer would write, and records the installed ones', function (): void {

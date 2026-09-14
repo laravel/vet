@@ -145,7 +145,11 @@ final readonly class RenderProjectAudit
         }
 
         if ($this->failing === []) {
-            $this->components->info(sprintf('All [%d] packages are trusted.', $this->report->total()));
+            $this->components->info(sprintf(
+                'All [%d] %s trusted.',
+                $this->report->total(),
+                $this->report->total() === 1 ? 'package is' : 'packages are',
+            ));
 
             return $this->verdict($discrepancies);
         }
@@ -162,7 +166,11 @@ final readonly class RenderProjectAudit
         $this->output->newLine();
 
         if ($this->failing === []) {
-            $this->components->info(sprintf('All [%d] packages are trusted.', $this->report->total()));
+            $this->components->info(sprintf(
+                'All [%d] %s trusted.',
+                $this->report->total(),
+                $this->report->total() === 1 ? 'package is' : 'packages are',
+            ));
 
             return;
         }
