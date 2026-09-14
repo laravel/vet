@@ -215,14 +215,6 @@ Before the agent reads, vet asks which model it uses. Pick one from the list, ty
 
 Vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
 
-### How the Agent Reads
-
-Vet looks for `claude`, then `codex`, then `gemini`, then `opencode` on your `PATH`, and gives the first one it finds the prompt on standard input.
-
-Vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the changes and does nothing else. The changes stand inside a marker that carries a token of the run, and vet checks every file the answer names against the files it sent.
-
-A package with no entry in your trust file has no earlier version to compare against. Vet sends the whole package instead, because that is the package you know least.
-
 ## The Trust File
 
 The trust file lives in `vet.json`, at the root of your project, next to `composer.json`. **You should commit it.** It holds one entry for each package: the version you read, and the hash of the files you read:
