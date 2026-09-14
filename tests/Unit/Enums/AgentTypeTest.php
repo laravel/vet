@@ -6,17 +6,11 @@ use App\Enums\AgentType;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
 
-it('reads the type of an agent from the name of its binary', function (): void {
-    expect(AgentType::of('/usr/local/bin/claude'))->toBe(AgentType::Claude)
-        ->and(AgentType::of('codex'))->toBe(AgentType::Codex)
-        ->and(AgentType::of('/opt/gemini'))->toBe(AgentType::Gemini)
-        ->and(AgentType::of('/usr/local/bin/my-agent'))->toBeNull();
-});
-
 it('offers the models of each agent', function (): void {
     expect(AgentType::Claude->models())->toContain('opus')
         ->and(AgentType::Codex->models())->toContain('gpt-5.6-sol')
-        ->and(AgentType::Gemini->models())->toContain('gemini-2.5-pro');
+        ->and(AgentType::Gemini->models())->toContain('gemini-2.5-pro')
+        ->and(AgentType::Opencode->models())->toContain('anthropic/claude-opus-5');
 });
 
 it('gives each agent no tool that can write', function (): void {
@@ -34,6 +28,9 @@ it('gives each agent no tool that can write', function (): void {
     ])->and(AgentType::Gemini->arguments('/tmp/schema.json', AgentModel::default()))->toBe([
         '--output-format', 'json',
         '--approval-mode', 'plan',
+    ])->and(AgentType::Opencode->arguments('/tmp/schema.json', AgentModel::default()))->toBe([
+        'run',
+        '--agent', 'plan',
     ]);
 });
 
@@ -52,4 +49,5 @@ it('reads the answer inside the envelope of each agent', function (AgentType $ty
     'claude prose' => [AgentType::Claude, 'I think it is fine.', 'I think it is fine.'],
     'gemini response' => [AgentType::Gemini, '{"response":"{\"verdict\":\"clear\"}","stats":{}}', '{"verdict":"clear"}'],
     'codex' => [AgentType::Codex, '{"response":"{\"verdict\":\"risk\"}"}', '{"response":"{\"verdict\":\"risk\"}"}'],
+    'opencode' => [AgentType::Opencode, '{"verdict":"clear","summary":"nothing","findings":[]}', '{"verdict":"clear","summary":"nothing","findings":[]}'],
 ]);

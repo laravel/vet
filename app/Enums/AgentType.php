@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-use App\Support\BinaryName;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
 
@@ -16,10 +15,7 @@ enum AgentType: string
 
     case Gemini = 'gemini';
 
-    public static function of(string $binary): ?self
-    {
-        return self::tryFrom(BinaryName::of($binary));
-    }
+    case Opencode = 'opencode';
 
     /**
      * @return array<int, string>
@@ -38,6 +34,7 @@ enum AgentType: string
             self::Claude => ['fable', 'opus', 'sonnet', 'haiku'],
             self::Codex => ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.3-codex-spark'],
             self::Gemini => ['gemini-3.1-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'],
+            self::Opencode => ['anthropic/claude-opus-5', 'anthropic/claude-sonnet-5', 'openai/gpt-5.6-sol', 'google/gemini-3.1-pro-preview'],
         };
     }
 
@@ -46,7 +43,7 @@ enum AgentType: string
         return match ($this) {
             self::Claude => $this->envelope($output, ['structured_output', 'result']),
             self::Gemini => $this->envelope($output, ['response']),
-            self::Codex => $output,
+            self::Codex, self::Opencode => $output,
         };
     }
 
@@ -72,6 +69,10 @@ enum AgentType: string
             self::Gemini => [
                 '--output-format', 'json',
                 '--approval-mode', 'plan',
+            ],
+            self::Opencode => [
+                'run',
+                '--agent', 'plan',
             ],
         };
     }

@@ -16,6 +16,7 @@ final readonly class Fixture
     private function __construct(
         public string $rootPath,
         public string $cachePath,
+        private string $environmentPath,
     ) {}
 
     public static function open(string $name): self
@@ -28,7 +29,7 @@ final readonly class Fixture
 
         $base = sys_get_temp_dir().'/vet-'.bin2hex(random_bytes(6));
 
-        $fixture = new self($base.'/project', $base.'/cache');
+        $fixture = new self($base.'/project', $base.'/cache', (string) getenv('PATH'));
 
         self::copy($source.'/project', $fixture->rootPath);
 
@@ -58,14 +59,14 @@ final readonly class Fixture
 
     public function agent(StubAgent $stub): string
     {
-        return $this->agentNamed('agent', $stub);
+        return $this->agentNamed('claude', $stub);
     }
 
     public function agentNamed(string $name, StubAgent $stub): string
     {
         $executable = $stub->install(dirname($this->rootPath), $name);
 
-        putenv('VET_AGENT_BINARY='.$executable);
+        putenv('PATH='.dirname($executable).PATH_SEPARATOR.getenv('PATH'));
 
         return $executable;
     }
@@ -73,7 +74,7 @@ final readonly class Fixture
     public function remove(): void
     {
         putenv('VET_CACHE_DIR');
-        putenv('VET_AGENT_BINARY');
+        putenv('PATH='.$this->environmentPath);
 
         $this->delete(dirname($this->rootPath));
     }

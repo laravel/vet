@@ -28,8 +28,8 @@
         "pestphp/pest": "^5.1.4",
         "pestphp/pest-plugin-phpstan": "^5.2.1",
         "pestphp/pest-plugin-rector": "^5.0.4",
-        "phpstan/phpstan": "^2.2.13",
-        "rector/rector": "^2.6.6"
+        "phpstan/phpstan": "^2.2.14",
+        "rector/rector": "^2.6.7"
     },
     "extra": {
         "class": "Laravel\\Vet\\Composer\\Plugin"
