@@ -2,8 +2,8 @@
     <img src="https://raw.githubusercontent.com/laravel/vet/0.x/art/logo.png?ref=1" alt="Vet example" height="300">
 </p>
 
-> [!WARNING]
-> Laravel Vet is a work in progress, and has no tagged release yet. Use it at your own risk.
+> [!NOTE]
+> Laravel Vet is in beta. The behaviour can change before the first stable release.
 
 Laravel Vet is a dependency audit for PHP. It **shows you the code** that `composer update` is about to write into your `vendor/` directory, and **records the packages you trust** in a `vet.json` file.
 
