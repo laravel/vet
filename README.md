@@ -53,7 +53,7 @@ If you know `cargo vet` from the Rust world, this is the same idea for Composer.
 You read the changes, or you let your agent read them, and vet writes your decision down. Your build then holds you to it: **a package that nobody has trusted fails the build** until someone reads it.
 
 ```shell
-vet
+./vendor/bin/vet
 ```
 
 ```
@@ -90,7 +90,7 @@ Composer asks whether to allow the plugin the first time. Answer yes, and vet ru
 The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option deletes `vet.json` first, then does the same, so you start from an empty trust file:
 
 ```shell
-vet --init
+./vendor/bin/vet --init
 ```
 
 ```
@@ -117,10 +117,10 @@ The `--init` option trusts the bytes that are already on your disk, and nothing 
 
 ## Auditing Your Dependencies
 
-Once the trust file exists, `vet` tells you where you stand. It reads every installed package, compares it against your entries, and names the packages that have none:
+Once the trust file exists, `./vendor/bin/vet` tells you where you stand. It reads every installed package, compares it against your entries, and names the packages that have none:
 
 ```shell
-vet
+./vendor/bin/vet
 
    INFO  All [125] packages are trusted.
 
@@ -156,53 +156,14 @@ In a terminal, vet follows the report with a question. Every package that you do
 
 The run exits with a non-zero status until you trust every package. A package you skip fails the run, in the same way it fails your build.
 
-Above ten packages, the report lists each package with the count of its changed files and shows no change. A change that runs past forty lines stops there, and `vet <package>` shows the rest. Vet prints one dot for each archive that it downloads, and one for each package that the agent finishes.
-
-### Auditing a Single Package
-
-You may audit one package, or a few, by passing their names. Vet shows you the package, and records nothing:
-
-```shell
-vet acme/logger acme/tooling
-```
-
-```
-  acme/logger ....................................... 1.2.0 → 2.0.0
-  hash  tree-v2:8002bb9cf6c918d597582aaebf943f3ef0455d8a9ce724fafb3aac307c63cfe0
-  source ..................................................... dist
-  contents ......................................... 12 files, 41.2 KB
-  path ......................................... vendor/acme/logger
-
-  delta ([1.2.0] → [2.0.0])
-  identity ....................... 3629153db155 → 8002bb9cf6c9 (dist)
-  compared against .............................. your installed tree
-
-    ~ src/Logger.php
-      @@ -12,7 +12,7 @@
-      …
-
-   INFO  Record these bytes with [./vendor/bin/vet].
-```
-
-When the trust file already trusts the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the changes. The `--from` and `--to` options compare any two versions:
-
-```shell
-vet carbonphp/carbon-doctrine-types --from=3.1.0
-vet carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
-```
-
-### Reading the Changes
-
-Vet shows the changed files in one list, and puts the ones that can hurt you first.
-
-The `composer.json` of the package comes first, because it can add a script that runs at install time. Then come the bytes that nobody can read, such as a `.phar` or a compiled library. Then the source that your application autoloads and executes. Everything else comes last: the tests, the documentation and the images.
+Above ten packages, the report lists each package with the count of its changed files and shows no change. A change that runs past forty lines stops there, and `./vendor/bin/vet <package>` shows the rest. Vet prints one dot for each archive that it downloads, and one for each package that the agent finishes.
 
 ## Handing a Review to Your Agent
 
 Reading every change by hand takes time, and most of the time you won't want to. In a terminal, the first question offers the coding agent already on your machine. Pick it, and vet hands the changes of each package to the agent, and prints the result next to the package. **You still make the call.** The agent reads, and you decide:
 
 ```shell
-vet
+./vendor/bin/vet
 ```
 
 ```
@@ -285,33 +246,6 @@ The trust file lives in `vet.json`, at the root of your project, next to `compos
 ```
 
 The hash covers every file of the package. When a package ships the same version with different bytes, the entry stops trusting it, and vet asks you to read the difference.
-
-## Continuous Integration
-
-Your build audits your dependencies the moment it installs them. Vet ships a Composer plugin, and the plugin runs the audit after every `composer install`, and again before `composer update` writes anything into `vendor/`. There is no step to add.
-
-The `--no-plugins` option of Composer runs one command without the plugin, so the update writes into `vendor/` and nobody reads it until you run `vet`:
-
-```shell
-composer update --no-plugins
-```
-
-## Configuration
-
-Vet reads two environment variables:
-
-```ini
-VET_GITHUB_TOKEN=
-VET_CACHE_DIR=
-```
-
-`VET_GITHUB_TOKEN` authenticates the archives that vet downloads from GitHub, and vet falls back to `GITHUB_TOKEN`, to `GH_TOKEN`, and to your Composer authentication file. `VET_CACHE_DIR` holds the archives that vet has already downloaded, and defaults to `vet` inside `$XDG_CACHE_HOME`, or inside `$HOME/.cache`.
-
-Pass the `--no-cache` option to download an archive again instead of reading the cached one:
-
-```shell
-vet acme/logger --no-cache
-```
 
 ## Contributing
 
