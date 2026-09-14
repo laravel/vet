@@ -1,6 +1,6 @@
 {
     "chmod": "0755",
-    "directories": ["app", "bootstrap", "config"],
+    "directories": ["app", "bootstrap", "config", "src"],
     "finder": [
         {
             "in": "vendor",
