@@ -170,10 +170,7 @@ it('asks how to review a batch of any size', function (): void {
 
 it('reads a batch of any size when you ask for the agent', function (): void {
     $project = StaleProject::amongUngranted(20);
-    $executable = StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}')
-        ->install(dirname($project->rootPath), 'agent');
-
-    putenv('VET_AGENT_BINARY='.$executable);
+    $project->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}'));
 
     try {
         command('vet', ['--path' => $project->rootPath])
@@ -184,7 +181,6 @@ it('reads a batch of any size when you ask for the agent', function (): void {
             ->assertExitCode(1)
             ->run();
     } finally {
-        putenv('VET_AGENT_BINARY');
         $project->remove();
     }
 });

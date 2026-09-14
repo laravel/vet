@@ -6,6 +6,7 @@ namespace App\ValueObjects;
 
 use App\Exceptions\EmptyTreeException;
 use App\Exceptions\FailureException;
+use App\Support\LocalState;
 use App\Support\Path;
 
 final readonly class Manifest
@@ -92,6 +93,10 @@ final readonly class Manifest
 
             $full = $directory.DIRECTORY_SEPARATOR.$name;
             $path = $relative === '' ? $name : $relative.DIRECTORY_SEPARATOR.$name;
+
+            if (LocalState::covers($path)) {
+                continue;
+            }
 
             if (is_link($full)) {
                 $entries[Path::toRelativeForm($path)] = hash('sha256', (string) readlink($full));

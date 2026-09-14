@@ -28,6 +28,7 @@ final readonly class StaleProject
         public string $rootPath,
         public string $cachePath,
         private int $ungranted,
+        private string $environmentPath,
     ) {}
 
     public static function create(): self
@@ -40,9 +41,19 @@ final readonly class StaleProject
         return self::seed($count);
     }
 
+    public function agent(StubAgent $stub): string
+    {
+        $executable = $stub->install(dirname($this->rootPath), 'claude');
+
+        putenv('PATH='.dirname($executable).PATH_SEPARATOR.getenv('PATH'));
+
+        return $executable;
+    }
+
     public function remove(): void
     {
         putenv('VET_CACHE_DIR');
+        putenv('PATH='.$this->environmentPath);
 
         $base = dirname($this->rootPath);
 
@@ -70,7 +81,7 @@ final readonly class StaleProject
     {
         $base = sys_get_temp_dir().'/vet-'.bin2hex(random_bytes(6));
 
-        $project = new self($base.'/project', $base.'/cache', $ungranted);
+        $project = new self($base.'/project', $base.'/cache', $ungranted, (string) getenv('PATH'));
 
         $project->seedGrantedTree();
         $project->seedMetadata();

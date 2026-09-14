@@ -188,3 +188,45 @@ it('keeps the hash of a tree whose paths hold no escape', function (): void {
 
     expect($hash)->toBe('tree-v2:'.hash('sha256', hash('sha256', "<?php\n").'  src/Widget.php'."\n"));
 });
+
+it('keeps the hash of a tree that a test run writes state into', function (): void {
+    $clean = manifestTree();
+    $dirty = manifestTree();
+
+    foreach ([$clean, $dirty] as $directory) {
+        mkdir($directory.'/src');
+        file_put_contents($directory.'/src/Widget.php', "<?php\n");
+    }
+
+    mkdir($dirty.'/.temp');
+    file_put_contents($dirty.'/.temp/test-run-history', '{"version":"pest_5.1.4"}');
+    file_put_contents($dirty.'/.phpunit.result.cache', "the cache\n");
+    file_put_contents($dirty.'/src/.DS_Store', "the finder\n");
+
+    try {
+        $cleanManifest = Manifest::ofDirectory($clean);
+        $dirtyManifest = Manifest::ofDirectory($dirty);
+    } finally {
+        removeManifestTree($clean);
+        removeManifestTree($dirty);
+    }
+
+    expect((string) $dirtyManifest->hash())->toBe((string) $cleanManifest->hash())
+        ->and($dirtyManifest->count())->toBe(1)
+        ->and($dirtyManifest->bytes())->toBe($cleanManifest->bytes());
+});
+
+it('hashes a file that a package ships in a directory of its own tests', function (): void {
+    $directory = manifestTree();
+
+    mkdir($directory.'/tests/.temp', 0o777, true);
+    file_put_contents($directory.'/tests/.temp/Fixture.php', "<?php\n");
+
+    try {
+        $entries = Manifest::ofDirectory($directory)->entries();
+    } finally {
+        removeManifestTree($directory);
+    }
+
+    expect($entries)->toHaveKey('tests/.temp/Fixture.php');
+});
