@@ -42,7 +42,7 @@ it('reports one package of an audited project without a delta', function (): voi
         ->and(str_contains($output, 'delta'))->toBeFalse();
 });
 
-it('renders the four buckets of a stale project, worst first', function (): void {
+it('renders every change of a stale project in one list, worst first', function (): void {
     $fixture = Fixture::open('stale-project');
 
     try {
@@ -56,16 +56,13 @@ it('renders the four buckets of a stale project, worst first', function (): void
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
         ->toContain('4 files changed')
-        ->toContain('install-time manifest (1)')
         ->toContain('~ composer.json  scripts')
-        ->toContain('opaque artifact (1)')
         ->toContain('~ bin/widget.phar')
-        ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
-        ->toContain('inert (1)')
         ->toContain('~ tests/WidgetTest.php')
         ->toContain("+        return 'gadget';")
-        ->and(mb_strpos($output, 'install-time manifest'))->toBeLessThan((int) mb_strpos($output, 'runtime source'));
+        ->and(mb_strpos($output, '~ composer.json'))->toBeLessThan((int) mb_strpos($output, '~ src/Widget.php'))
+        ->and(mb_strpos($output, '~ src/Widget.php'))->toBeLessThan((int) mb_strpos($output, '~ tests/WidgetTest.php'));
 });
 
 it('renders the source of each change of a stale project with -v', function (): void {
@@ -98,7 +95,7 @@ it('asks for a baseline when the project holds no trust file', function (): void
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].')
+        ->toContain('No trust file yet. Run [./vendor/bin/vet --init] to record every package that vendor/ holds today in [vet.json].')
         ->and(str_contains($output, 'acme/widget'))->toBeFalse()
         ->and(str_contains($output, 'not trusted'))->toBeFalse();
 });
@@ -184,12 +181,12 @@ it('invites the audit command when composer runs the audit of the installed tree
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('… and 18 more, with [vet -v]')
-        ->toContain('with [vet -v]')
+        ->toContain('… and 18 more, with [./vendor/bin/vet -v]')
+        ->toContain('with [./vendor/bin/vet -v]')
         ->and(str_contains($output, 'composer update -v'))->toBeFalse();
 });
 
-it('renders the buckets and the changed paths of a stale package', function (): void {
+it('renders the changed paths of a stale package', function (): void {
     $project = StaleProject::create();
 
     try {
@@ -202,10 +199,9 @@ it('renders the buckets and the changed paths of a stale package', function (): 
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('1 file changed')
-        ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
         ->toContain("+        return 'gadget';")
-        ->toContain('Read every change with [vet -v]');
+        ->toContain('Read every change with [./vendor/bin/vet -v]');
 });
 
 it('renders the source of each change with -v', function (): void {
@@ -220,13 +216,12 @@ it('renders the source of each change with -v', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php')
-        ->toContain('│ runtime source (1)')
+        ->toContain('│   ~ src/Widget.php')
         ->toContain("│     +        return 'gadget';")
         ->toContain("-        return 'widget';")
         ->toContain("+        return 'gadget';")
-        ->toContain('[1] package is not trusted. Run [vet] in a terminal to pick the ones that you trust.');
+        ->toContain('[1] package is not trusted. Run [./vendor/bin/vet] in a terminal to pick the ones that you trust.');
 });
 
 it('refuses the cache when the user gives --no-cache', function (): void {
@@ -256,6 +251,6 @@ it('lists each package without its changes when more than ten need a review', fu
         ->and($output)
         ->toContain('to review (11)')
         ->toContain('1 file changed')
-        ->toContain('Read the changes of one package with [vet <package>].')
-        ->and(str_contains($output, 'runtime source (1)'))->toBeFalse();
+        ->toContain('Read the changes of one package with [./vendor/bin/vet <package>].')
+        ->and(str_contains($output, '~ src/Widget.php'))->toBeFalse();
 });

@@ -12,25 +12,8 @@ final class AgentFailedException extends RuntimeException implements VetExceptio
     public static function missing(): self
     {
         return new self(sprintf(
-            'Could not find an agent on your PATH. Install one of [%s], or name the binary in [VET_AGENT_BINARY].',
+            'Could not find an agent on your PATH. Install one of [%s].',
             implode('], [', array_column(AgentType::cases(), 'value')),
-        ));
-    }
-
-    public static function noModelFlag(string $binary): self
-    {
-        return new self(sprintf(
-            'Could not pass a model to [%s]. Name one of [%s] in [VET_AGENT_BINARY], or drop the model.',
-            $binary,
-            implode('], [', array_column(AgentType::cases(), 'value')),
-        ));
-    }
-
-    public static function notExecutable(string $binary): self
-    {
-        return new self(sprintf(
-            'Could not run [%s]. Name an agent binary that exists in [VET_AGENT_BINARY].',
-            $binary,
         ));
     }
 }

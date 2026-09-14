@@ -231,7 +231,7 @@ final readonly class RenderProjectAudit
 
             if ($endsWithBlank) {
                 $this->output->writeln(Gutter::Package->blank());
-                $this->renderer->buckets($review->delta);
+                $this->renderer->changes($review->delta);
             }
         }
 
@@ -240,7 +240,7 @@ final readonly class RenderProjectAudit
         }
 
         if ($collapsed) {
-            $this->output->writeln(sprintf('  <fg=gray>%s</>', OutputFormatter::escape('Read the changes of one package with [vet <package>].')));
+            $this->output->writeln(sprintf('  <fg=gray>%s</>', OutputFormatter::escape('Read the changes of one package with [./vendor/bin/vet <package>].')));
             $this->output->newLine();
         }
     }
@@ -298,11 +298,11 @@ final readonly class RenderProjectAudit
 
         $this->components->error($this->readsEveryChange()
             ? sprintf(
-                '%s Read every change with [%s]. Run [vet] in a terminal to pick the ones that you trust.',
+                '%s Read every change with [%s]. Run [./vendor/bin/vet] in a terminal to pick the ones that you trust.',
                 $subject,
                 $this->invitation->command,
             )
-            : sprintf('%s Run [vet] in a terminal to pick the ones that you trust.', $subject));
+            : sprintf('%s Run [./vendor/bin/vet] in a terminal to pick the ones that you trust.', $subject));
 
         $this->components->tip($this->tip());
     }
@@ -315,10 +315,10 @@ final readonly class RenderProjectAudit
     private function tip(): string
     {
         if (! $this->holdsDelta()) {
-            return 'Vet holds no earlier version to compare these packages to. Run [vet] in a terminal to hand the whole packages to your coding agent.';
+            return 'Vet holds no earlier version to compare these packages to. Run [./vendor/bin/vet] in a terminal to hand the whole packages to your coding agent.';
         }
 
-        return 'Run [vet] in a terminal to hand every change to your coding agent.';
+        return 'Run [./vendor/bin/vet] in a terminal to hand every change to your coding agent.';
     }
 
     private function collapsesDeltas(): bool

@@ -62,63 +62,49 @@ final readonly class RenderDelta
             return;
         }
 
-        $this->buckets($delta);
+        $this->changes($delta);
 
         $this->renderVerdict($delta, $this->output->isVerbose());
     }
 
-    public function buckets(Delta $delta): void
+    public function changes(Delta $delta): void
     {
         $verbose = $this->output->isVerbose();
         $budget = ($verbose ? PatchExtent::Full : $this->extent)->lines();
         $hiddenLines = 0;
 
-        foreach (BucketType::inReviewOrder() as $bucket) {
-            $changes = $delta->inBucket($bucket);
+        $changes = $delta->changes();
+        $shown = $verbose ? $changes : array_slice($changes, 0, self::MAX_PATHS);
 
-            if ($changes === []) {
+        foreach ($shown as $change) {
+            $this->renderChange($delta, $change);
+
+            if ($change->bucket === BucketType::Opaque) {
                 continue;
             }
 
-            $this->output->writeln($this->gutter->line(sprintf(
-                '<options=bold>%s</> <fg=gray>(%d)</>%s',
-                $bucket->label(),
-                count($changes),
-                $bucket === BucketType::Opaque ? '  <fg=red>cannot be reviewed — trust and provenance only</>' : '',
-            )));
+            $lines = $this->patchLines($change);
+            $written = $this->writePatch(array_slice($lines, 0, $budget));
 
-            $shown = $verbose ? $changes : array_slice($changes, 0, self::MAX_PATHS);
-
-            foreach ($shown as $change) {
-                $this->renderChange($delta, $change);
-
-                if ($bucket === BucketType::Opaque) {
-                    continue;
-                }
-
-                $lines = $this->patchLines($change);
-                $written = $this->writePatch(array_slice($lines, 0, $budget));
-
-                $budget -= $written;
-                $hiddenLines += count($lines) - $written;
-            }
-
-            $hidden = count($changes) - count($shown);
-
-            if ($hidden > 0) {
-                $this->output->writeln($this->gutter->line(sprintf(
-                    '  <fg=gray>… and %d more, with [%s]</>',
-                    $hidden,
-                    $this->invitation->command,
-                )));
-            }
-
-            $this->output->writeln($this->gutter->blank());
+            $budget -= $written;
+            $hiddenLines += count($lines) - $written;
         }
+
+        $hidden = count($changes) - count($shown);
+
+        if ($hidden > 0) {
+            $this->output->writeln($this->gutter->line(sprintf(
+                '  <fg=gray>… and %d more, with [%s]</>',
+                $hidden,
+                $this->invitation->command,
+            )));
+        }
+
+        $this->output->writeln($this->gutter->blank());
 
         if ($hiddenLines > 0) {
             $this->output->writeln($this->gutter->line(sprintf(
-                '  <fg=gray>… and %d more %s, with [vet %s]</>',
+                '  <fg=gray>… and %d more %s, with [./vendor/bin/vet %s]</>',
                 $hiddenLines,
                 Str::plural('line', $hiddenLines),
                 OutputFormatter::escape($delta->package),
@@ -144,6 +130,10 @@ final readonly class RenderDelta
             OutputFormatter::escape($change->path),
             $annotation === null ? '' : sprintf('  <fg=gray>%s</>', OutputFormatter::escape($annotation)),
         )));
+
+        if ($change->bucket === BucketType::Opaque) {
+            $this->output->writeln($this->gutter->line('      <fg=red>cannot be reviewed — trust and provenance only</>'));
+        }
 
         if ($change->bucket === BucketType::InstallManifest && $delta->manifestChange instanceof ManifestChange) {
             foreach ($delta->manifestChange->changedKeys() as $key) {
@@ -239,13 +229,7 @@ final readonly class RenderDelta
             return 0;
         }
 
-        $hidden = 0;
-
-        foreach (BucketType::inReviewOrder() as $bucket) {
-            $hidden += max(0, count($delta->inBucket($bucket)) - self::MAX_PATHS);
-        }
-
-        return $hidden;
+        return max(0, count($delta->changes()) - self::MAX_PATHS);
     }
 
     private function read(string $file): string|false

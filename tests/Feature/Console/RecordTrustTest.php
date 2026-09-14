@@ -35,7 +35,7 @@ it('audits one package, and records nothing', function (): void {
     try {
         command('vet', ['packages' => ['acme/widget'], '--path' => $fixture->rootPath])
             ->expectsOutputToContain('~ src/Widget.php')
-            ->expectsOutputToContain('Record these bytes with [vet].')
+            ->expectsOutputToContain('Record these bytes with [./vendor/bin/vet].')
             ->assertExitCode(1)
             ->run();
 
@@ -95,7 +95,7 @@ it('audits without a question when nobody can answer one', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('Run [vet] in a terminal to pick the ones that you trust.')
+        ->and($output)->toContain('Run [./vendor/bin/vet] in a terminal to pick the ones that you trust.')
         ->and($trustFile)->toContain('"version": "1.0.0"');
 });
 
@@ -188,7 +188,7 @@ it('rejects --init when the user also names a package', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('The [--init] option takes no package. Run [vet --init] or [vet <package>].');
+        ->and($output)->toContain('The [--init] option takes no package. Run [./vendor/bin/vet --init] or [./vendor/bin/vet <package>].');
 });
 
 it('asks for vet --init and audits nothing when the project holds no trust file', function (): void {
@@ -196,7 +196,7 @@ it('asks for vet --init and audits nothing when the project holds no trust file'
 
     try {
         command('vet', ['--path' => $fixture->rootPath])
-            ->expectsOutputToContain('No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].')
+            ->expectsOutputToContain('No trust file yet. Run [./vendor/bin/vet --init] to record every package that vendor/ holds today in [vet.json].')
             ->doesntExpectOutputToContain('to review')
             ->assertExitCode(1)
             ->run();
@@ -281,7 +281,7 @@ it('refuses --from when the user names two packages', function (): void {
     }
 
     expect($status)->toBe(1)
-        ->and($output)->toContain('The [--from] and [--to] options need one package. Run [vet <package> --from=<version>].');
+        ->and($output)->toContain('The [--from] and [--to] options need one package. Run [./vendor/bin/vet <package> --from=<version>].');
 });
 
 it('asks no question when the trust file covers every package', function (): void {

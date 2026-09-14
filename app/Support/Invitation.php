@@ -12,6 +12,6 @@ final readonly class Invitation
 
     public static function toReadTheInstalledTree(): self
     {
-        return new self('vet -v');
+        return new self('./vendor/bin/vet -v');
     }
 }

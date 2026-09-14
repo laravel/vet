@@ -9,7 +9,7 @@ Laravel Vet is a dependency audit for PHP. It **shows you the code** that `compo
 
 If you know `cargo vet` from the Rust world, this is the same idea for Composer. If you don't, here is the whole idea: every update brings new code into your project that nobody on your team has read. Vet shows you that code, one package at a time, **before it lands**. Once you trust a package, vet remembers it, so the next update **only asks about what changed**.
 
-**You don't have to read it all yourself.** Vet hands each change to the coding agent already on your machine, such as Claude Code, Codex or Gemini, and the agent reads it for you and reports back: `PASS`, or `FAIL` with the file and the reason. You read the fails, press enter on the rest, and get on with your day.
+**You don't have to read it all yourself.** Vet hands each change to the coding agent already on your machine, such as Claude Code, Codex, Gemini or opencode, and the agent reads it for you and reports back: `PASS`, or `FAIL` with the file and the reason. You read the fails, press enter on the rest, and get on with your day.
 
 **Vet works with any PHP project.** Laravel, Symfony, WordPress, or plain PHP: if you have a `composer.json`, you can use it. It ships as a Composer plugin, so it runs after every `composer install` and before every `composer update` writes anything. **There is no step to add.**
 
@@ -20,7 +20,6 @@ If you know `cargo vet` from the Rust world, this is the same idea for Composer.
 
   carbonphp/carbon-doctrine-types 3.1.0 → 3.2.0 .............. 2 files changed
   │
-  │ runtime source (2)
   │   ~ src/Carbon/Doctrine/DateTimeImmutableType.php
   │     @@ -17,7 +17,7 @@
   │          /**
@@ -46,9 +45,9 @@ If you know `cargo vet` from the Rust world, this is the same idea for Composer.
 
   Packages: 1 to review, 124 trusted
 
-   ERROR  [1] package is not trusted. Read every change with [vet -v]. Run [vet] in a terminal to pick the ones that you trust.
+   ERROR  [1] package is not trusted. Read every change with [./vendor/bin/vet -v]. Run [./vendor/bin/vet] in a terminal to pick the ones that you trust.
 
-   TIP  Run [vet] in a terminal to hand every change to your coding agent.
+   TIP  Run [./vendor/bin/vet] in a terminal to hand every change to your coding agent.
 ```
 
 You read the changes, or you let your agent read them, and vet writes your decision down. Your build then holds you to it: **a package that nobody has trusted fails the build** until someone reads it.
@@ -113,7 +112,7 @@ The `--init` option trusts the bytes that are already on your disk, and nothing 
   acme/logger 1.2.0 → 2.0.0 .................................... never trusted
   acme/tooling 4.1.0 → 4.2.0 ................................... never trusted
 
-   ERROR  composer would write [2] packages that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.
+   ERROR  composer would write [2] packages that vendor/ does not hold. Run [./vendor/bin/vet] in a terminal to read them, or run [composer install] first.
 ```
 
 ## Auditing Your Dependencies
@@ -132,7 +131,7 @@ Vet exits with a non-zero status when a package is not trusted, which is what ma
 Until `vet.json` exists, vet audits nothing and asks no question. It names the command that starts the trust file, and exits with a non-zero status:
 
 ```
-   WARN  No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [vet.json].
+   WARN  No trust file yet. Run [./vendor/bin/vet --init] to record every package that vendor/ holds today in [vet.json].
 ```
 
 ### Picking What to Trust
@@ -178,12 +177,11 @@ vet acme/logger acme/tooling
   identity ....................... 3629153db155 → 8002bb9cf6c9 (dist)
   compared against .............................. your installed tree
 
-  runtime source (1)
     ~ src/Logger.php
       @@ -12,7 +12,7 @@
       …
 
-   INFO  Record these bytes with [vet].
+   INFO  Record these bytes with [./vendor/bin/vet].
 ```
 
 When the trust file already trusts the installed version, the report stays local. When the trust file holds an earlier version, vet fetches that version from Packagist and shows you the changes. The `--from` and `--to` options compare any two versions:
@@ -195,14 +193,9 @@ vet carbonphp/carbon-doctrine-types --from=3.1.0 --to=3.2.0
 
 ### Reading the Changes
 
-Vet sorts the changed files into four buckets, and shows you the ones that can hurt you first:
+Vet shows the changed files in one list, and puts the ones that can hurt you first.
 
-| Bucket | What it holds |
-| --- | --- |
-| `install-time manifest` | The `composer.json` of the package, which can add a script that runs at install time |
-| `opaque artifact` | Bytes that nobody can read, such as a `.phar` or a compiled library |
-| `runtime source` | The source that your application autoloads and executes |
-| `inert` | Everything else, such as tests, documentation and images |
+The `composer.json` of the package comes first, because it can add a script that runs at install time. Then come the bytes that nobody can read, such as a `.phar` or a compiled library. Then the source that your application autoloads and executes. Everything else comes last: the tests, the documentation and the images.
 
 ## Handing a Review to Your Agent
 
@@ -257,19 +250,13 @@ Before the agent reads, vet asks which model it uses. Pick one from the list, ty
  └──────────────────────────────────────────────────────────────┘
 ```
 
-The `--model` option gives the answer without the question:
-
-```shell
-vet --model=opus
-```
-
 **The agent runs only when you ask for it.** The Composer plugin never asks, and a result writes nothing to `vet.json` until you answer the question, so the decision stays yours.
 
 Vet prints the count and the size of the prompts before the first one leaves your machine, so you can stop it there.
 
 ### How the Agent Reads
 
-Vet looks for `claude`, then `codex`, then `gemini` on your `PATH`, and gives it the prompt on standard input. The `VET_AGENT_BINARY` environment variable names a different one.
+Vet looks for `claude`, then `codex`, then `gemini`, then `opencode` on your `PATH`, and gives the first one it finds the prompt on standard input.
 
 Vet turns the tools of the agent off and asks for one JSON object back, so the agent reads the changes and does nothing else. The changes stand inside a marker that carries a token of the run, and vet checks every file the answer names against the files it sent.
 
@@ -311,15 +298,14 @@ composer update --no-plugins
 
 ## Configuration
 
-Vet reads three environment variables:
+Vet reads two environment variables:
 
 ```ini
-VET_AGENT_BINARY=
 VET_GITHUB_TOKEN=
 VET_CACHE_DIR=
 ```
 
-`VET_AGENT_BINARY` names the coding agent that vet runs. `VET_GITHUB_TOKEN` authenticates the archives that vet downloads from GitHub, and vet falls back to `GITHUB_TOKEN`, to `GH_TOKEN`, and to your Composer authentication file. `VET_CACHE_DIR` holds the archives that vet has already downloaded, and defaults to `vet` inside `$XDG_CACHE_HOME`, or inside `$HOME/.cache`.
+`VET_GITHUB_TOKEN` authenticates the archives that vet downloads from GitHub, and vet falls back to `GITHUB_TOKEN`, to `GH_TOKEN`, and to your Composer authentication file. `VET_CACHE_DIR` holds the archives that vet has already downloaded, and defaults to `vet` inside `$XDG_CACHE_HOME`, or inside `$HOME/.cache`.
 
 Pass the `--no-cache` option to download an archive again instead of reading the cached one:
 

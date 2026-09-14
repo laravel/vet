@@ -67,8 +67,8 @@ it('counts the changes that it does not show, and writes no patch of a change th
 
     expect($output)
         ->toContain('src/File5.php')
-        ->toContain('… and 1 more, with [vet -v]')
-        ->toContain('[1] change is not shown. Read it with [vet -v].')
+        ->toContain('… and 1 more, with [./vendor/bin/vet -v]')
+        ->toContain('[1] change is not shown. Read it with [./vendor/bin/vet -v].')
         ->and(str_contains($output, '@@'))->toBeFalse();
 });
 
@@ -141,7 +141,7 @@ function renderedBuckets(PatchExtent $extent, bool $verbose): string
         notes: [],
     );
 
-    new RenderDelta(new OutputStyle(new ArrayInput([]), $buffer), Invitation::toReadTheInstalledTree(), Gutter::Package, $extent)->buckets($delta);
+    new RenderDelta(new OutputStyle(new ArrayInput([]), $buffer), Invitation::toReadTheInstalledTree(), Gutter::Package, $extent)->changes($delta);
 
     return $buffer->fetch();
 }
@@ -151,7 +151,7 @@ it('stops an abridged patch after forty lines, and names the command that shows 
 
     expect($output)
         ->toContain('│     -line 39')
-        ->toContain('│   … and 81 more lines, with [vet acme/widget]')
+        ->toContain('│   … and 81 more lines, with [./vendor/bin/vet acme/widget]')
         ->and(str_contains($output, '+new 1'))->toBeFalse();
 });
 

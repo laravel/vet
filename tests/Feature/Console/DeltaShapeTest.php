@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Artisan;
 use Tests\Fixtures\Fixture;
 
-it('puts each change of a project in its bucket', function (): void {
+it('puts every change of a project in one list, worst first', function (): void {
     $fixture = Fixture::open('delta-shapes');
 
     try {
@@ -20,12 +20,10 @@ it('puts each change of a project in its bucket', function (): void {
         ->toContain('to review (5)')
         ->toContain('~ .github/workflows/tests.yml')
         ->toContain('~ docs/readme.md')
-        ->toContain('opaque artifact (2)')
         ->toContain('~ builds/native.so')
         ->toContain('~ builds/tool.phar')
         ->toContain('~ src/logo.png')
         ->toContain('~ resources/font.woff2')
-        ->toContain('install-time manifest (1)')
         ->toContain('~ composer.json  require');
 });
 
@@ -72,7 +70,8 @@ it('prints no source of an opaque artifact, and warns that it cannot be read', f
     }
 
     expect($output)
-        ->toContain('opaque artifact (2)  cannot be reviewed — trust and provenance only')
+        ->toContain('~ builds/native.so')
+        ->toContain('cannot be reviewed — trust and provenance only')
         ->toContain('[2] opaque artifacts cannot be read: [builds/native.so, builds/tool.phar].')
         ->and(str_contains($output, '@@'))->toBeFalse();
 });
@@ -88,9 +87,7 @@ it('treats a media file as a readable change rather than an opaque artifact', fu
     }
 
     expect($output)
-        ->toContain('runtime source (1)')
         ->toContain('~ src/logo.png')
-        ->toContain('inert (1)')
         ->toContain('~ resources/font.woff2')
         ->and(str_contains($output, 'opaque'))->toBeFalse();
 });
@@ -126,9 +123,7 @@ it('prints no source of a file that holds no readable source', function (): void
     }
 
     expect($output)
-        ->toContain('runtime source (1)')
         ->toContain('~ src/logo.png')
-        ->toContain('inert (1)')
         ->toContain('~ resources/font.woff2')
         ->toContain('this file holds no readable source, so its bytes are not shown')
         ->and(str_contains($output, '@@'))->toBeFalse();
@@ -163,10 +158,9 @@ it('stops at five paths and invites the source of the rest', function (): void {
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('23 files changed')
-        ->toContain('runtime source (23)')
         ->toContain('+ src/Rule01.php')
         ->toContain('+ src/Rule05.php')
-        ->toContain('… and 18 more, with [vet -v]')
+        ->toContain('… and 18 more, with [./vendor/bin/vet -v]')
         ->and(str_contains($output, 'src/Rule06.php'))->toBeFalse();
 });
 
@@ -198,7 +192,6 @@ it('reports a change of a line ending as a change', function (): void {
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('2 files changed')
-        ->toContain('runtime source (1)')
         ->toContain('~ src/Widget.php');
 });
 
@@ -214,10 +207,8 @@ it('reads every file of a package that autoloads its own root as runtime source'
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('runtime source (2)')
         ->toContain('~ Widget.php')
         ->toContain('~ tests/WidgetTest.php')
-        ->toContain('inert (1)')
         ->toContain('~ docs/usage.md');
 });
 
@@ -234,11 +225,9 @@ it('reads the files, the classmap and the psr-0 roots of a package as runtime so
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('4 files changed')
-        ->toContain('runtime source (3)')
         ->toContain('~ lib/Legacy.php')
         ->toContain('~ psr0/Acme/Old.php')
         ->toContain('~ src/helpers.php')
-        ->toContain('inert (1)')
         ->toContain('~ docs/guide.md');
 });
 
@@ -295,8 +284,7 @@ it('prints the exact path of a file whose name holds a space and a character out
     }
 
     expect($output)
-        ->toContain('+ src/日本語 file.php')
-        ->toContain('runtime source (4)');
+        ->toContain('+ src/日本語 file.php');
 });
 
 it('prints a line that ends with a backslash and closes the color of that line', function (): void {

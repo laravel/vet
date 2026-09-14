@@ -14,7 +14,8 @@ it('hands each delta to the agent, and writes the verdict under the package', fu
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('[agent] reviews [5] packages (')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('[claude] reviews [5] packages (')
             ->expectsOutputToContain('FAIL   [src/New.php] writes a path outside the package')
             ->expectsQuestion('Which packages do you trust?', [])
             ->assertExitCode(1)
@@ -31,6 +32,7 @@ it('writes each finding of the agent under the verdict', function (): void {
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
             ->expectsOutputToContain('src/New.php  it calls [exec]')
             ->expectsQuestion('Which packages do you trust?', [])
             ->run();
@@ -46,6 +48,7 @@ it('writes no verdict when the agent names a file that the delta does not hold',
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
             ->expectsOutputToContain('WARN   The agent named [src/Invented.php]')
             ->expectsQuestion('Which packages do you trust?', [])
             ->run();
@@ -61,6 +64,7 @@ it('writes a partial verdict when the prompt holds no byte of an opaque artifact
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
             ->expectsOutputToContain('WARN   nothing reaches outside the package')
             ->expectsOutputToContain('The agent did not read [2] files, because they are not text. Read them yourself:')
             ->expectsOutputToContain('builds/native.so  17 B')
@@ -81,6 +85,7 @@ it('gives the agent the package, the versions and the source of each change', fu
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
             ->expectsQuestion('Which packages do you trust?', [])
             ->run();
 
@@ -108,6 +113,7 @@ it('hands the whole tree to the agent when vet holds no earlier tree', function 
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
             ->expectsOutputToContain('PASS   this tree reaches outside nothing')
             ->expectsQuestion('Which packages do you trust?', [])
             ->assertExitCode(1)
@@ -131,7 +137,7 @@ it('invites the reader to the agent in a terminal', function (): void {
         $fixture->remove();
     }
 
-    expect($output)->toContain('Run [vet] in a terminal to hand every change to your coding agent.');
+    expect($output)->toContain('Run [./vendor/bin/vet] in a terminal to hand every change to your coding agent.');
 });
 
 it('invites the reader to the agent, whatever the size of the batch', function (): void {
@@ -144,7 +150,7 @@ it('invites the reader to the agent, whatever the size of the batch', function (
         $project->remove();
     }
 
-    expect($output)->toContain('Run [vet] in a terminal to hand every change to your coding agent.');
+    expect($output)->toContain('Run [./vendor/bin/vet] in a terminal to hand every change to your coding agent.');
 });
 
 it('asks how to review a batch of any size', function (): void {
@@ -172,7 +178,8 @@ it('reads a batch of any size when you ask for the agent', function (): void {
     try {
         command('vet', ['--path' => $project->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('[agent] reviews [21] packages (')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('[claude] reviews [21] packages (')
             ->expectsQuestion('Which packages do you trust?', [])
             ->assertExitCode(1)
             ->run();
@@ -194,7 +201,7 @@ it('invites the reader to the whole packages when a trust file holds no earlier 
         $fixture->remove();
     }
 
-    expect($output)->toContain('Vet holds no earlier version to compare these packages to. Run [vet] in a terminal to hand the whole packages to your coding agent.');
+    expect($output)->toContain('Vet holds no earlier version to compare these packages to. Run [./vendor/bin/vet] in a terminal to hand the whole packages to your coding agent.');
 });
 
 it('puts the verdict of the agent on the row that you pick', function (): void {
@@ -204,7 +211,8 @@ it('puts the verdict of the agent on the row that you pick', function (): void {
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('[agent] reviews [1] package (')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('[claude] reviews [1] package (')
             ->expectsOutputToContain('FAIL   [src/Widget.php] renames the widget')
             ->expectsQuestion('Which packages do you trust?', [])
             ->expectsOutputToContain('Recorded nothing.')
@@ -222,6 +230,7 @@ it('aligns the verdict, the package and the versions of each row that you pick',
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
             ->expectsChoice('Which packages do you trust?', [], [
                 'acme/inert-only' => 'PASS  acme/inert-only     1.0.0 → 2.0.0',
                 'acme/moved' => 'PASS  acme/moved          1.0.0 → 2.0.0',
@@ -256,24 +265,6 @@ it('asks which model the agent uses before it reads, and passes the answer to th
         ->toContain('--model opus');
 });
 
-it('passes the model of the option to the agent without a question', function (): void {
-    $fixture = Fixture::open('stale-project');
-    $agent = $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
-
-    try {
-        command('vet', ['--path' => $fixture->rootPath, '--model' => 'sonnet'])
-            ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsQuestion('Which packages do you trust?', [])
-            ->run();
-
-        $arguments = implode(' ', StubAgent::argumentsGivenTo($agent));
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($arguments)->toContain('--model sonnet');
-});
-
 it('keeps the default model of the agent when you press enter', function (): void {
     $fixture = Fixture::open('stale-project');
     $agent = $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
@@ -293,37 +284,6 @@ it('keeps the default model of the agent when you press enter', function (): voi
     expect($arguments)->not->toContain('--model');
 });
 
-it('asks no model when the agent is not one that vet knows', function (): void {
-    $fixture = Fixture::open('stale-project');
-    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
-
-    try {
-        command('vet', ['--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('[agent] reviews [1] package (')
-            ->expectsQuestion('Which packages do you trust?', [])
-            ->run();
-    } finally {
-        $fixture->remove();
-    }
-});
-
-it('refuses a model for an agent that vet does not know', function (): void {
-    $fixture = Fixture::open('stale-project');
-    $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing","findings":[]}'));
-
-    try {
-        command('vet', ['--path' => $fixture->rootPath, '--model' => 'opus'])
-            ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('Could not pass a model to [')
-            ->expectsQuestion('Which packages do you trust?', [])
-            ->assertExitCode(1)
-            ->run();
-    } finally {
-        $fixture->remove();
-    }
-});
-
 it('hands every delta to the agent when you ask for it, then lets you pick', function (): void {
     $fixture = Fixture::open('stale-project');
     $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"the delta renames one method","findings":[]}'));
@@ -331,7 +291,8 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
     try {
         command('vet', ['--path' => $fixture->rootPath])
             ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('[agent] reviews [1] package (')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('[claude] reviews [1] package (')
             ->expectsOutputToContain('WARN   the delta renames one method')
             ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
             ->assertExitCode(0)
@@ -345,20 +306,24 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
     expect($trustFile)->toContain('"version": "2.0.0"');
 });
 
-it('names the agent that it cannot run, and still lets you pick', function (): void {
+it('names the agents that it looks for when your path holds none, and still lets you pick', function (): void {
     $fixture = Fixture::open('stale-project');
+    $directory = sys_get_temp_dir().'/vet-no-agent-'.bin2hex(random_bytes(6));
 
-    putenv('VET_AGENT_BINARY=agent-that-is-not-installed');
+    mkdir($directory);
 
     try {
-        command('vet', ['--path' => $fixture->rootPath])
-            ->expectsQuestion('How do you want to review these packages?', 'agent')
-            ->expectsOutputToContain('Could not run [agent-that-is-not-installed].')
-            ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
-            ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
-            ->assertExitCode(0)
-            ->run();
+        withEnvironment(['PATH' => $directory], function () use ($fixture): void {
+            command('vet', ['--path' => $fixture->rootPath])
+                ->expectsQuestion('How do you want to review these packages?', 'agent')
+                ->expectsOutputToContain('Could not find an agent on your PATH. Install one of [claude], [codex], [gemini], [opencode].')
+                ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
+                ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
+                ->assertExitCode(0)
+                ->run();
+        });
     } finally {
+        rmdir($directory);
         $fixture->remove();
     }
 });

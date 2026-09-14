@@ -11,7 +11,6 @@ use App\Actions\RenderDelta;
 use App\Actions\RenderProjectAudit;
 use App\Actions\ResolveDelta;
 use App\Actions\ReviewWithAgent;
-use App\Enums\AgentType;
 use App\Enums\AgentVerdict;
 use App\Enums\AuditStatus;
 use App\Enums\Gutter;
@@ -65,7 +64,6 @@ final class VetCommand extends Command
         {packages?* : Audit these packages, as vendor/name}
         {--init : Record every package that vendor/ holds today, and start the trust file from them}
         {--fresh : Delete the trust file, then do the same as --init}
-        {--model= : The model that the coding agent uses (defaults to the one of the agent)}
         {--from= : Show the delta from this version rather than the trusted one}
         {--to= : The version to compare to (defaults to the installed one)}
         {--path= : The project directory to audit (defaults to the current one)}
@@ -84,13 +82,13 @@ final class VetCommand extends Command
         $init = $this->option('init') === true || $fresh;
 
         if ($packages !== [] && $init) {
-            $this->components->error('The [--init] option takes no package. Run [vet --init] or [vet <package>].');
+            $this->components->error('The [--init] option takes no package. Run [./vendor/bin/vet --init] or [./vendor/bin/vet <package>].');
 
             return self::FAILURE;
         }
 
         if ($packages === [] && ($this->option('from') !== null || $this->option('to') !== null)) {
-            $this->components->error('The [--from] and [--to] options need one package. Run [vet <package> --from=<version>].');
+            $this->components->error('The [--from] and [--to] options need one package. Run [./vendor/bin/vet <package> --from=<version>].');
 
             return self::FAILURE;
         }
@@ -123,7 +121,7 @@ final class VetCommand extends Command
         if (! $auditor->trustFile->exists()) {
             $this->newLine();
             $this->components->warn(sprintf(
-                'No trust file yet. Run [vet --init] to record every package that vendor/ holds today in [%s].',
+                'No trust file yet. Run [./vendor/bin/vet --init] to record every package that vendor/ holds today in [%s].',
                 $project->relativePath($auditor->trustFile->path),
             ));
 
@@ -332,21 +330,9 @@ final class VetCommand extends Command
 
     private function agentModel(ReviewWithAgent $agent): AgentModel
     {
-        $option = $this->input->hasOption('model') ? $this->option('model') : null;
-
-        if (is_string($option)) {
-            return AgentModel::of($option);
-        }
-
-        $agentType = $agent->type();
-
-        if (! $agentType instanceof AgentType) {
-            return AgentModel::default();
-        }
-
         $model = new RevertibleSuggestPrompt(
             label: 'Which model do you want the agent to use?',
-            options: $agentType->models(),
+            options: $agent->type()->models(),
             placeholder: sprintf('Press enter for the default model of [%s].', $agent->name()),
             hint: self::MODEL_OR_GO_BACK_HINT,
         )->prompt();
@@ -502,7 +488,7 @@ final class VetCommand extends Command
         $this->renderTargets($incoming->all(), 'to read first');
 
         $this->components->error(sprintf(
-            'composer would write [%d] %s that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.',
+            'composer would write [%d] %s that vendor/ does not hold. Run [./vendor/bin/vet] in a terminal to read them, or run [composer install] first.',
             $incoming->count(),
             Str::plural('package', $incoming->count()),
         ));
@@ -538,7 +524,7 @@ final class VetCommand extends Command
     private function auditPackages(Project $project, AuditProject $auditor, array $names): int
     {
         if (count($names) > 1 && ($this->option('from') !== null || $this->option('to') !== null)) {
-            $this->components->error('The [--from] and [--to] options need one package. Run [vet <package> --from=<version>].');
+            $this->components->error('The [--from] and [--to] options need one package. Run [./vendor/bin/vet <package> --from=<version>].');
 
             return self::FAILURE;
         }
@@ -649,7 +635,7 @@ final class VetCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->components->info('Record these bytes with [vet].');
+        $this->components->info('Record these bytes with [./vendor/bin/vet].');
 
         return self::FAILURE;
     }

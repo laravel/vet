@@ -38,7 +38,7 @@ it('audits the bytes that composer would write, and does not pass them', functio
         ->and($output)
         ->toContain('acme/widget 1.0.0 → 2.0.0')
         ->toContain('files changed')
-        ->toContain('install-time manifest');
+        ->toContain('~ composer.json');
 });
 
 it('invites the audit command when it audits a plan', function (): void {
@@ -57,7 +57,7 @@ it('invites the audit command when it audits a plan', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)
-        ->toContain('Read every change with [vet -v]');
+        ->toContain('Read every change with [./vendor/bin/vet -v]');
 });
 
 it('records the bytes of the next install, while vendor/ holds the old ones', function (): void {
@@ -134,7 +134,7 @@ it('shows the delta of the incoming bytes against the installed tree', function 
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('composer would write these bytes to vendor/')
-        ->toContain('Record these bytes with [vet].')
+        ->toContain('Record these bytes with [./vendor/bin/vet].')
         ->toContain('src/Widget.php')
         ->toContain("return 'gadget';")
         ->toContain('bin/widget.phar');
@@ -193,7 +193,7 @@ it('refuses the bytes that composer would write, and records the installed ones'
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('to read first (1)')
-        ->toContain('composer would write [1] package that vendor/ does not hold. Run [vet] in a terminal to read them, or run [composer install] first.')
+        ->toContain('composer would write [1] package that vendor/ does not hold. Run [./vendor/bin/vet] in a terminal to read them, or run [composer install] first.')
         ->and($trustFile)->toContain('"version": "1.0.0"');
 });
 
@@ -261,6 +261,6 @@ it('shows no delta of the incoming bytes when the installed tree holds no file',
     expect($status)->toBe(1)
         ->and($output)
         ->toContain('composer would write these bytes to vendor/')
-        ->toContain('Record these bytes with [vet].')
+        ->toContain('Record these bytes with [./vendor/bin/vet].')
         ->and(str_contains($output, 'src/Widget.php'))->toBeFalse();
 });

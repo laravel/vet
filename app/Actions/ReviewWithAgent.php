@@ -7,7 +7,6 @@ namespace App\Actions;
 use App\Enums\AgentType;
 use App\Enums\AgentVerdict;
 use App\Exceptions\AgentFailedException;
-use App\Support\BinaryName;
 use App\Support\ProgressDots;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentModel;
@@ -27,7 +26,8 @@ final readonly class ReviewWithAgent
     private const int MAX_SUMMARY = 200;
 
     public function __construct(
-        private string $binary,
+        private AgentType $type,
+        private string $executable,
         private AgentModel $model,
         private int $timeout,
         private ProgressDots $dots,
@@ -35,17 +35,13 @@ final readonly class ReviewWithAgent
 
     public static function default(): self
     {
-        $binary = getenv('VET_AGENT_BINARY');
-
-        if (is_string($binary) && $binary !== '') {
-            return new self($binary, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
-        }
-
         $finder = new ExecutableFinder;
 
-        foreach (AgentType::cases() as $agentType) {
-            if ($finder->find($agentType->value) !== null) {
-                return new self($agentType->value, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
+        foreach (AgentType::cases() as $type) {
+            $executable = $finder->find($type->value);
+
+            if ($executable !== null) {
+                return new self($type, $executable, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
             }
         }
 
@@ -54,21 +50,17 @@ final readonly class ReviewWithAgent
 
     public function withModel(AgentModel $model): self
     {
-        if (! $model->isDefault() && ! $this->type() instanceof AgentType) {
-            throw AgentFailedException::noModelFlag($this->binary);
-        }
-
-        return new self($this->binary, $model, $this->timeout, $this->dots);
+        return new self($this->type, $this->executable, $model, $this->timeout, $this->dots);
     }
 
     public function name(): string
     {
-        return BinaryName::of($this->binary);
+        return $this->type->value;
     }
 
-    public function type(): ?AgentType
+    public function type(): AgentType
     {
-        return AgentType::of($this->binary);
+        return $this->type;
     }
 
     /**
@@ -77,11 +69,10 @@ final readonly class ReviewWithAgent
      */
     public function handle(array $prompts): array
     {
-        $executable = $this->executable();
         $schemaFile = $this->schemaFile();
 
         try {
-            return $this->review($executable, $schemaFile, $prompts);
+            return $this->review($schemaFile, $prompts);
         } finally {
             unlink($schemaFile);
         }
@@ -91,10 +82,9 @@ final readonly class ReviewWithAgent
      * @param  array<string, AgentPrompt>  $prompts
      * @return array<string, AgentReview>
      */
-    private function review(string $executable, string $schemaFile, array $prompts): array
+    private function review(string $schemaFile, array $prompts): array
     {
-        $agentType = $this->type();
-        $arguments = $agentType instanceof AgentType ? $agentType->arguments($schemaFile, $this->model) : [];
+        $arguments = $this->type->arguments($schemaFile, $this->model);
 
         $queue = $prompts;
         $reviews = [];
@@ -103,7 +93,7 @@ final readonly class ReviewWithAgent
         while ($queue !== [] || $running !== []) {
             while ($queue !== [] && count($running) < self::CONCURRENCY) {
                 $package = array_key_first($queue);
-                $process = new Process([$executable, ...$arguments], null, null, $queue[$package]->text);
+                $process = new Process([$this->executable, ...$arguments], null, null, $queue[$package]->text);
                 $process->setTimeout($this->timeout);
                 $process->start();
 
@@ -112,7 +102,7 @@ final readonly class ReviewWithAgent
             }
 
             foreach ($running as $package => $process) {
-                $review = $this->settled($package, $prompts[$package], $process, $agentType);
+                $review = $this->settled($package, $prompts[$package], $process);
 
                 if ($review instanceof AgentReview) {
                     $this->dots->mark();
@@ -129,7 +119,7 @@ final readonly class ReviewWithAgent
         return $reviews;
     }
 
-    private function settled(string $package, AgentPrompt $prompt, Process $process, ?AgentType $agentType): ?AgentReview
+    private function settled(string $package, AgentPrompt $prompt, Process $process): ?AgentReview
     {
         try {
             $process->checkTimeout();
@@ -145,10 +135,10 @@ final readonly class ReviewWithAgent
             ));
         }
 
-        return $this->read($package, $prompt, $process, $agentType);
+        return $this->read($package, $prompt, $process);
     }
 
-    private function read(string $package, AgentPrompt $prompt, Process $process, ?AgentType $agentType): AgentReview
+    private function read(string $package, AgentPrompt $prompt, Process $process): AgentReview
     {
         $output = trim($process->getOutput());
 
@@ -160,7 +150,7 @@ final readonly class ReviewWithAgent
             ));
         }
 
-        $answer = AgentAnswer::read($agentType instanceof AgentType ? $agentType->answerOf($output) : $output);
+        $answer = AgentAnswer::read($this->type->answerOf($output));
 
         if (! $answer instanceof AgentAnswer) {
             return $this->unreadable($package, $output === ''
@@ -211,20 +201,5 @@ final readonly class ReviewWithAgent
         file_put_contents($path, AgentAnswer::schema());
 
         return $path;
-    }
-
-    private function executable(): string
-    {
-        if (is_file($this->binary) && (PHP_OS_FAMILY === 'Windows' || is_executable($this->binary))) {
-            return $this->binary;
-        }
-
-        $executable = (new ExecutableFinder)->find($this->binary);
-
-        if ($executable === null) {
-            throw AgentFailedException::notExecutable($this->binary);
-        }
-
-        return $executable;
     }
 }
