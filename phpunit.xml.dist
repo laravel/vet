@@ -22,9 +22,10 @@
     <source>
         <include>
             <directory>./app</directory>
+            <directory>./src</directory>
         </include>
         <exclude>
-            <file>./app/Composer/Plugin.php</file>
+            <file>./src/Composer/Plugin.php</file>
         </exclude>
     </source>
 </phpunit>

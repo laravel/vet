@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Composer\Gate;
 use App\ValueObjects\ComposerPlan;
+use Laravel\Vet\Composer\Gate;
 
 function gateProject(bool $trustFile, bool $binary): Gate
 {

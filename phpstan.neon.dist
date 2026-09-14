@@ -2,8 +2,9 @@ parameters:
     level: max
     paths:
         - app
+        - src
         - tests
     excludePaths:
-        - app/Composer/Plugin.php
+        - src/Composer/Plugin.php
         - tests/Fixtures/*/*
     tmpDir: build/phpstan

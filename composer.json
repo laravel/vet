@@ -32,11 +32,12 @@
         "rector/rector": "^2.6.6"
     },
     "extra": {
-        "class": "App\\Composer\\Plugin"
+        "class": "Laravel\\Vet\\Composer\\Plugin"
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/"
+            "App\\": "app/",
+            "Laravel\\Vet\\Composer\\": "src/Composer/"
         }
     },
     "autoload-dev": {

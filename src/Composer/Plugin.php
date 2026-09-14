@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Composer;
+namespace Laravel\Vet\Composer;
 
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
@@ -21,9 +21,6 @@ use Symfony\Component\Process\Process;
 
 final class Plugin implements EventSubscriberInterface, PluginInterface
 {
-    /**
-     * @return array<string, string>
-     */
     public static function getSubscribedEvents(): array
     {
         return [
@@ -98,9 +95,6 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
         $this->run($gate, $io, $gate->command($io->isVerbose(), $io->isDecorated()));
     }
 
-    /**
-     * @param  array<int, string>  $command
-     */
     private function run(Gate $gate, IOInterface $io, array $command): void
     {
         if ($command === []) {
@@ -141,9 +135,6 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
         );
     }
 
-    /**
-     * @return array<string, string|null>|null
-     */
     private function operationOf(OperationInterface $operation): ?array
     {
         if ($operation instanceof InstallOperation) {
