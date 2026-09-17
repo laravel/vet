@@ -12,10 +12,21 @@ final readonly class ControlSafe
 
     private const string REPLACEMENT = '?';
 
+    private const string INVALID_BYTE = "\u{FFFD}";
+
     public static function text(string $text): string
     {
-        $readable = (string) preg_replace(self::CONTROL_BYTES, self::REPLACEMENT, $text);
+        $readable = (string) preg_replace(self::CONTROL_BYTES, self::REPLACEMENT, self::decodable($text));
 
-        return preg_replace(self::INVISIBLE_CHARACTERS, self::REPLACEMENT, $readable) ?? $readable;
+        return (string) preg_replace(self::INVISIBLE_CHARACTERS, self::REPLACEMENT, $readable);
+    }
+
+    private static function decodable(string $text): string
+    {
+        if (mb_check_encoding($text, 'UTF-8')) {
+            return $text;
+        }
+
+        return str_replace(self::INVALID_BYTE, self::REPLACEMENT, mb_scrub($text, 'UTF-8'));
     }
 }
