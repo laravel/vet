@@ -88,8 +88,38 @@ enum AgentType: string
             return $output;
         }
 
+        foreach ($this->envelopes($decoded) as $envelope) {
+            $answer = $this->keyed($envelope, $keys);
+
+            if ($answer !== null) {
+                return $answer;
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $decoded
+     * @return array<int, array<array-key, mixed>>
+     */
+    private function envelopes(array $decoded): array
+    {
+        if (! array_is_list($decoded)) {
+            return [$decoded];
+        }
+
+        return array_values(array_filter(array_reverse($decoded), is_array(...)));
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $envelope
+     * @param  array<int, string>  $keys
+     */
+    private function keyed(array $envelope, array $keys): ?string
+    {
         foreach ($keys as $key) {
-            $field = $decoded[$key] ?? null;
+            $field = $envelope[$key] ?? null;
 
             if (is_array($field)) {
                 $encoded = json_encode($field);
@@ -104,6 +134,6 @@ enum AgentType: string
             }
         }
 
-        return $output;
+        return null;
     }
 }
