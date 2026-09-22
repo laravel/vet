@@ -25,6 +25,23 @@ it('hands each delta to the agent, and writes the verdict under the package', fu
     }
 });
 
+it('reads the verdict out of the event stream that claude answers with', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent(StubAgent::answering('[{"type":"system","subtype":"init"},{"type":"assistant","message":{"content":[]}},{"type":"result","subtype":"success","is_error":false,"result":"{\"verdict\":\"risk\",\"summary\":\"[src/Widget.php] renames the widget\",\"findings\":[]}","structured_output":{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}}]'));
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('FAIL   [src/Widget.php] renames the widget')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->assertExitCode(1)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
 it('writes each finding of the agent under the verdict', function (): void {
     $fixture = Fixture::open('delta-shapes');
     $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/New.php] runs a shell command","findings":[{"path":"src/New.php","reason":"it calls [exec]"}]}'));
