@@ -8,6 +8,7 @@ use App\Actions\FetchArchive;
 use App\Actions\RequestUrl;
 use App\Exceptions\FailureException;
 use App\Support\ProgressDots;
+use App\ValueObjects\Credentials;
 use App\ValueObjects\Package;
 use Illuminate\Console\OutputStyle;
 use Illuminate\Support\Facades\File;
@@ -52,7 +53,7 @@ function fetcherServing(string $bytes): FetchArchive
 
     $http = new FakeHttp([FakeHttp::body($bytes)]);
 
-    return new FetchArchive(new RequestUrl('vet-test', [], $http->client), DiskCacheArtifact::default(), silentDots());
+    return new FetchArchive(new RequestUrl('vet-test', Credentials::none(), $http->client), DiskCacheArtifact::default(), silentDots());
 }
 
 afterEach(function (): void {
@@ -94,7 +95,7 @@ it('reads the bytes again when the user refuses the cache', function (): void {
     $http = new FakeHttp([FakeHttp::body($served), FakeHttp::body($served)]);
 
     $fetcher = new FetchArchive(
-        new RequestUrl('vet-test', [], $http->client),
+        new RequestUrl('vet-test', Credentials::none(), $http->client),
         new ColdCacheArtifact(DiskCacheArtifact::default()),
         silentDots(),
     );
@@ -138,7 +139,7 @@ it('marks each download with a dot, and no read of the cache', function (): void
     putenv('VET_CACHE_DIR='.sys_get_temp_dir().'/vet-fetch-'.bin2hex(random_bytes(6)));
 
     $fetcher = new FetchArchive(
-        new RequestUrl('vet-test', [], new FakeHttp([FakeHttp::body($served)])->client),
+        new RequestUrl('vet-test', Credentials::none(), new FakeHttp([FakeHttp::body($served)])->client),
         DiskCacheArtifact::default(),
         new ProgressDots(new OutputStyle(new ArrayInput([]), $buffer)),
     );

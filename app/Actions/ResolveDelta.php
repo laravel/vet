@@ -23,8 +23,8 @@ final readonly class ResolveDelta
     public static function forProject(Project $project): self
     {
         return new self(
-            FetchPackageMetadata::default(),
-            FetchArchive::default(),
+            FetchPackageMetadata::forProject($project),
+            FetchArchive::forProject($project),
             new BuildDelta,
             InstalledRepository::fromProject($project),
         );

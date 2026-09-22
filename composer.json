@@ -68,7 +68,7 @@
             "pint --test --parallel"
         ],
         "test:types": "phpstan analyse",
-        "test:unit": "pest --parallel --coverage --exactly=100.0",
+        "test:unit": "XDEBUG_MODE=coverage pest --parallel --coverage --exactly=100.0",
         "test": [
             "@test:lint",
             "@test:types",

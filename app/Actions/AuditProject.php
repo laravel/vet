@@ -243,10 +243,10 @@ final readonly class AuditProject
             project: $project,
             trustFile: TrustFile::forProject($project),
             installed: $installed,
-            fingerprinter: new FingerprintPackage(FetchArchive::default()),
+            fingerprinter: new FingerprintPackage(FetchArchive::forProject($project)),
             lock: $lock,
             plan: $plan,
-            packagist: FetchPackageMetadata::default(),
+            packagist: FetchPackageMetadata::forProject($project),
         );
     }
 

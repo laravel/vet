@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Exceptions\FetchFailedException;
-use App\Support\GithubHost;
 use App\Support\Path;
+use App\ValueObjects\Credentials;
+use App\ValueObjects\Project;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\RequestOptions;
@@ -23,26 +24,15 @@ final readonly class RequestUrl
 
     private const string SCHEME = 'https';
 
-    /**
-     * @param  array<string, string>  $githubHeaders
-     */
     public function __construct(
         private string $userAgent,
-        private array $githubHeaders,
+        private Credentials $credentials,
         private ClientInterface $client,
     ) {}
 
-    public static function default(): self
+    public static function forProject(Project $project): self
     {
-        return new self('vet (+https://github.com/laravel/vet)', self::discoverGithubHeaders(), app(ClientInterface::class));
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public static function bearer(string $token): array
-    {
-        return ['Authorization' => 'Bearer '.$token];
+        return new self('vet (+https://github.com/laravel/vet)', DiscoverCredentials::handle($project), app(ClientInterface::class));
     }
 
     public function get(string $url): string
@@ -88,89 +78,13 @@ final readonly class RequestUrl
     /**
      * @return array<string, string>
      */
-    private static function discoverGithubHeaders(): array
-    {
-        foreach (['VET_GITHUB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN'] as $variable) {
-            $token = getenv($variable);
-
-            if (is_string($token) && $token !== '') {
-                return self::bearer($token);
-            }
-        }
-
-        foreach (self::authFilePaths() as $path) {
-            if (! is_file($path)) {
-                continue;
-            }
-
-            $contents = @file_get_contents($path);
-
-            if ($contents === false) {
-                continue;
-            }
-
-            $decoded = json_decode($contents, true);
-
-            if (! is_array($decoded)) {
-                continue;
-            }
-
-            $oauth = $decoded['github-oauth'] ?? null;
-
-            if (is_array($oauth) && isset($oauth['github.com']) && is_string($oauth['github.com'])) {
-                return self::bearer($oauth['github.com']);
-            }
-        }
-
-        return [];
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private static function authFilePaths(): array
-    {
-        $paths = [];
-
-        $composerAuth = getenv('COMPOSER_AUTH_FILE');
-
-        if (is_string($composerAuth) && $composerAuth !== '') {
-            $paths[] = $composerAuth;
-        }
-
-        $composerHome = getenv('COMPOSER_HOME');
-        $xdgConfigHome = getenv('XDG_CONFIG_HOME');
-        $home = getenv('HOME');
-
-        if (is_string($composerHome) && $composerHome !== '') {
-            $paths[] = Path::join($composerHome, 'auth.json');
-
-            return $paths;
-        }
-
-        if (is_string($xdgConfigHome) && $xdgConfigHome !== '') {
-            $paths[] = Path::join($xdgConfigHome, 'composer/auth.json');
-        }
-
-        if (is_string($home) && $home !== '') {
-            $paths[] = Path::join($home, '.composer/auth.json');
-            $paths[] = Path::join($home, '.config/composer/auth.json');
-        }
-
-        return $paths;
-    }
-
-    /**
-     * @return array<string, string>
-     */
     private function headers(string $url): array
     {
-        $headers = [
+        return [
             'User-Agent' => $this->userAgent,
             'Accept' => 'application/json, application/zip;q=0.9, */*;q=0.8',
+            ...$this->credentials->headersFor($url),
         ];
-
-        return GithubHost::matches($url) ? [...$headers, ...$this->githubHeaders] : $headers;
     }
 
     private function getFollowingRedirects(string $url): string
@@ -191,7 +105,7 @@ final readonly class RequestUrl
             }
 
             if ($status < 200 || $status >= 300) {
-                throw FetchFailedException::status($target, $status, (string) $response->getBody());
+                throw FetchFailedException::status($target, $status, (string) $response->getBody(), $this->credentials->headersFor($target) !== []);
             }
 
             return (string) $response->getBody();

@@ -8,6 +8,7 @@ use App\Exceptions\FailureException;
 use App\Exceptions\VetException;
 use App\Support\Json;
 use App\ValueObjects\Package;
+use App\ValueObjects\Project;
 
 final class FetchPackageMetadata
 {
@@ -32,9 +33,9 @@ final class FetchPackageMetadata
         private readonly CacheArtifact $cache,
     ) {}
 
-    public static function default(): self
+    public static function forProject(Project $project): self
     {
-        return new self(RequestUrl::default(), app(CacheArtifact::class));
+        return new self(RequestUrl::forProject($project), app(CacheArtifact::class));
     }
 
     /**

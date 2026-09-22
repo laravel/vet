@@ -8,10 +8,12 @@ use RuntimeException;
 
 final class FetchFailedException extends RuntimeException implements VetException
 {
-    public static function status(string $url, int $status, string $body): self
+    public static function status(string $url, int $status, string $body, bool $authenticated): self
     {
         $hint = match (true) {
-            $status === 403 && str_contains($url, 'api.github.com') => ' GitHub rate-limits unauthenticated requests to 60/hour; set [GITHUB_TOKEN] to raise it.',
+            $status === 403 && str_contains($url, 'api.github.com') && ! $authenticated => ' GitHub rate-limits unauthenticated requests to 60/hour; set [GITHUB_TOKEN] to raise it.',
+            ($status === 401 || $status === 403) && ! $authenticated => ' Vet sent no credential, because the [auth.json] that composer reads holds none for this host.',
+            $status === 401 || $status === 403 => ' The server refused the credential that composer holds for this host in [auth.json].',
             $status === 404 => ' The package or version may not exist.',
             default => '',
         };

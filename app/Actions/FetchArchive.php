@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Exceptions\FailureException;
 use App\Support\ProgressDots;
 use App\ValueObjects\Package;
+use App\ValueObjects\Project;
 use Illuminate\Support\Facades\File;
 
 final readonly class FetchArchive
@@ -19,9 +20,9 @@ final readonly class FetchArchive
         private ProgressDots $dots,
     ) {}
 
-    public static function default(): self
+    public static function forProject(Project $project): self
     {
-        return new self(RequestUrl::default(), app(CacheArtifact::class), app(ProgressDots::class));
+        return new self(RequestUrl::forProject($project), app(CacheArtifact::class), app(ProgressDots::class));
     }
 
     public function handle(Package $package): string

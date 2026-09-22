@@ -9,6 +9,7 @@ use App\Actions\FetchPackageMetadata;
 use App\Actions\RequestUrl;
 use App\Exceptions\FailureException;
 use App\Support\Json;
+use App\ValueObjects\Credentials;
 use GuzzleHttp\Psr7\Response;
 use Tests\Fixtures\FakeHttp;
 
@@ -62,13 +63,13 @@ function seededCache(string $document): CacheArtifact
 
 function cachedPackagist(string $document, FakeHttp $http): FetchPackageMetadata
 {
-    return new FetchPackageMetadata(new RequestUrl('vet (tests)', [], $http->client), seededCache($document));
+    return new FetchPackageMetadata(new RequestUrl('vet (tests)', Credentials::none(), $http->client), seededCache($document));
 }
 
 function coldPackagist(string $document, FakeHttp $http): FetchPackageMetadata
 {
     return new FetchPackageMetadata(
-        new RequestUrl('vet (tests)', [], $http->client),
+        new RequestUrl('vet (tests)', Credentials::none(), $http->client),
         new ColdCacheArtifact(seededCache($document)),
     );
 }
