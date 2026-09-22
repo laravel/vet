@@ -269,6 +269,24 @@ it('writes the keys of the manifest that changed', function (): void {
     expect($prompt->text)->toContain('scripts: ');
 });
 
+it('tells the agent that a changed entry in require is no risk', function (): void {
+    $directory = promptDirectory();
+
+    $manifestChange = ManifestChange::between(
+        ['require' => ['acme/detector' => '^1.0']],
+        ['require' => ['other/detector' => '^1.1']],
+    );
+
+    $prompt = (new BuildAgentPrompt)->handle(promptDelta([
+        promptChange($directory, 'composer.json', '{"require":{"acme/detector":"^1.0"}}', '{"require":{"other/detector":"^1.1"}}', BucketType::InstallManifest),
+    ], false, $manifestChange, []));
+
+    expect($prompt->text)
+        ->toContain('require: ')
+        ->toContain('a changed entry in require, because vet audits the tree of each package that composer installs in a delta of its own');
+    expect($prompt->text)->not->toContain('it adds an entry to require');
+});
+
 it('writes the caveats of the delta', function (): void {
     $prompt = (new BuildAgentPrompt)->handle(
         promptDelta([], false, null, ['[acme/widget] is installed from source.']),
