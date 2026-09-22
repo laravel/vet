@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\BucketType;
 use App\Enums\UnreadReason;
+use App\Support\PhpSource;
 use App\ValueObjects\AgentAnswer;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\Change;
@@ -65,7 +66,7 @@ final readonly class BuildAgentPrompt
             $size = mb_strlen($block, '8bit');
 
             if ($size > $budget) {
-                $unread[] = new UnreadFile($change->path, UnreadReason::TooBig, $this->bytesOnDisk($change));
+                $unread[] = $unreadOfBlock === [] ? $this->excluded($change, $size) : $unreadOfBlock[0];
 
                 continue;
             }
@@ -78,6 +79,15 @@ final readonly class BuildAgentPrompt
         ksort($blocks, SORT_STRING);
 
         return sprintf("## %s (%d)\n\n%s", $bucket->label(), count($changes), implode("\n", $blocks));
+    }
+
+    private function excluded(Change $change, int $size): UnreadFile
+    {
+        return new UnreadFile(
+            $change->path,
+            $size > self::MAX_BYTES ? UnreadReason::TooBig : UnreadReason::OverBudget,
+            $this->bytesOnDisk($change),
+        );
     }
 
     /**
@@ -304,7 +314,7 @@ final readonly class BuildAgentPrompt
             return "\nVet cannot read these bytes, so this prompt does not hold them.\n";
         }
 
-        if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {
+        if (PhpSource::holdsNoSource($change->path, $old) || PhpSource::holdsNoSource($change->path, $new)) {
             $unread[] = new UnreadFile($change->path, UnreadReason::NotText, $this->bytesOnDisk($change));
 
             return "\nThis file holds no readable source, so this prompt does not hold its bytes.\n";
@@ -326,10 +336,5 @@ final readonly class BuildAgentPrompt
         }
 
         return file_get_contents($file);
-    }
-
-    private function holdsNoSource(string $contents): bool
-    {
-        return str_contains($contents, "\0");
     }
 }

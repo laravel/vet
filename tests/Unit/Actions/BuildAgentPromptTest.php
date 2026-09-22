@@ -231,6 +231,31 @@ it('skips the file that the budget cannot hold, and names it', function (): void
     expect($prompt->text)->not->toContain('+++ b/src/Big.php');
 });
 
+it('names the file that the budget cannot hold as over the budget when the file itself fits the budget', function (): void {
+    $directory = promptDirectory();
+
+    $prompt = (new BuildAgentPrompt)->handle(promptDelta([
+        promptChange($directory, 'src/First.php', '', str_repeat(str_repeat('a', 1_200)."\n", 200), BucketType::RuntimeSource),
+        promptChange($directory, 'src/Second.php', '', str_repeat(str_repeat('b', 1_200)."\n", 200), BucketType::RuntimeSource),
+    ], false, null, []));
+
+    expect(unreadCauses($prompt))->toBe([['src/Second.php', UnreadReason::OverBudget]])
+        ->and($prompt->text)->toContain('+++ b/src/First.php');
+
+    expect($prompt->text)->not->toContain('+++ b/src/Second.php');
+});
+
+it('sends a php file whose null byte stands inside a string literal', function (): void {
+    $directory = promptDirectory();
+
+    $prompt = (new BuildAgentPrompt)->handle(promptDelta([
+        promptChange($directory, 'src/charset/from.us-ascii.php', "<?php\n", "<?php\n\nreturn ['\0' => '\0'];\n", BucketType::RuntimeSource),
+    ], false, null, []));
+
+    expect($prompt->unread)->toBe([])
+        ->and($prompt->text)->toContain('+++ b/src/charset/from.us-ascii.php');
+});
+
 it('names once the file that it cannot read line by line and that the budget cannot hold', function (): void {
     $directory = promptDirectory();
 

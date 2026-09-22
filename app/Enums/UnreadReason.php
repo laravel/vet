@@ -8,6 +8,8 @@ enum UnreadReason: string
 {
     case TooBig = 'too-big';
 
+    case OverBudget = 'over-budget';
+
     case NotText = 'not-text';
 
     case NotReadable = 'not-readable';
@@ -16,6 +18,7 @@ enum UnreadReason: string
     {
         return match ($this) {
             self::TooBig => 'too big',
+            self::OverBudget => 'over the budget',
             self::NotText => 'not text',
             self::NotReadable => 'not readable',
         };

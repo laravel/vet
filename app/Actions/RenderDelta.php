@@ -9,6 +9,7 @@ use App\Enums\Gutter;
 use App\Enums\PatchExtent;
 use App\Support\ControlSafeComponents;
 use App\Support\Invitation;
+use App\Support\PhpSource;
 use App\ValueObjects\Change;
 use App\ValueObjects\Delta;
 use App\ValueObjects\ManifestChange;
@@ -174,7 +175,7 @@ final readonly class RenderDelta
             return ['<fg=gray>vet cannot read this file, so its bytes are not shown</>'];
         }
 
-        if ($this->holdsNoSource($old) || $this->holdsNoSource($new)) {
+        if (PhpSource::holdsNoSource($change->path, $old) || PhpSource::holdsNoSource($change->path, $new)) {
             return ['<fg=gray>this file holds no readable source, so its bytes are not shown</>'];
         }
 
@@ -235,10 +236,5 @@ final readonly class RenderDelta
     private function read(string $file): string|false
     {
         return @file_get_contents($file);
-    }
-
-    private function holdsNoSource(string $contents): bool
-    {
-        return str_contains($contents, "\0");
     }
 }

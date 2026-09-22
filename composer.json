@@ -17,6 +17,7 @@
         "ext-mbstring": "*",
         "ext-openssl": "*",
         "ext-phar": "*",
+        "ext-tokenizer": "*",
         "ext-zip": "*"
     },
     "require-dev": {

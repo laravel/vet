@@ -23,5 +23,6 @@ it('names the files that the agent did not read in a few words', function (): vo
     expect(reviewWithUnread([])->unreadNote())->toBe('')
         ->and(reviewWithUnread([$big])->unreadNote())->toBe('1 file too big')
         ->and(reviewWithUnread([$big, $other])->unreadNote())->toBe('2 files too big')
+        ->and(reviewWithUnread([new UnreadFile('src/Late.php', UnreadReason::OverBudget, 6_800)])->unreadNote())->toBe('1 file over the budget')
         ->and(reviewWithUnread([$big, $phar])->unreadNote())->toBe('2 files not read');
 });

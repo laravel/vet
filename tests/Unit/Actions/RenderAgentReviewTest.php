@@ -63,6 +63,16 @@ it('names each file that is too big for the agent, with its size', function (): 
         ->and(str_contains($output, 'partial'))->toBeFalse();
 });
 
+it('names each file that the budget of the prompt could not hold, with its size', function (): void {
+    $output = renderedAgentReview(new AgentReview('aws/aws-sdk-php', AgentVerdict::Partial, 'routine sdk update', [], [
+        new UnreadFile('src/CodeStarNotifications/CodeStarNotificationsClient.php', UnreadReason::OverBudget, 6_963),
+    ]));
+
+    expect($output)
+        ->toContain('The agent did not read [1] file, because it is over the budget. Read it yourself:')
+        ->toContain('src/CodeStarNotifications/CodeStarNotificationsClient.php  6.8 KB');
+});
+
 it('counts each cause when the agent did not read files for different causes', function (): void {
     $output = renderedAgentReview(new AgentReview('acme/widget', AgentVerdict::Partial, 'the delta adds two commands', [], [
         new UnreadFile('bin/tool.phar', UnreadReason::NotText, 1_300_000),

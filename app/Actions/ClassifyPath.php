@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\BucketType;
+use App\Support\PhpSource;
 use App\ValueObjects\Package;
 
 final readonly class ClassifyPath
@@ -123,7 +124,7 @@ final readonly class ClassifyPath
             return false;
         }
 
-        return $this->looksMinified($extension, $file) || $this->looksBinary($file);
+        return $this->looksMinified($extension, $file) || $this->looksBinary($path, $file);
     }
 
     private function looksMinified(string $extension, string $file): bool
@@ -157,7 +158,7 @@ final readonly class ClassifyPath
         return $longest > 1000 || ($lines < 5 && $size > 20_000);
     }
 
-    private function looksBinary(string $file): bool
+    private function looksBinary(string $path, string $file): bool
     {
         $handle = @fopen($file, 'rb');
 
@@ -168,7 +169,13 @@ final readonly class ClassifyPath
         $head = (string) fread($handle, 8000);
         fclose($handle);
 
-        return $head !== '' && str_contains($head, "\0");
+        if ($head === '' || ! str_contains($head, "\0")) {
+            return false;
+        }
+
+        $contents = @file_get_contents($file);
+
+        return PhpSource::holdsNoSource($path, $contents === false ? $head : $contents);
     }
 
     private function isRuntime(string $path): bool

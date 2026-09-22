@@ -67,6 +67,11 @@ it('reads a file that holds a null byte as opaque', function (): void {
         ->toBe(BucketType::Opaque);
 });
 
+it('reads a php file whose null byte stands inside a string literal as source', function (): void {
+    expect(new ClassifyPath(['src'], false)->handle('src/charset/from.us-ascii.php', classifyFile("<?php\n\nreturn ['\0' => '\0'];\n")))
+        ->toBe(BucketType::RuntimeSource);
+});
+
 it('reads an image that holds a null byte as inert', function (): void {
     expect(new ClassifyPath(['src'], false)->handle('docs/logo.png', classifyFile("\x89PNG\r\n\x1a\n\0\0\0\rIHDR")))
         ->toBe(BucketType::Inert);
