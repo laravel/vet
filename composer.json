@@ -25,7 +25,7 @@
         "laravel-zero/framework": "^13.0",
         "laravel/pint": "^1.32.1",
         "mockery/mockery": "^1.6.15",
-        "pestphp/pest": "^5.1.4",
+        "pestphp/pest": "^5.2.1",
         "pestphp/pest-plugin-phpstan": "^5.2.1",
         "pestphp/pest-plugin-rector": "^5.0.4",
         "phpstan/phpstan": "^2.2.14",

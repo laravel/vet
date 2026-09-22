@@ -112,6 +112,27 @@ it('prints no control character of a file that a package changed', function (): 
         ->and(str_contains($output, "\x1b"))->toBeFalse();
 });
 
+it('prints no invisible character of a file that a package changed in an encoding that vet cannot read', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+
+    file_put_contents(
+        $fixture->path('vendor/acme/moved/src/Kept.php'),
+        "<?php\n\n// caf\xE9 \u{202E}php.gpj\nfinal class Kept {}\n",
+    );
+
+    try {
+        vet(['packages' => ['acme/moved'], '--path' => $fixture->rootPath, '-v' => true]);
+        $output = Artisan::output();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($output)
+        ->toContain('+// caf? ?php.gpj')
+        ->and(str_contains($output, "\u{202E}"))->toBeFalse()
+        ->and(str_contains($output, "\xE9"))->toBeFalse();
+});
+
 it('prints no source of a file that holds no readable source', function (): void {
     $fixture = Fixture::open('delta-shapes');
 

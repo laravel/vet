@@ -51,3 +51,23 @@ it('replaces a character that reverses the order of a line that holds no readabl
     expect(ControlSafe::text("bad \xC3\x28 \u{202E}gpj.php"))->toBe('bad ?( ?gpj.php')
         ->and(ControlSafe::text("\xFFWid\u{200B}get.php"))->toBe('?Wid?get.php');
 });
+
+it('replaces each invisible character of a text that holds no readable encoding', function (string $text, string $readable): void {
+    expect(ControlSafe::text($text))->toBe($readable);
+})->with([
+    'isolate' => ["\xFFsrc/\u{2066}Widget.php", '?src/?Widget.php'],
+    'soft hyphen' => ["\xFFWidget\u{00AD}.php", '?Widget?.php'],
+    'line separator' => ["\xFFone\u{2028}two", '?one?two'],
+    'control above ascii' => ["\xFFread\u{009B}2Kme.md", '?read?2Kme.md'],
+    'invalid byte after the character' => ["gpj.\u{202E}php\xFF", 'gpj.?php?'],
+]);
+
+it('keeps a character of a language beside a byte that holds no readable encoding', function (): void {
+    expect(ControlSafe::text("\xFFsrc/日本語.php"))->toBe('?src/日本語.php')
+        ->and(ControlSafe::text("caf\xE9 \u{202E}gpj.php"))->toBe('caf? ?gpj.php');
+});
+
+it('replaces a sequence that a text cuts before its end', function (): void {
+    expect(ControlSafe::text("src/Widget.php\xE2\x80"))->toBe('src/Widget.php?')
+        ->and(ControlSafe::text("\xE2\x80src/\u{200B}Widget.php"))->toBe('?src/?Widget.php');
+});

@@ -42,6 +42,23 @@ it('reads the verdict out of the event stream that claude answers with', functio
     }
 });
 
+it('writes the pass and each finding out of the event stream that claude answers with', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+    $fixture->agent(StubAgent::answering('[{"type":"system","subtype":"init"},{"type":"result","subtype":"success","is_error":false,"result":"","structured_output":{"verdict":"clear","summary":"nothing reaches outside the package","findings":[{"path":"src/New.php","reason":"it writes a log"}]}}]'));
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('PASS   nothing reaches outside the package')
+            ->expectsOutputToContain('src/New.php  it writes a log')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
 it('writes each finding of the agent under the verdict', function (): void {
     $fixture = Fixture::open('delta-shapes');
     $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/New.php] runs a shell command","findings":[{"path":"src/New.php","reason":"it calls [exec]"}]}'));
