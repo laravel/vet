@@ -40,9 +40,14 @@ it('keeps the line ending of windows and replaces a carriage return that stands 
         ->and(ControlSafe::text("\r\n\r\n"))->toBe("\r\n\r\n")
         ->and(ControlSafe::text("safe\rspoof"))->toBe('safe?spoof')
         ->and(ControlSafe::text("a\r\r\nb"))->toBe("a?\r\nb")
-        ->and(ControlSafe::text("bad \xC3\x28 \r"))->toBe("bad \xC3\x28 ?");
+        ->and(ControlSafe::text("bad \xC3\x28 \r"))->toBe('bad ?( ?');
 });
 
 it('replaces an escape sequence of a path that holds no readable encoding', function (): void {
-    expect(ControlSafe::text("bad \xC3\x28 \x1b[2K"))->toBe("bad \xC3\x28 ?[2K");
+    expect(ControlSafe::text("bad \xC3\x28 \x1b[2K"))->toBe('bad ?( ?[2K');
+});
+
+it('replaces a character that reverses the order of a line that holds no readable encoding', function (): void {
+    expect(ControlSafe::text("bad \xC3\x28 \u{202E}gpj.php"))->toBe('bad ?( ?gpj.php')
+        ->and(ControlSafe::text("\xFFWid\u{200B}get.php"))->toBe('?Wid?get.php');
 });
