@@ -45,3 +45,11 @@ it('refuses an exclude entry that is not a list of package names', function (mix
     'a number in the list' => [[1]],
     'an empty name' => [['']],
 ]);
+
+it('holds back no release of vet itself', function (): void {
+    expect(MinimumReleaseAge::from(7, [])->holdsUntil(
+        'laravel/vet',
+        ReleaseDate::fromEntry(['time' => '2026-09-20T00:00:00+00:00']),
+        new DateTimeImmutable('2026-09-21T00:00:00+00:00'),
+    ))->toBeNull();
+});

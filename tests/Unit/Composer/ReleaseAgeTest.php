@@ -54,3 +54,9 @@ it('holds back nothing when the trust file asks for no age, or cannot say one', 
 it('holds back nothing when the project holds no trust file', function (): void {
     expect(ReleaseAge::fromTrustFile(sys_get_temp_dir().'/vet-no-such-file.json')->holdsBack())->toBeFalse();
 });
+
+it('allows a recent release of vet itself', function (): void {
+    $now = new DateTimeImmutable('2026-09-23T12:00:00+00:00');
+
+    expect(releaseAgeOf('{"minimum-release-age":7}')->allows('laravel/vet', $now, $now))->toBeTrue();
+});

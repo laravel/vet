@@ -14,6 +14,8 @@ final readonly class MinimumReleaseAge
 
     public const string EXCLUDE = 'minimum-release-age-exclude';
 
+    private const string VET = 'laravel/vet';
+
     /**
      * @param  list<string>  $excluded
      */
@@ -55,6 +57,6 @@ final readonly class MinimumReleaseAge
 
     private function excludes(string $package): bool
     {
-        return array_any($this->excluded, static fn (string $pattern): bool => fnmatch($pattern, $package));
+        return $package === self::VET || array_any($this->excluded, static fn (string $pattern): bool => fnmatch($pattern, $package));
     }
 }

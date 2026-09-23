@@ -87,10 +87,10 @@ Composer asks whether to allow the plugin the first time. Answer yes, and vet ru
 
 ## Recording Your Baseline
 
-The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option clears every entry of `vet.json` first, then does the same, so you start from an empty trust file:
+The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--minimum-release-age` option makes vet hold back every release younger than that number of days, because a compromised release is often found and pulled soon after it ships. The `--fresh` option clears every entry of `vet.json` first, then does the same, so you start from an empty trust file:
 
 ```shell
-./vendor/bin/vet --init
+./vendor/bin/vet --init --minimum-release-age=7
 ```
 
 ```
@@ -102,6 +102,23 @@ The `--init` option records every package that `vendor/` holds today, and writes
   …
 
    INFO  Trusted [125] packages, and wrote [vet.json].
+
+   WARN  Vet now holds back each release younger than [7] days. Run [composer update] again to move each package to a release that is old enough.
+```
+
+Run `composer update` again, as vet asks. Each update now picks the newest release that is at least 7 days old, and moves a package back to an older release when it has to. `composer update vendor/package` changes only that package. The audit checks every release in `vendor/`, and a release younger than the limit fails the run, even one you trust, until the date that vet names. Vet itself, `laravel/vet`, always skips the wait, and so does a package whose repository publishes no release date.
+
+Leave out the option, and vet holds back nothing. You can change the number later in `vet.json`, and list the packages that skip the wait under `minimum-release-age-exclude`, where a `*` matches any part of the name:
+
+```json
+{
+    "require": { … },
+    "require-dev": { … },
+    "minimum-release-age": 7,
+    "minimum-release-age-exclude": [
+        "laravel/*"
+    ]
+}
 ```
 
 The `--init` option trusts the bytes that are already on your disk, and nothing else. When `composer.lock` asks for a version that `vendor/` does not hold yet, vet leaves that version alone and asks you to read it:
@@ -257,59 +274,7 @@ Some tools write into `vendor/` on purpose. Laravel Vapor, for example, rewrites
 }
 ```
 
-A path is relative to the root of the package, and a directory covers every file inside it. The hash changes when the list changes, so run `./vendor/bin/vet` and trust the package again. The `--fresh` option keeps the `ignore` list.
-
-### Waiting for New Releases
-
-A compromised release is often found and pulled soon after it ships. Vet can hold back every release younger than a number of days. It holds back nothing until you ask. Pass `--minimum-release-age` when you record your baseline:
-
-```shell
-./vendor/bin/vet --init --minimum-release-age=7
-```
-
-```
-   INFO  Trusted [118] packages, and wrote [vet.json].
-
-   WARN  Vet now holds back each release younger than [7] days. Run [composer update] again to move each package to a release that is old enough.
-```
-
-Vet writes the setting to `vet.json`, where you can change it later. List the packages that skip the wait under `minimum-release-age-exclude`, and a `*` matches any part of the name:
-
-```json
-{
-    "require": { … },
-    "require-dev": { … },
-    "minimum-release-age": 7,
-    "minimum-release-age-exclude": [
-        "laravel/*"
-    ]
-}
-```
-
-Your `vendor/` directory can already hold releases younger than the limit. Vet does not trust them, so run `composer update` again. Each update now picks the newest release that is old enough, and moves a package back to an older release when it has to:
-
-```
-❯ composer update
-
-Vet skips the releases of [acme/logger] that are younger than [7] days, as [minimum-release-age] in [vet.json] asks.
-Updating dependencies
-Lock file operations: 0 installs, 1 update, 0 removals
-  - Downgrading acme/logger (2.0.0 => 1.3.0)
-```
-
-`composer update vendor/package` changes only that package, and leaves the others where they are. The audit checks every release, whatever put it into `vendor/`. A release younger than the limit fails the run, even one you trust, until its date passes:
-
-```
-  too recent (1)
-
-  acme/logger 2.0.0 .......................... wait until [2026-09-28 19:28 UTC]
-
-  Packages: 0 to review, 1 too recent, 124 trusted
-
-   ERROR  [1] package is too recent for [minimum-release-age]. Wait until the date that vet names, or add the package to [minimum-release-age-exclude] in [vet.json].
-```
-
-A package whose repository publishes no release date skips the wait. When your `composer.json` asks for a version that no release old enough can meet, vet names the packages that it skipped, and Composer stops because it cannot resolve the requirements. The `--fresh` option keeps both settings.
+A path is relative to the root of the package, and a directory covers every file inside it. The hash changes when the list changes, so run `./vendor/bin/vet` and trust the package again. The `--fresh` option keeps the `ignore` list, and the release age settings.
 
 ## Contributing
 

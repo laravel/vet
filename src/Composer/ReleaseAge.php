@@ -14,6 +14,8 @@ final readonly class ReleaseAge
 
     public const string EXCLUDE = 'minimum-release-age-exclude';
 
+    private const string VET = 'laravel/vet';
+
     /**
      * @param  list<string>  $excluded
      */
@@ -53,7 +55,7 @@ final readonly class ReleaseAge
 
     public function allows(string $package, DateTimeInterface $released, DateTimeImmutable $now): bool
     {
-        if (! $this->holdsBack() || array_any($this->excluded, static fn (string $pattern): bool => fnmatch($pattern, $package))) {
+        if (! $this->holdsBack() || $package === self::VET || array_any($this->excluded, static fn (string $pattern): bool => fnmatch($pattern, $package))) {
             return true;
         }
 
