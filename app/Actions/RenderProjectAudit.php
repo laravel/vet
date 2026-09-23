@@ -16,9 +16,11 @@ use App\ValueObjects\AuditReport;
 use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\Delta;
 use App\ValueObjects\LockDiscrepancy;
+use App\ValueObjects\MinimumReleaseAge;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\PackageReview;
 use Illuminate\Console\OutputStyle;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
@@ -38,6 +40,7 @@ final readonly class RenderProjectAudit
 
     /**
      * @param  array<string, PackageAudit>  $failing
+     * @param  array<string, PackageAudit>  $recent
      * @param  array<string, PackageReview>  $reviews
      * @param  array<string, AgentReview>  $agentReviews
      */
@@ -47,6 +50,7 @@ final readonly class RenderProjectAudit
         private AuditReport $report,
         private Invitation $invitation,
         private array $failing,
+        private array $recent,
         private array $reviews,
         private array $agentReviews,
     ) {
@@ -57,7 +61,10 @@ final readonly class RenderProjectAudit
 
     public static function of(OutputStyle $output, AuditProject $auditor, AuditReport $report, Invitation $invitation): self
     {
-        $failing = $report->failing();
+        [$recent, $failing] = new Collection($report->failing())
+            ->partition(static fn (PackageAudit $audit): bool => $audit->status === AuditStatus::Recent)
+            ->map(static fn (Collection $audits): array => $audits->all())
+            ->all();
         $reviews = [];
 
         foreach ($failing as $audit) {
@@ -74,7 +81,7 @@ final readonly class RenderProjectAudit
             $b->package,
         ]);
 
-        return new self($output, $auditor, $report, $invitation, $failing, $reviews, []);
+        return new self($output, $auditor, $report, $invitation, $failing, $recent, $reviews, []);
     }
 
     /**
@@ -82,7 +89,7 @@ final readonly class RenderProjectAudit
      */
     public function withAgentReviews(array $agentReviews): self
     {
-        return new self($this->output, $this->auditor, $this->report, $this->invitation, $this->failing, $this->reviews, $agentReviews);
+        return new self($this->output, $this->auditor, $this->report, $this->invitation, $this->failing, $this->recent, $this->reviews, $agentReviews);
     }
 
     /**
@@ -120,6 +127,14 @@ final readonly class RenderProjectAudit
         return $this->failing;
     }
 
+    /**
+     * @return array<string, PackageAudit>
+     */
+    public function recent(): array
+    {
+        return $this->recent;
+    }
+
     public function renderAgentReviews(): void
     {
         foreach ($this->failing as $audit) {
@@ -144,7 +159,7 @@ final readonly class RenderProjectAudit
             $this->components->error('The installed tree does not match composer.lock. Run [composer install] to install what composer.lock holds.');
         }
 
-        if ($this->failing === []) {
+        if ($this->failing === [] && $this->recent === []) {
             $this->components->info(sprintf(
                 'All [%d] %s trusted.',
                 $this->report->total(),
@@ -155,6 +170,7 @@ final readonly class RenderProjectAudit
         }
 
         $this->renderFailing();
+        $this->renderRecent();
         $this->renderSummary();
         $this->renderVerdict();
 
@@ -165,7 +181,7 @@ final readonly class RenderProjectAudit
     {
         $this->output->newLine();
 
-        if ($this->failing === []) {
+        if ($this->failing === [] && $this->recent === []) {
             $this->components->info(sprintf(
                 'All [%d] %s trusted.',
                 $this->report->total(),
@@ -176,7 +192,9 @@ final readonly class RenderProjectAudit
         }
 
         $this->renderFailing();
+        $this->renderRecent();
         $this->renderSummary();
+        $this->renderRecentVerdict();
     }
 
     private static function review(AuditProject $auditor, PackageAudit $audit): PackageReview
@@ -216,6 +234,10 @@ final readonly class RenderProjectAudit
 
     private function renderFailing(): void
     {
+        if ($this->failing === []) {
+            return;
+        }
+
         $this->output->writeln(sprintf('  <options=bold>to review</> <fg=gray>(%d)</>', count($this->failing)));
         $this->output->newLine();
 
@@ -266,6 +288,31 @@ final readonly class RenderProjectAudit
         );
     }
 
+    private function renderRecent(): void
+    {
+        if ($this->recent === []) {
+            return;
+        }
+
+        $this->output->writeln(sprintf('  <options=bold>too recent</> <fg=gray>(%d)</>', count($this->recent)));
+        $this->output->newLine();
+
+        foreach ($this->recent as $audit) {
+            $this->components->twoColumnDetail(
+                sprintf(
+                    '<fg=%s>%s</> <fg=gray>%s</>%s',
+                    $audit->status->color(),
+                    $audit->package,
+                    $audit->versions(),
+                    $audit->dev ? ' <fg=gray>(dev)</>' : '',
+                ),
+                sprintf('<fg=gray>%s</>', $audit->note()),
+            );
+        }
+
+        $this->output->newLine();
+    }
+
     private function renderAgent(PackageAudit $audit, PackageReview $review): void
     {
         $agentReview = $this->agentReviews[$audit->package] ?? null;
@@ -284,8 +331,9 @@ final readonly class RenderProjectAudit
     private function renderSummary(): void
     {
         $this->output->writeln(sprintf(
-            '  <options=bold>Packages:</> <fg=yellow;options=bold>%d to review</><fg=gray>,</> <fg=green;options=bold>%d trusted</>',
+            '  <options=bold>Packages:</> <fg=yellow;options=bold>%d to review</><fg=gray>,</> %s<fg=green;options=bold>%d trusted</>',
             count($this->failing),
+            $this->recent === [] ? '' : sprintf('<fg=yellow;options=bold>%d too recent</><fg=gray>,</> ', count($this->recent)),
             $this->report->coveredCount(),
         ));
         $this->output->newLine();
@@ -293,6 +341,34 @@ final readonly class RenderProjectAudit
 
     private function renderVerdict(): void
     {
+        $this->renderUntrustedVerdict();
+        $this->renderRecentVerdict();
+    }
+
+    private function renderRecentVerdict(): void
+    {
+        if ($this->recent === []) {
+            return;
+        }
+
+        $count = count($this->recent);
+
+        $this->components->error(sprintf(
+            '[%d] %s too recent for [%s]. Wait until the date that vet names, or add the %s to [%s] in [vet.json].',
+            $count,
+            $count === 1 ? 'package is' : 'packages are',
+            MinimumReleaseAge::DAYS,
+            Str::plural('package', $count),
+            MinimumReleaseAge::EXCLUDE,
+        ));
+    }
+
+    private function renderUntrustedVerdict(): void
+    {
+        if ($this->failing === []) {
+            return;
+        }
+
         $count = count($this->failing);
         $subject = sprintf('[%d] %s %s not trusted.', $count, Str::plural('package', $count), $count === 1 ? 'is' : 'are');
 

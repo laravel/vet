@@ -30,6 +30,11 @@ final readonly class Gate
         return is_file($this->rootPath.'/vet.json');
     }
 
+    public function releaseAge(): ReleaseAge
+    {
+        return ReleaseAge::fromTrustFile($this->rootPath.'/vet.json');
+    }
+
     public function hasInstalledTree(): bool
     {
         return is_file($this->vendorDir.'/composer/installed.json');

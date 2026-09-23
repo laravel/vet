@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Actions\PersistTrustFile;
 use App\Support\Json;
 use App\ValueObjects\Manifest;
 use Illuminate\Support\Facades\Artisan;
@@ -103,7 +102,6 @@ it('keeps the ignored files out of the delta and in the trust file that it write
 function ignoreWidgetSource(Fixture $fixture, string $hash): void
 {
     file_put_contents($fixture->path('vet.json'), Json::encode([
-        'schema' => PersistTrustFile::SCHEMA,
         'require' => [
             'acme/widget' => ['version' => '1.0.0', 'hash' => $hash],
         ],

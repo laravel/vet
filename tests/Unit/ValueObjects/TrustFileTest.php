@@ -14,7 +14,6 @@ it('skips an entry of the trust file that is not a package object', function ():
 
     File::ensureDirectoryExists($root);
     file_put_contents($root.'/vet.json', (string) json_encode([
-        'schema' => PersistTrustFile::SCHEMA,
         'require' => ['acme/widget' => '1.0.0'],
         'require-dev' => [['version' => '1.0.0', 'hash' => $hash]],
     ]));
@@ -50,7 +49,6 @@ it('writes each grant that it records in its section, and an empty section as an
     }
 
     expect($written)->toBe([
-        'schema' => PersistTrustFile::SCHEMA,
         'require' => [
             'acme/gadget' => ['version' => '2.0.0', 'hash' => (string) $hash],
             'acme/widget' => ['version' => '1.0.0', 'hash' => (string) $hash],

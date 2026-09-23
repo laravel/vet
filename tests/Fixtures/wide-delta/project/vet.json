@@ -1,5 +1,4 @@
 {
-    "schema": 4,
     "require": {
         "acme/wide": {
             "version": "1.0.0",

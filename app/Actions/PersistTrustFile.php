@@ -7,14 +7,12 @@ namespace App\Actions;
 use App\Exceptions\FailureException;
 use App\Support\Json;
 use App\ValueObjects\Project;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 
 final readonly class PersistTrustFile
 {
-    public const int SCHEMA = 4;
-
     private const array ORDER = [
-        'schema',
         'require',
         'require-dev',
     ];
@@ -40,26 +38,7 @@ final readonly class PersistTrustFile
 
         $contents = Json::readFile($path, 'the vet file');
 
-        $schema = $contents['schema'] ?? null;
-
-        if (is_int($schema) && $schema >= 1 && $schema < self::SCHEMA) {
-            throw new FailureException(sprintf(
-                'The vet file [%s] declares schema [%d], which %s. Schema [%d] records the version and the full tree hash of each package that you trust. Delete the file and run [./vendor/bin/vet --init] again.',
-                $path,
-                $schema,
-                $schema === 3 ? 'recorded a truncated tree hash' : 'recorded permissions',
-                self::SCHEMA,
-            ));
-        }
-
-        if ($schema !== self::SCHEMA) {
-            throw new FailureException(sprintf(
-                'The vet file [%s] declares schema [%s]; this build of vet reads schema [%d].',
-                $path,
-                is_scalar($schema) ? (string) $schema : 'none',
-                self::SCHEMA,
-            ));
-        }
+        unset($contents['schema']);
 
         return new self($path, $contents);
     }
@@ -70,15 +49,15 @@ final readonly class PersistTrustFile
             return;
         }
 
-        $ignore = Json::array(Json::readFile($path, 'the vet file'), 'ignore');
+        $settings = Arr::except(Json::readFile($path, 'the vet file'), [...self::ORDER, 'schema']);
 
-        if ($ignore === []) {
+        if ($settings === []) {
             File::delete($path);
 
             return;
         }
 
-        if (@file_put_contents($path, Json::encode(['schema' => self::SCHEMA, 'ignore' => $ignore])) === false) {
+        if (@file_put_contents($path, Json::encode($settings)) === false) {
             throw new FailureException(sprintf('Could not write the vet file to [%s].', $path));
         }
     }
@@ -86,6 +65,11 @@ final readonly class PersistTrustFile
     public function has(string $section): bool
     {
         return isset($this->contents[$section]);
+    }
+
+    public function value(string $key): mixed
+    {
+        return $this->contents[$key] ?? null;
     }
 
     /**
@@ -109,7 +93,7 @@ final readonly class PersistTrustFile
             throw new FailureException(sprintf('Could not create the directory [%s].', $directory));
         }
 
-        $merged = [...self::atPath($this->path)->contents, ...$sections, 'schema' => self::SCHEMA];
+        $merged = [...self::atPath($this->path)->contents, ...$sections];
 
         $ordered = [];
 

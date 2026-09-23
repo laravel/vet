@@ -140,7 +140,7 @@ it('gives the agent the package, the versions and the source of each change', fu
 it('hands the whole tree to the agent when vet holds no earlier tree', function (): void {
     $fixture = Fixture::open('no-trust-file');
 
-    file_put_contents($fixture->path('vet.json'), '{"schema": 4, "require": {}, "require-dev": {}}');
+    file_put_contents($fixture->path('vet.json'), '{"require": {}, "require-dev": {}}');
 
     $agent = $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"this tree reaches outside nothing","findings":[]}'));
 

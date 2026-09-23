@@ -13,7 +13,7 @@ function gateProject(bool $trustFile, bool $binary): Gate
     mkdir($binDir, 0o777, true);
 
     if ($trustFile) {
-        file_put_contents($root.'/vet.json', '{"schema":3}');
+        file_put_contents($root.'/vet.json', '{}');
     }
 
     if ($binary) {
@@ -161,4 +161,12 @@ it('reads the installed tree in the vendor directory that composer configures', 
         rmdir($gate->rootPath.'/libraries/composer');
         rmdir($gate->rootPath.'/libraries');
     }
+});
+
+it('reads the minimum release age from the trust file of the project', function (): void {
+    $gate = gateProject(trustFile: true, binary: false);
+
+    file_put_contents($gate->rootPath.'/vet.json', '{"minimum-release-age":3}');
+
+    expect($gate->releaseAge()->days)->toBe(3);
 });

@@ -32,6 +32,7 @@ final readonly class Package
         public array $bin,
         public ?InstallSourceType $installSource,
         public ?string $installPath,
+        public ReleaseDate $released,
     ) {}
 
     /**
@@ -55,6 +56,7 @@ final readonly class Package
             bin: self::strings($entry, 'bin'),
             installSource: null,
             installPath: null,
+            released: ReleaseDate::fromEntry($entry),
         );
     }
 
@@ -83,6 +85,7 @@ final readonly class Package
             installPath: $installPath === null
                 ? null
                 : Path::normalize(Path::join($vendorComposerPath, $installPath)),
+            released: $package->released,
         );
     }
 
@@ -106,6 +109,7 @@ final readonly class Package
             bin: $this->bin,
             installSource: $this->installSource,
             installPath: $this->installPath,
+            released: $this->released,
         );
     }
 
@@ -129,6 +133,7 @@ final readonly class Package
             bin: $this->bin,
             installSource: $this->installSource,
             installPath: $this->installPath,
+            released: $this->released,
         );
     }
 

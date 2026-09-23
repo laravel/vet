@@ -25,6 +25,7 @@ use App\ValueObjects\PackageNotLocked;
 use App\ValueObjects\PackageVersionMismatch;
 use App\ValueObjects\Project;
 use App\ValueObjects\TrustFile;
+use DateTimeImmutable;
 
 final readonly class AuditProject
 {
@@ -36,6 +37,7 @@ final readonly class AuditProject
         private LockFile $lock,
         private ComposerPlan $plan,
         private FetchPackageMetadata $packagist,
+        private DateTimeImmutable $now,
     ) {}
 
     public static function forProject(Project $project): self
@@ -123,20 +125,21 @@ final readonly class AuditProject
     {
         $fingerprint = $this->fingerprinter->ofPackage($package);
         $grant = $this->trustFile->grantFor($package->name);
+        $wait = $this->waitOf($package);
 
         return new PackageAudit(
             package: $package->name,
             version: $fingerprint->version,
             hash: $fingerprint->hash,
             dev: $package->dev,
-            status: $this->statusOf($grant, $fingerprint),
+            status: $wait === null ? $this->statusOf($grant, $fingerprint) : AuditStatus::Recent,
             files: $fingerprint->files,
             bytes: $fingerprint->bytes,
             grant: $grant,
             source: $fingerprint->source,
             state: PackageStatus::Installed,
             from: null,
-            cause: null,
+            cause: $wait,
             path: $fingerprint->path,
         );
     }
@@ -172,19 +175,21 @@ final readonly class AuditProject
             );
         }
 
+        $wait = $this->waitOf($target);
+
         return new PackageAudit(
             package: $operation->package,
             version: $fingerprint->version,
             hash: $fingerprint->hash,
             dev: $dev,
-            status: $this->statusOf($grant, $fingerprint),
+            status: $wait === null ? $this->statusOf($grant, $fingerprint) : AuditStatus::Recent,
             files: $fingerprint->files,
             bytes: $fingerprint->bytes,
             grant: $grant,
             source: $fingerprint->source,
             state: PackageStatus::Pending,
             from: $operation->from,
-            cause: null,
+            cause: $wait,
             path: $fingerprint->path,
         );
     }
@@ -249,6 +254,7 @@ final readonly class AuditProject
             lock: $lock,
             plan: $plan,
             packagist: FetchPackageMetadata::forProject($project),
+            now: now()->toDateTimeImmutable(),
         );
     }
 
@@ -321,6 +327,15 @@ final readonly class AuditProject
         }
 
         return $this->installed->has($package) && $this->installed->get($package)->dev;
+    }
+
+    private function waitOf(Package $package): ?string
+    {
+        $until = $this->trustFile->minimumReleaseAge()->holdsUntil($package->name, $package->released, $this->now);
+
+        return $until instanceof DateTimeImmutable
+            ? sprintf('wait until [%s]', $until->format('Y-m-d H:i T'))
+            : null;
     }
 
     private function statusOf(?Grant $grant, Fingerprint $fingerprint): AuditStatus

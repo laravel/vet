@@ -18,6 +18,7 @@ final readonly class TrustFile
         private PersistTrustFile $document,
         private array $grants,
         private IgnoredFiles $ignored,
+        private MinimumReleaseAge $minimumReleaseAge,
     ) {}
 
     public static function forProject(Project $project): self
@@ -40,7 +41,13 @@ final readonly class TrustFile
             }
         }
 
-        return new self($document->path, $document, $grants, IgnoredFiles::fromArray($document->section('ignore')));
+        return new self(
+            $document->path,
+            $document,
+            $grants,
+            IgnoredFiles::fromArray($document->section('ignore')),
+            MinimumReleaseAge::from($document->value(MinimumReleaseAge::DAYS), $document->value(MinimumReleaseAge::EXCLUDE)),
+        );
     }
 
     public function exists(): bool
@@ -58,9 +65,20 @@ final readonly class TrustFile
         return $this->ignored;
     }
 
+    public function minimumReleaseAge(): MinimumReleaseAge
+    {
+        return $this->minimumReleaseAge;
+    }
+
     public function withGrant(Grant $grant): self
     {
-        return new self($this->path, $this->document, [...$this->grants, $grant->package => $grant], $this->ignored);
+        return new self(
+            $this->path,
+            $this->document,
+            [...$this->grants, $grant->package => $grant],
+            $this->ignored,
+            $this->minimumReleaseAge,
+        );
     }
 
     public function save(): void

@@ -1,5 +1,4 @@
 {
-    "schema": 4,
     "require": {
         "acme/ghost": {
             "version": "9.9.9",

@@ -14,6 +14,8 @@ enum AuditStatus: string
 
     case Unknown = 'unknown';
 
+    case Recent = 'recent';
+
     public function fails(): bool
     {
         return $this !== self::Covered;
@@ -25,7 +27,7 @@ enum AuditStatus: string
             self::Unknown => 0,
             self::Changed => 1,
             self::Ungranted => 2,
-            self::Covered => 3,
+            self::Covered, self::Recent => 3,
         };
     }
 
@@ -33,7 +35,7 @@ enum AuditStatus: string
     {
         return match ($this) {
             self::Unknown, self::Changed => 'red',
-            self::Ungranted, self::Covered => 'yellow',
+            self::Ungranted, self::Covered, self::Recent => 'yellow',
         };
     }
 }

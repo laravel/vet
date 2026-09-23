@@ -29,7 +29,7 @@
         "pestphp/pest": "^5.2.1",
         "pestphp/pest-plugin-phpstan": "^5.2.1",
         "pestphp/pest-plugin-rector": "^5.0.4",
-        "phpstan/phpstan": "^2.2.14",
+        "phpstan/phpstan": "^2.2.15",
         "rector/rector": "^2.6.7"
     },
     "extra": {

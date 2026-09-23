@@ -14,27 +14,87 @@ use Composer\EventDispatcher\ScriptExecutionException;
 use Composer\Installer\InstallerEvent;
 use Composer\Installer\InstallerEvents;
 use Composer\IO\IOInterface;
+use Composer\Plugin\PluginEvents;
 use Composer\Plugin\PluginInterface;
+use Composer\Plugin\PrePoolCreateEvent;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
+use DateTimeImmutable;
 use Symfony\Component\Process\Process;
 
 final class Plugin implements EventSubscriberInterface, PluginInterface
 {
+    private Composer $composer;
+
+    private IOInterface $io;
+
     public static function getSubscribedEvents(): array
     {
         return [
+            PluginEvents::PRE_POOL_CREATE => 'holdBackRecentReleases',
             InstallerEvents::PRE_OPERATIONS_EXEC => 'gate',
             ScriptEvents::POST_INSTALL_CMD => 'audit',
             ScriptEvents::POST_UPDATE_CMD => 'audit',
         ];
     }
 
-    public function activate(Composer $composer, IOInterface $io): void {}
+    public function activate(Composer $composer, IOInterface $io): void
+    {
+        $this->composer = $composer;
+        $this->io = $io;
+    }
 
     public function deactivate(Composer $composer, IOInterface $io): void {}
 
     public function uninstall(Composer $composer, IOInterface $io): void {}
+
+    public function holdBackRecentReleases(PrePoolCreateEvent $event): void
+    {
+        $age = $this->gateOf($this->composer)->releaseAge();
+
+        if (! $age->holdsBack()) {
+            return;
+        }
+
+        $request = $event->getRequest();
+        $now = new DateTimeImmutable;
+
+        [$kept, $held] = [[], []];
+
+        foreach ($event->getPackages() as $package) {
+            $released = $package->getReleaseDate();
+
+            $allowed = $released === null
+                || $request->isFixedPackage($package)
+                || $request->isLockedPackage($package)
+                || $age->allows($package->getName(), $released, $now);
+
+            if ($allowed) {
+                $kept[] = $package;
+            } else {
+                $held[$package->getName()] = true;
+            }
+        }
+
+        if ($held === []) {
+            return;
+        }
+
+        $event->setPackages($kept);
+
+        $names = array_keys($held);
+        $shown = implode('], [', array_slice($names, 0, 3));
+        $more = count($names) > 3 ? sprintf(' and [%d] more', count($names) - 3) : '';
+
+        $this->io->writeError(sprintf(
+            '<info>Vet skips the releases of [%s]%s that are younger than [%d] %s, as [%s] in [vet.json] asks.</info>',
+            $shown,
+            $more,
+            $age->days,
+            $age->days === 1 ? 'day' : 'days',
+            ReleaseAge::DAYS,
+        ));
+    }
 
     public function gate(InstallerEvent $event): void
     {
@@ -115,7 +175,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
 
         if (! $process->isSuccessful()) {
             throw new ScriptExecutionException(
-                'Vet found packages that your trust file does not cover.',
+                'Vet found packages that your trust file does not allow.',
                 $process->getExitCode() ?? 1,
             );
         }

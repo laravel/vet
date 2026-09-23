@@ -20,7 +20,7 @@ function trustFileDirectory(): string
 it('keeps a key of the vet file that it does not know after the keys that it orders', function (): void {
     $directory = trustFileDirectory();
 
-    file_put_contents($directory.'/vet.json', '{"comment":"kept","require":{},"schema":4}');
+    file_put_contents($directory.'/vet.json', '{"comment":"kept","require":{}}');
 
     try {
         PersistTrustFile::atPath($directory.'/vet.json')->write(['require-dev' => (object) []]);
@@ -31,7 +31,7 @@ it('keeps a key of the vet file that it does not know after the keys that it ord
     }
 
     expect($written)->toBeArray()
-        ->and(array_keys((array) $written))->toBe(['schema', 'require', 'require-dev', 'comment']);
+        ->and(array_keys((array) $written))->toBe(['require', 'require-dev', 'comment']);
 });
 
 it('names the directory of the vet file that it cannot create', function (): void {
@@ -68,23 +68,10 @@ it('names the vet file that it cannot write', function (): void {
     }
 });
 
-it('names no schema for a vet file that declares none', function (): void {
+it('clears each grant and keeps the settings of the vet file', function (): void {
     $directory = trustFileDirectory();
 
-    file_put_contents($directory.'/vet.json', '{"require":{}}');
-
-    try {
-        expect(static fn (): PersistTrustFile => PersistTrustFile::atPath($directory.'/vet.json'))
-            ->toThrow(FailureException::class, sprintf('The vet file [%s/vet.json] declares schema [none]; this build of vet reads schema [4].', $directory));
-    } finally {
-        File::deleteDirectory($directory);
-    }
-});
-
-it('clears each grant and keeps the ignore list of the vet file', function (): void {
-    $directory = trustFileDirectory();
-
-    file_put_contents($directory.'/vet.json', '{"schema":2,"require":{"acme/widget":{}},"ignore":{"acme/widget":["src/Widget.php"]}}');
+    file_put_contents($directory.'/vet.json', '{"schema":2,"require":{"acme/widget":{}},"require-dev":{},"ignore":{"acme/widget":["src/Widget.php"]},"minimum-release-age":7,"minimum-release-age-exclude":["acme/*"]}');
 
     try {
         PersistTrustFile::clearGrants($directory.'/vet.json');
@@ -95,15 +82,16 @@ it('clears each grant and keeps the ignore list of the vet file', function (): v
     }
 
     expect($written)->toBe([
-        'schema' => PersistTrustFile::SCHEMA,
         'ignore' => ['acme/widget' => ['src/Widget.php']],
+        'minimum-release-age' => 7,
+        'minimum-release-age-exclude' => ['acme/*'],
     ]);
 });
 
 it('deletes a vet file that ignores nothing when it clears the grants', function (): void {
     $directory = trustFileDirectory();
 
-    file_put_contents($directory.'/vet.json', '{"schema":4,"require":{"acme/widget":{}}}');
+    file_put_contents($directory.'/vet.json', '{"require":{"acme/widget":{}}}');
 
     try {
         PersistTrustFile::clearGrants($directory.'/vet.json');
@@ -120,7 +108,7 @@ it('deletes a vet file that ignores nothing when it clears the grants', function
 it('names the vet file that it cannot write when it clears the grants', function (): void {
     $directory = trustFileDirectory();
 
-    file_put_contents($directory.'/vet.json', '{"schema":4,"ignore":{"acme/widget":["src/Widget.php"]}}');
+    file_put_contents($directory.'/vet.json', '{"ignore":{"acme/widget":["src/Widget.php"]}}');
     Access::denyWrite($directory.'/vet.json');
 
     try {

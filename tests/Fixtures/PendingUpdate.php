@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Fixtures;
 
-use App\Actions\PersistTrustFile;
 use App\Support\Json;
 use App\ValueObjects\Manifest;
 use FilesystemIterator;
@@ -56,6 +55,47 @@ final readonly class PendingUpdate
             'packages' => [$entry],
             'packages-dev' => [],
         ]));
+    }
+
+    public function lockReleasedAt(string $version, string $time): void
+    {
+        $this->write($this->rootPath.'/composer.lock', Json::encode([
+            'content-hash' => 'pending',
+            'packages' => [[...$this->metadataOf($version, self::TARGET_REFERENCE), 'time' => $time]],
+            'packages-dev' => [],
+        ]));
+    }
+
+    public function installedReleasedAt(string $time): void
+    {
+        $entry = $this->metadataOf(self::TRUSTED_VERSION, self::TRUSTED_REFERENCE);
+
+        $this->write($this->rootPath.'/composer.lock', Json::encode([
+            'content-hash' => 'pending',
+            'packages' => [[...$entry, 'time' => $time]],
+            'packages-dev' => [],
+        ]));
+
+        $this->write($this->rootPath.'/vendor/composer/installed.json', Json::encode([
+            'packages' => [[
+                ...$entry,
+                'time' => $time,
+                'installation-source' => 'dist',
+                'install-path' => '../acme/widget',
+            ]],
+            'dev' => true,
+            'dev-package-names' => [],
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    public function configure(array $settings): void
+    {
+        $path = $this->rootPath.'/vet.json';
+
+        $this->write($path, Json::encode([...Json::readFile($path, 'the vet file'), ...$settings]));
     }
 
     public function lockWithoutDist(string $version): void
@@ -279,7 +319,6 @@ final readonly class PendingUpdate
         $hash = Manifest::ofDirectory($this->releasePath(self::TRUSTED_VERSION, self::TRUSTED_REFERENCE))->hash();
 
         $this->write($this->rootPath.'/vet.json', Json::encode([
-            'schema' => PersistTrustFile::SCHEMA,
             'require' => [
                 self::PACKAGE => [
                     'version' => self::TRUSTED_VERSION,

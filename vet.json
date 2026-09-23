@@ -1,5 +1,5 @@
 {
-    "schema": 4,
+    "minimum-release-age": 7,
     "require": {},
     "require-dev": {
         "brianium/paratest": {

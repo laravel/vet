@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Fixtures;
 
-use App\Actions\PersistTrustFile;
 use App\Support\Json;
 use App\ValueObjects\Manifest;
 use FilesystemIterator;
@@ -288,7 +287,6 @@ final readonly class StaleProject
         $hash = Manifest::ofDirectory($this->grantedTreePath())->hash();
 
         $this->write($this->rootPath.'/vet.json', Json::encode([
-            'schema' => PersistTrustFile::SCHEMA,
             'require' => [
                 self::PACKAGE => [
                     'version' => self::GRANTED_VERSION,

@@ -5,40 +5,6 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Artisan;
 use Tests\Fixtures\Fixture;
 
-it('tells the user what to do with a trust file of an older schema', function (): void {
-    $fixture = Fixture::open('legacy-trust-file');
-
-    try {
-        $status = vet(['--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('declares schema [2]')
-        ->toContain('Delete the file and run [./vendor/bin/vet --init] again.');
-});
-
-it('tells the user to record the trust file again when it holds a truncated hash', function (): void {
-    $fixture = Fixture::open('truncated-trust-file');
-
-    try {
-        $status = vet(['--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('declares schema [3]')
-        ->toContain('recorded a truncated tree hash')
-        ->toContain('Delete the file and run [./vendor/bin/vet --init] again.')
-        ->and(str_contains($output, 'Malformed tree hash digest'))->toBeFalse();
-});
-
 it('names the entry that holds no hash', function (): void {
     $fixture = Fixture::open('broken-trust-file');
 
@@ -82,23 +48,6 @@ it('writes the dev package of a baseline in require-dev', function (): void {
     expect($status)->toBe(0)
         ->and($trustFile['require'])->toHaveKey('acme/widget')
         ->and($trustFile['require-dev'])->toHaveKey('acme/lint');
-});
-
-it('names the schema that a trust file of a later build declares', function (): void {
-    $fixture = Fixture::open('future-trust-file');
-
-    try {
-        $status = vet(['--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(1)
-        ->and($output)
-        ->toContain('declares schema [99]')
-        ->toContain('this build of vet reads schema [4]')
-        ->and(str_contains($output, 'Delete the file and run [./vendor/bin/vet --init] again.'))->toBeFalse();
 });
 
 it('names the tree hash algorithm that this build does not read', function (): void {

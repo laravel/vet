@@ -34,6 +34,7 @@ use App\ValueObjects\ComposerOperation;
 use App\ValueObjects\ComposerPlan;
 use App\ValueObjects\Delta;
 use App\ValueObjects\Grant;
+use App\ValueObjects\MinimumReleaseAge;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
 use App\ValueObjects\TreeHash;
@@ -64,6 +65,7 @@ final class VetCommand extends Command
         {packages?* : Audit these packages, as vendor/name}
         {--init : Record every package that vendor/ holds today, and start the trust file from them}
         {--fresh : Clear every entry of the trust file, then do the same as --init}
+        {--minimum-release-age= : With --init, hold back each release younger than this number of days}
         {--from= : Show the delta from this version rather than the trusted one}
         {--to= : The version to compare to (defaults to the installed one)}
         {--path= : The project directory to audit (defaults to the current one)}
@@ -93,6 +95,21 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
+        $days = $this->option('minimum-release-age');
+        assert($days === null || is_string($days));
+
+        if ($days !== null && ! $init) {
+            $this->components->error('The [--minimum-release-age] option needs [--init]. Run [./vendor/bin/vet --init --minimum-release-age=7].');
+
+            return self::FAILURE;
+        }
+
+        if ($days !== null && (! ctype_digit($days) || (int) $days < 1)) {
+            $this->components->error('The [--minimum-release-age] option needs a whole number of days, such as [7].');
+
+            return self::FAILURE;
+        }
+
         $path = $this->option('path');
         assert($path === null || is_string($path));
 
@@ -101,6 +118,10 @@ final class VetCommand extends Command
 
             if ($fresh) {
                 PersistTrustFile::clearGrants($project->vetFilePath());
+            }
+
+            if ($days !== null) {
+                PersistTrustFile::forProject($project)->write([MinimumReleaseAge::DAYS => (int) $days]);
             }
 
             $auditor = $this->auditor($project);
@@ -115,7 +136,17 @@ final class VetCommand extends Command
         }
 
         if ($init) {
-            return $this->trustInstalled($project, $auditor);
+            $status = $this->trustInstalled($project, $auditor);
+
+            if ($days !== null) {
+                $this->components->warn(sprintf(
+                    'Vet now holds back each release younger than [%d] %s. Run [composer update] again to move each package to a release that is old enough.',
+                    (int) $days,
+                    Str::plural('day', (int) $days),
+                ));
+            }
+
+            return $status;
         }
 
         if (! $auditor->trustFile->exists()) {
@@ -185,7 +216,7 @@ final class VetCommand extends Command
         $screen->renderReport();
 
         if ($screen->failing() === []) {
-            return self::SUCCESS;
+            return $screen->recent() === [] ? self::SUCCESS : self::FAILURE;
         }
 
         return $this->chooseReviewThenPick($auditor, $screen, $screen->agentBatch());
@@ -263,7 +294,7 @@ final class VetCommand extends Command
             $this->components->info('Run [composer install] to write those bytes to vendor/.');
         }
 
-        return $recorded->count() === $failing->count() ? self::SUCCESS : self::FAILURE;
+        return $recorded->count() === $failing->count() && $screen->recent() === [] ? self::SUCCESS : self::FAILURE;
     }
 
     private function wantsAgentFirst(): bool
@@ -441,7 +472,10 @@ final class VetCommand extends Command
             return self::SUCCESS;
         }
 
-        [$installed, $incoming] = new Collection($targets)
+        [$recent, $readable] = new Collection($targets)
+            ->partition(static fn (PackageAudit $audit): bool => $audit->status === AuditStatus::Recent);
+
+        [$installed, $incoming] = $readable
             ->partition(static fn (PackageAudit $audit): bool => ! $audit->pending());
 
         if ($installed->isNotEmpty()) {
@@ -473,11 +507,30 @@ final class VetCommand extends Command
 
         if ($incoming->isNotEmpty()) {
             $this->reportIncoming($incoming);
-
-            return self::FAILURE;
         }
 
-        return self::SUCCESS;
+        if ($recent->isNotEmpty()) {
+            $this->reportRecent($recent);
+        }
+
+        return $incoming->isEmpty() && $recent->isEmpty() ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * @param  Collection<string, PackageAudit>  $recent
+     */
+    private function reportRecent(Collection $recent): void
+    {
+        $this->renderTargets($recent->all(), 'too recent');
+
+        $this->components->error(sprintf(
+            '[%d] %s too recent for [%s]. Wait until the date that vet names, or add the %s to [%s] in [vet.json].',
+            $recent->count(),
+            $recent->count() === 1 ? 'package is' : 'packages are',
+            MinimumReleaseAge::DAYS,
+            Str::plural('package', $recent->count()),
+            MinimumReleaseAge::EXCLUDE,
+        ));
     }
 
     /**
@@ -622,6 +675,19 @@ final class VetCommand extends Command
             if ($unresolved !== null) {
                 $this->components->warn($unresolved);
             }
+        }
+
+        if ($audit->status === AuditStatus::Recent) {
+            $this->components->error(sprintf(
+                '[%s] [%s] is too recent for [%s]: %s. Add the package to [%s] in [vet.json] to audit it today.',
+                $audit->package,
+                $audit->version,
+                MinimumReleaseAge::DAYS,
+                $audit->note(),
+                MinimumReleaseAge::EXCLUDE,
+            ));
+
+            return self::FAILURE;
         }
 
         if ($audit->status === AuditStatus::Covered) {

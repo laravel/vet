@@ -1,5 +1,4 @@
 {
-    "schema": 4,
     "require": {
         "acme/inert-only": {
             "version": "1.0.0",

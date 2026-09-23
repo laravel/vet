@@ -226,22 +226,6 @@ it('deletes the trust file with --fresh, then records the baseline again', funct
         ->and(str_contains($trustFile, '"acme/ghost"'))->toBeFalse();
 });
 
-it('starts again with --fresh when the trust file holds an older schema', function (): void {
-    $fixture = Fixture::open('legacy-trust-file');
-
-    try {
-        $status = vet(['--fresh' => true, '--path' => $fixture->rootPath]);
-        $output = Artisan::output();
-        $trustFile = $fixture->read('vet.json');
-    } finally {
-        $fixture->remove();
-    }
-
-    expect($status)->toBe(0)
-        ->and(str_contains($output, 'declares schema [2]'))->toBeFalse()
-        ->and($trustFile)->toContain('"schema": 4');
-});
-
 it('keeps the trust file when --fresh comes with a package', function (): void {
     $fixture = Fixture::open('orphan-trust-file');
 

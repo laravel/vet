@@ -52,6 +52,7 @@ final readonly class PackageAudit
             AuditStatus::Ungranted => 'never trusted',
             AuditStatus::Changed => $this->changedNote(),
             AuditStatus::Unknown => $this->cause ?? 'not readable before install',
+            AuditStatus::Recent => $this->cause ?? 'too recent',
         };
     }
 
