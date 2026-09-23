@@ -87,7 +87,7 @@ Composer asks whether to allow the plugin the first time. Answer yes, and vet ru
 
 ## Recording Your Baseline
 
-The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option deletes `vet.json` first, then does the same, so you start from an empty trust file:
+The `--init` option records every package that `vendor/` holds today, and writes `vet.json` for the first time. The `--fresh` option clears every entry of `vet.json` first, then does the same, so you start from an empty trust file:
 
 ```shell
 ./vendor/bin/vet --init
@@ -238,6 +238,28 @@ The trust file lives in `vet.json`, at the root of your project, next to `compos
 ```
 
 The hash covers every file of the package. When a package ships the same version with different bytes, the entry stops trusting it, and vet asks you to read the difference.
+
+### Ignoring Files
+
+Some tools write into `vendor/` on purpose. Laravel Vapor, for example, rewrites the configuration files of `laravel/framework` during a deploy. List those paths under `ignore`, and vet leaves them out of the hash and out of the changes it shows you:
+
+```json
+{
+    "schema": 4,
+    "require": { … },
+    "require-dev": { … },
+    "ignore": {
+        "laravel/framework": [
+            "config/cache.php",
+            "config/filesystems.php",
+            "config/queue.php",
+            "config/services.php"
+        ]
+    }
+}
+```
+
+A path is relative to the root of the package, and a directory covers every file inside it. The hash changes when the list changes, so run `./vendor/bin/vet` and trust the package again. The `--fresh` option keeps the `ignore` list.
 
 ## Contributing
 

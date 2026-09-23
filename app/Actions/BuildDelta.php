@@ -9,13 +9,18 @@ use App\Enums\InstallSourceType;
 use App\Support\Json;
 use App\ValueObjects\Change;
 use App\ValueObjects\Delta;
+use App\ValueObjects\IgnoredFiles;
 use App\ValueObjects\Manifest;
 use App\ValueObjects\ManifestChange;
 use App\ValueObjects\Package;
 use App\ValueObjects\TreeHash;
 
-final class BuildDelta
+final readonly class BuildDelta
 {
+    public function __construct(
+        private IgnoredFiles $ignored,
+    ) {}
+
     /**
      * @param  array<int, string>  $notes
      */
@@ -31,8 +36,8 @@ final class BuildDelta
         bool $toIsLocalInstall,
         array $notes,
     ): Delta {
-        $before = Manifest::ofDirectory($fromDirectory);
-        $after = Manifest::ofDirectory($toDirectory);
+        $before = Manifest::ofDirectoryIgnoring($fromDirectory, $this->ignored->of($package));
+        $after = Manifest::ofDirectoryIgnoring($toDirectory, $this->ignored->of($package));
 
         $classifier = ClassifyPath::forPackages($fromMetadata, $toMetadata);
 
@@ -97,7 +102,7 @@ final class BuildDelta
 
     public function firstInstall(Package $target, string $directory, InstallSourceType $source): Delta
     {
-        $manifest = Manifest::ofDirectory($directory);
+        $manifest = Manifest::ofDirectoryIgnoring($directory, $this->ignored->of($target->name));
         $classifier = ClassifyPath::forPackages($target);
 
         $changes = [];

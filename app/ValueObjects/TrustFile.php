@@ -17,6 +17,7 @@ final readonly class TrustFile
         public string $path,
         private PersistTrustFile $document,
         private array $grants,
+        private IgnoredFiles $ignored,
     ) {}
 
     public static function forProject(Project $project): self
@@ -39,7 +40,7 @@ final readonly class TrustFile
             }
         }
 
-        return new self($document->path, $document, $grants);
+        return new self($document->path, $document, $grants, IgnoredFiles::fromArray($document->section('ignore')));
     }
 
     public function exists(): bool
@@ -52,9 +53,14 @@ final readonly class TrustFile
         return $this->grants[$package] ?? null;
     }
 
+    public function ignored(): IgnoredFiles
+    {
+        return $this->ignored;
+    }
+
     public function withGrant(Grant $grant): self
     {
-        return new self($this->path, $this->document, [...$this->grants, $grant->package => $grant]);
+        return new self($this->path, $this->document, [...$this->grants, $grant->package => $grant], $this->ignored);
     }
 
     public function save(): void

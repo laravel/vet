@@ -7,6 +7,7 @@ namespace App\Commands;
 use App\Actions\AuditProject;
 use App\Actions\CacheArtifact;
 use App\Actions\ColdCacheArtifact;
+use App\Actions\PersistTrustFile;
 use App\Actions\RenderDelta;
 use App\Actions\RenderProjectAudit;
 use App\Actions\ResolveDelta;
@@ -38,7 +39,6 @@ use App\ValueObjects\Project;
 use App\ValueObjects\TreeHash;
 use App\ValueObjects\TrustFile;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Laravel\Prompts\Prompt;
 use Laravel\Prompts\Themes\Default\SuggestPromptRenderer;
@@ -63,7 +63,7 @@ final class VetCommand extends Command
     protected $signature = 'vet
         {packages?* : Audit these packages, as vendor/name}
         {--init : Record every package that vendor/ holds today, and start the trust file from them}
-        {--fresh : Delete the trust file, then do the same as --init}
+        {--fresh : Clear every entry of the trust file, then do the same as --init}
         {--from= : Show the delta from this version rather than the trusted one}
         {--to= : The version to compare to (defaults to the installed one)}
         {--path= : The project directory to audit (defaults to the current one)}
@@ -100,7 +100,7 @@ final class VetCommand extends Command
             $project = Project::locate($path ?? (string) getcwd());
 
             if ($fresh) {
-                File::delete($project->vetFilePath());
+                PersistTrustFile::clearGrants($project->vetFilePath());
             }
 
             $auditor = $this->auditor($project);

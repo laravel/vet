@@ -230,3 +230,21 @@ it('hashes a file that a package ships in a directory of its own tests', functio
 
     expect($entries)->toHaveKey('tests/.temp/Fixture.php');
 });
+
+it('leaves out each file and each directory that it ignores', function (): void {
+    $directory = manifestTree();
+
+    mkdir($directory.'/config');
+    mkdir($directory.'/stubs');
+    file_put_contents($directory.'/config/cache.php', "<?php\n");
+    file_put_contents($directory.'/config/queue.php', "<?php\n");
+    file_put_contents($directory.'/stubs/model.stub', "<?php\n");
+
+    try {
+        $paths = array_keys(Manifest::ofDirectoryIgnoring($directory, ['config/cache.php', 'stubs'])->entries());
+    } finally {
+        removeManifestTree($directory);
+    }
+
+    expect($paths)->toBe(['config/queue.php']);
+});

@@ -64,6 +64,25 @@ final readonly class PersistTrustFile
         return new self($path, $contents);
     }
 
+    public static function clearGrants(string $path): void
+    {
+        if (! is_file($path)) {
+            return;
+        }
+
+        $ignore = Json::array(Json::readFile($path, 'the vet file'), 'ignore');
+
+        if ($ignore === []) {
+            File::delete($path);
+
+            return;
+        }
+
+        if (@file_put_contents($path, Json::encode(['schema' => self::SCHEMA, 'ignore' => $ignore])) === false) {
+            throw new FailureException(sprintf('Could not write the vet file to [%s].', $path));
+        }
+    }
+
     public function has(string $section): bool
     {
         return isset($this->contents[$section]);

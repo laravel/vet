@@ -239,11 +239,13 @@ final readonly class AuditProject
 
     private static function of(Project $project, InstalledRepository $installed, LockFile $lock, ComposerPlan $plan): self
     {
+        $trustFile = TrustFile::forProject($project);
+
         return new self(
             project: $project,
-            trustFile: TrustFile::forProject($project),
+            trustFile: $trustFile,
             installed: $installed,
-            fingerprinter: new FingerprintPackage(FetchArchive::forProject($project)),
+            fingerprinter: new FingerprintPackage(FetchArchive::forProject($project), $trustFile->ignored()),
             lock: $lock,
             plan: $plan,
             packagist: FetchPackageMetadata::forProject($project),

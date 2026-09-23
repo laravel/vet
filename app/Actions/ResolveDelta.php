@@ -10,6 +10,7 @@ use App\ValueObjects\Delta;
 use App\ValueObjects\InstalledRepository;
 use App\ValueObjects\Package;
 use App\ValueObjects\Project;
+use App\ValueObjects\TrustFile;
 
 final readonly class ResolveDelta
 {
@@ -25,7 +26,7 @@ final readonly class ResolveDelta
         return new self(
             FetchPackageMetadata::forProject($project),
             FetchArchive::forProject($project),
-            new BuildDelta,
+            new BuildDelta(TrustFile::forProject($project)->ignored()),
             InstalledRepository::fromProject($project),
         );
     }

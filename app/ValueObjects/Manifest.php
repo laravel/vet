@@ -21,6 +21,14 @@ final readonly class Manifest
 
     public static function ofDirectory(string $directory): self
     {
+        return self::ofDirectoryIgnoring($directory, []);
+    }
+
+    /**
+     * @param  list<string>  $ignored
+     */
+    public static function ofDirectoryIgnoring(string $directory, array $ignored): self
+    {
         if (! is_dir($directory)) {
             throw EmptyTreeException::missing($directory);
         }
@@ -28,7 +36,7 @@ final readonly class Manifest
         $entries = [];
         $bytes = 0;
 
-        self::walk($directory, '', $entries, $bytes);
+        self::walk($directory, '', $ignored, $entries, $bytes);
 
         if ($entries === []) {
             throw EmptyTreeException::at($directory);
@@ -74,9 +82,10 @@ final readonly class Manifest
     }
 
     /**
+     * @param  list<string>  $ignored
      * @param  array<string, string>  $entries
      */
-    private static function walk(string $root, string $relative, array &$entries, int &$bytes): void
+    private static function walk(string $root, string $relative, array $ignored, array &$entries, int &$bytes): void
     {
         $directory = $relative === '' ? $root : $root.DIRECTORY_SEPARATOR.$relative;
 
@@ -94,7 +103,7 @@ final readonly class Manifest
             $full = $directory.DIRECTORY_SEPARATOR.$name;
             $path = $relative === '' ? $name : $relative.DIRECTORY_SEPARATOR.$name;
 
-            if (LocalState::covers($path)) {
+            if (LocalState::covers($path) || in_array(Path::toRelativeForm($path), $ignored, true)) {
                 continue;
             }
 
@@ -105,7 +114,7 @@ final readonly class Manifest
             }
 
             if (is_dir($full)) {
-                self::walk($root, $path, $entries, $bytes);
+                self::walk($root, $path, $ignored, $entries, $bytes);
 
                 continue;
             }

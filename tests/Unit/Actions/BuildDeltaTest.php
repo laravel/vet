@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\BuildDelta;
 use App\Enums\InstallSourceType;
+use App\ValueObjects\IgnoredFiles;
 use App\ValueObjects\Package;
 use Illuminate\Support\Facades\File;
 
@@ -23,7 +24,7 @@ it('reads no manifest change when one of the two trees holds no composer.json', 
     ], false);
 
     try {
-        $delta = (new BuildDelta)->handle(
+        $delta = new BuildDelta(IgnoredFiles::fromArray([]))->handle(
             package: 'acme/widget',
             fromVersion: '1.0.0',
             fromDirectory: $directory.'/old',

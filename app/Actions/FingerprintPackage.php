@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\InstallSourceType;
 use App\Exceptions\FailureException;
 use App\ValueObjects\Fingerprint;
+use App\ValueObjects\IgnoredFiles;
 use App\ValueObjects\Manifest;
 use App\ValueObjects\Package;
 
@@ -14,6 +15,7 @@ final readonly class FingerprintPackage
 {
     public function __construct(
         private FetchArchive $fetcher,
+        private IgnoredFiles $ignored,
     ) {}
 
     public function ofPackage(Package $package): Fingerprint
@@ -22,7 +24,7 @@ final readonly class FingerprintPackage
             throw new FailureException(sprintf('The package [%s] has no recorded install path.', $package->name));
         }
 
-        $manifest = Manifest::ofDirectory($package->installPath);
+        $manifest = Manifest::ofDirectoryIgnoring($package->installPath, $this->ignored->of($package->name));
 
         return new Fingerprint(
             package: $package->name,
@@ -38,7 +40,7 @@ final readonly class FingerprintPackage
     public function ofIncoming(Package $target): Fingerprint
     {
         $directory = $this->fetcher->handle($target);
-        $manifest = Manifest::ofDirectory($directory);
+        $manifest = Manifest::ofDirectoryIgnoring($directory, $this->ignored->of($target->name));
 
         return new Fingerprint(
             package: $target->name,
