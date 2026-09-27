@@ -13,7 +13,7 @@ function gateProject(bool $trustFile, bool $binary): Gate
     mkdir($binDir, 0o777, true);
 
     if ($trustFile) {
-        file_put_contents($root.'/vet.json', '{}');
+        file_put_contents($root.'/vet.json', '{"require":{"acme/widget":{"version":"1.0.0","hash":"tree-v2:aaaa"}}}');
     }
 
     if ($binary) {
@@ -55,7 +55,44 @@ it('asks for a baseline rather than fail a project that holds no trust file', fu
     $gate = gateProject(trustFile: false, binary: true);
 
     expect($gate->command(verbose: false, decorated: true))->toBe([])
-        ->and($gate->baselineNotice())->toContain('vet --init');
+        ->and($gate->hasTrustEntries())->toBeFalse()
+        ->and($gate->baselineNotice())->toBe('Vet has no trust file in this project yet. Run [./vendor/bin/vet --init] to record what you trust today.');
+});
+
+it('asks for a baseline rather than fail a project whose trust file holds only settings', function (string $contents): void {
+    $gate = gateProject(trustFile: true, binary: true);
+
+    file_put_contents($gate->rootPath.'/vet.json', $contents);
+
+    expect($gate->hasTrustFile())->toBeTrue()
+        ->and($gate->hasTrustEntries())->toBeFalse()
+        ->and($gate->command(verbose: false, decorated: true))->toBe([])
+        ->and($gate->commandWithPlan(verbose: false, decorated: true, planPath: '/plan.json'))->toBe([])
+        ->and($gate->firstInstallNotice())->toBeNull()
+        ->and($gate->baselineNotice())->toBe('Vet has no trust entry in [vet.json] yet. Run [./vendor/bin/vet --init] to record what you trust today.')
+        ->and($gate->releaseAge()->days)->toBe(7);
+})->with([
+    'no section' => '{"minimum-release-age":7,"minimum-release-age-exclude":["laravel/vet","roave/security-advisories"]}',
+    'empty sections' => '{"require":{},"require-dev":{},"minimum-release-age":7}',
+]);
+
+it('runs the audit when the trust file holds one dev entry', function (): void {
+    $gate = gateProject(trustFile: true, binary: true);
+
+    file_put_contents($gate->rootPath.'/vet.json', '{"require":{},"require-dev":{"acme/lint":{"version":"1.0.0","hash":"tree-v2:aaaa"}},"minimum-release-age":7}');
+
+    expect($gate->hasTrustEntries())->toBeTrue()
+        ->and($gate->command(verbose: false, decorated: true))->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi'])
+        ->and($gate->baselineNotice())->toBeNull();
+});
+
+it('runs the audit when the trust file holds no valid json, thus vet names the fault', function (): void {
+    $gate = gateProject(trustFile: true, binary: true);
+
+    file_put_contents($gate->rootPath.'/vet.json', '{"require":');
+
+    expect($gate->hasTrustEntries())->toBeTrue()
+        ->and($gate->command(verbose: false, decorated: true))->toBe([PHP_BINARY, $gate->rootPath.'/vendor/bin/vet', '--ansi']);
 });
 
 it('does nothing when the binary is gone', function (): void {

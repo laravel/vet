@@ -248,3 +248,27 @@ it('refuses a minimum release age option that is not a whole number of days', fu
     expect($status)->toBe(1)
         ->and($output)->toContain('The [--minimum-release-age] option needs a whole number of days, such as [7].');
 })->with(['seven', '0', '-1', '1.5']);
+
+it('keeps each setting of a trust file that holds only settings when it records the baseline', function (string $option): void {
+    $project = PendingUpdate::create();
+    $project->installedReleasedAt(daysAgo(30));
+
+    file_put_contents($project->rootPath.'/vet.json', json_encode([
+        MinimumReleaseAge::DAYS => 7,
+        MinimumReleaseAge::EXCLUDE => ['laravel/vet', 'roave/security-advisories'],
+    ]));
+
+    try {
+        $status = vet([$option => true, '--path' => $project->rootPath]);
+
+        /** @var array<string, mixed> $trustFile */
+        $trustFile = json_decode($project->trustFile(), true);
+    } finally {
+        $project->remove();
+    }
+
+    expect($status)->toBe(0)
+        ->and($trustFile[MinimumReleaseAge::DAYS])->toBe(7)
+        ->and($trustFile[MinimumReleaseAge::EXCLUDE])->toBe(['laravel/vet', 'roave/security-advisories'])
+        ->and($trustFile['require'])->toHaveKey(PendingUpdate::PACKAGE);
+})->with(['--init', '--fresh']);

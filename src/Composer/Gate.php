@@ -30,6 +30,25 @@ final readonly class Gate
         return is_file($this->rootPath.'/vet.json');
     }
 
+    public function hasTrustEntries(): bool
+    {
+        if (! $this->hasTrustFile()) {
+            return false;
+        }
+
+        $contents = file_get_contents($this->rootPath.'/vet.json');
+        $document = is_string($contents) ? json_decode($contents, true) : null;
+
+        if (! is_array($document)) {
+            return true;
+        }
+
+        return ! array_all(
+            ['require', 'require-dev'],
+            static fn (string $section): bool => ($document[$section] ?? []) === [],
+        );
+    }
+
     public function releaseAge(): ReleaseAge
     {
         return ReleaseAge::fromTrustFile($this->rootPath.'/vet.json');
@@ -94,16 +113,18 @@ final readonly class Gate
 
     public function baselineNotice(): ?string
     {
-        if ($this->binary() === null || $this->hasTrustFile()) {
+        if ($this->binary() === null || $this->hasTrustEntries()) {
             return null;
         }
 
-        return 'Vet has no trust file in this project yet. Run [./vendor/bin/vet --init] to record what you trust today.';
+        return $this->hasTrustFile()
+            ? 'Vet has no trust entry in [vet.json] yet. Run [./vendor/bin/vet --init] to record what you trust today.'
+            : 'Vet has no trust file in this project yet. Run [./vendor/bin/vet --init] to record what you trust today.';
     }
 
     public function firstInstallNotice(): ?string
     {
-        if ($this->binary() === null || ! $this->hasTrustFile() || $this->hasInstalledTree()) {
+        if ($this->binary() === null || ! $this->hasTrustEntries() || $this->hasInstalledTree()) {
             return null;
         }
 
@@ -118,7 +139,7 @@ final readonly class Gate
     {
         $binary = $this->binary();
 
-        if ($binary === null || ! $this->hasTrustFile()) {
+        if ($binary === null || ! $this->hasTrustEntries()) {
             return [];
         }
 
