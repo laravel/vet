@@ -34,6 +34,16 @@ it('gives the prompt to the agent on its standard input', function (): void {
     expect(StubAgent::promptGivenTo($executable))->toBe('the prompt of acme/widget');
 });
 
+it('passes the prompt as the OpenCode run message', function (): void {
+    $executable = stubAgent(StubAgent::answering('{"verdict":"clear","summary":"nothing","findings":[]}'));
+    $agent = new ReviewWithAgent(AgentType::Opencode, $executable, AgentModel::default(), 300, silentDots());
+
+    $agent->handle(['acme/widget' => agentPrompt('the prompt of acme/widget', [], [])]);
+
+    expect(StubAgent::argumentsGivenTo($executable))->toBe(['run', '--agent', 'plan', 'the prompt of acme/widget'])
+        ->and(StubAgent::promptGivenTo($executable))->toBe('');
+});
+
 it('reads one verdict for each package of the prompts', function (): void {
     $agent = new ReviewWithAgent(AgentType::Codex, stubAgent(StubAgent::answering(
         '{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}',
@@ -100,13 +110,17 @@ it('writes no verdict when the agent names a file that the delta does not hold',
 });
 
 it('writes no verdict when the agent stops with a failure', function (): void {
-    $agent = new ReviewWithAgent(AgentType::Codex, stubAgent(StubAgent::silent()->failing(3, "the model is not reachable\n")), AgentModel::default(), 300, silentDots());
+    $agent = new ReviewWithAgent(AgentType::Codex, stubAgent(StubAgent::silent()->failing(
+        3,
+        "\e[91mError:\e[0m {\"name\":\"UnknownError\",\"data\":{\"message\":\"Unexpected server error. Check server logs for details.\",\"ref\":\"err_abc123\"}}\n",
+    )), AgentModel::default(), 300, silentDots());
 
     $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
 
     expect($review->verdict)->toBe(AgentVerdict::NoVerdict)
         ->and($review->summary)->toContain('exit code [3]')
-        ->and($review->summary)->toContain('the model is not reachable');
+        ->and($review->summary)->toContain('Unexpected server error. Check server logs for details.')
+        ->and($review->summary)->toContain('[ref: err_abc123]');
 });
 
 it('writes no verdict when the agent answers with prose', function (): void {
@@ -170,14 +184,15 @@ it('writes no verdict when the agent gives no answer in its time', function (): 
         ->and(microtime(true) - $started)->toBeLessThan(4.0);
 });
 
-it('finds the first agent that the path holds, and runs it by its name', function (): void {
+it('defaults to claude when the path holds multiple agents, and runs it by its name', function (): void {
     $directory = sys_get_temp_dir().'/vet-path-'.bin2hex(random_bytes(6));
 
-    StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}')
-        ->install($directory, 'codex');
+    $answer = '{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}';
+    StubAgent::answering($answer)->install($directory, 'claude');
+    StubAgent::answering($answer)->install($directory, 'codex');
 
     try {
-        [$name, $review] = withEnvironment(['PATH' => $directory], static function (): array {
+        [$name, $review] = withEnvironment(['PATH' => $directory, 'VET_AGENT' => null], static function (): array {
             $agent = ReviewWithAgent::default();
 
             return [$agent->name(), $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget']];
@@ -186,7 +201,7 @@ it('finds the first agent that the path holds, and runs it by its name', functio
         File::deleteDirectory($directory);
     }
 
-    expect($name)->toBe('codex')
+    expect($name)->toBe('claude')
         ->and($review->verdict)->toBe(AgentVerdict::Clear);
 });
 
@@ -196,8 +211,8 @@ it('names each agent that it looks for when the path holds none', function (): v
     mkdir($directory);
 
     try {
-        expect(static fn (): ReviewWithAgent => withEnvironment(['PATH' => $directory], ReviewWithAgent::default(...)))
-            ->toThrow(AgentFailedException::class, 'Could not find an agent on your PATH. Install one of [claude], [codex], [gemini], [opencode].');
+        expect(static fn (): ReviewWithAgent => withEnvironment(['PATH' => $directory, 'VET_AGENT' => null], ReviewWithAgent::default(...)))
+            ->toThrow(AgentFailedException::class, 'Could not find the configured agent [claude] on your PATH.');
     } finally {
         rmdir($directory);
     }

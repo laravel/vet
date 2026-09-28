@@ -7,6 +7,28 @@ use Tests\Fixtures\Fixture;
 use Tests\Fixtures\StaleProject;
 use Tests\Fixtures\StubAgent;
 
+it('uses the agent that the command option names', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $agent = StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}');
+    $executable = $fixture->agentNamed('opencode', $agent);
+
+    try {
+        command('vet', ['--agent' => 'opencode', '--path' => $fixture->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('[opencode] reviews [1] package (')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+
+        $arguments = StubAgent::argumentsGivenTo($executable);
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($arguments)->toContain('run', '--agent', 'plan')
+        ->and(implode("\n", $arguments))->toContain('Answer with one JSON object');
+});
+
 it('hands each delta to the agent, and writes the verdict under the package', function (): void {
     $fixture = Fixture::open('delta-shapes');
     $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/New.php] writes a path outside the package","findings":[]}'));

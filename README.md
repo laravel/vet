@@ -101,6 +101,8 @@ In a terminal, vet asks how you want to review. Pick your coding agent, and it r
 
 The agent runs only when you ask for it. The Composer plugin never asks.
 
+Set `VET_AGENT` to choose an installed agent before the PATH search. For example, `VET_AGENT=opencode` uses OpenCode even when another supported agent appears first on your `PATH`. Vet still asks which model to use.
+
 ## The Trust File
 
 `vet.json` holds one entry for each package: the version you read, and the hash of its files. When a package ships the same version with different bytes, vet asks you to read the difference:

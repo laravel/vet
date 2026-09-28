@@ -13,6 +13,7 @@ use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
 use Illuminate\Support\Str;
+use LogicException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -35,17 +36,30 @@ final readonly class ReviewWithAgent
 
     public static function default(): self
     {
-        $finder = new ExecutableFinder;
+        $configured = getenv('VET_AGENT');
+        $name = $configured === false || trim($configured) === ''
+            ? AgentType::Claude->value
+            : trim($configured);
 
-        foreach (AgentType::cases() as $type) {
-            $executable = $finder->find($type->value);
+        return self::named($name);
+    }
 
-            if ($executable !== null) {
-                return new self($type, $executable, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
-            }
+    public static function named(string $name): self
+    {
+        $name = trim($name);
+        $type = AgentType::tryFrom($name);
+
+        if ($type === null) {
+            throw AgentFailedException::unknown($name);
         }
 
-        throw AgentFailedException::missing();
+        $executable = (new ExecutableFinder)->find($type->value);
+
+        if ($executable !== null) {
+            return new self($type, $executable, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
+        }
+
+        throw AgentFailedException::missingConfigured($type);
     }
 
     public function withModel(AgentModel $model): self
@@ -63,10 +77,6 @@ final readonly class ReviewWithAgent
         return $this->type;
     }
 
-    /**
-     * @param  array<string, AgentPrompt>  $prompts
-     * @return array<string, AgentReview>
-     */
     public function handle(array $prompts): array
     {
         $schemaFile = $this->schemaFile();
@@ -78,10 +88,6 @@ final readonly class ReviewWithAgent
         }
     }
 
-    /**
-     * @param  array<string, AgentPrompt>  $prompts
-     * @return array<string, AgentReview>
-     */
     private function review(string $schemaFile, array $prompts): array
     {
         $arguments = $this->type->arguments($schemaFile, $this->model);
@@ -93,7 +99,21 @@ final readonly class ReviewWithAgent
         while ($queue !== [] || $running !== []) {
             while ($queue !== [] && count($running) < self::CONCURRENCY) {
                 $package = array_key_first($queue);
-                $process = new Process([$this->executable, ...$arguments], null, null, $queue[$package]->text);
+                $prompt = $queue[$package] ?? null;
+
+                if (! $prompt instanceof AgentPrompt) {
+                    throw new LogicException('Each agent prompt must be an AgentPrompt.');
+                }
+
+                $command = [$this->executable, ...$arguments];
+                $input = $prompt->text;
+
+                if ($this->type === AgentType::Opencode) {
+                    $command[] = $input;
+                    $input = null;
+                }
+
+                $process = new Process($command, null, null, $input);
                 $process->setTimeout($this->timeout);
                 $process->start();
 
@@ -102,7 +122,13 @@ final readonly class ReviewWithAgent
             }
 
             foreach ($running as $package => $process) {
-                $review = $this->settled($package, $prompts[$package], $process);
+                $prompt = $prompts[$package] ?? null;
+
+                if (! $prompt instanceof AgentPrompt) {
+                    throw new LogicException('Each agent prompt must be an AgentPrompt.');
+                }
+
+                $review = $this->settled($package, $prompt, $process);
 
                 if ($review instanceof AgentReview) {
                     $this->dots->mark();
@@ -146,7 +172,7 @@ final readonly class ReviewWithAgent
             return $this->unreadable($package, sprintf(
                 'The agent stopped with exit code [%s]: %s',
                 $process->getExitCode() === null ? 'unknown' : (string) $process->getExitCode(),
-                $this->firstLine(trim($process->getErrorOutput()).' '.$output),
+                $this->diagnostic(trim($process->getErrorOutput()).' '.$output),
             ));
         }
 
@@ -155,7 +181,7 @@ final readonly class ReviewWithAgent
         if (! $answer instanceof AgentAnswer) {
             return $this->unreadable($package, $output === ''
                 ? 'The agent wrote nothing.'
-                : $this->firstLine($output));
+                : $this->diagnostic($output));
         }
 
         foreach ($answer->findings as $finding) {
@@ -182,9 +208,47 @@ final readonly class ReviewWithAgent
         return new AgentReview($package, AgentVerdict::NoVerdict, $this->clamp($summary), [], []);
     }
 
-    private function firstLine(string $output): string
+    private function diagnostic(string $output): string
     {
-        return trim((string) preg_replace('/\R.*/s', '', trim($output)));
+        $plain = trim((string) preg_replace('#\e\[[0-?]*[ -/]*[@-~]#', '', $output));
+        $lines = preg_split('/\R/', $plain) ?: [];
+        $failures = array_values(array_filter($lines, static fn (string $line): bool => preg_match(
+            '/\b(?:error|failed|failure|denied|not permitted)\b/i',
+            $line,
+        ) === 1));
+        $details = array_slice($failures === [] ? $lines : $failures, -3);
+        $plain = implode(' ', $details);
+        $plain = trim((string) preg_replace('/\s+/', ' ', $plain));
+        $diagnostic = null;
+
+        foreach ($details as $detail) {
+            $start = strpos($detail, '{');
+
+            if ($start === false) {
+                continue;
+            }
+
+            $decoded = json_decode(substr($detail, $start), true);
+            $error = is_array($decoded) ? ($decoded['error'] ?? []) : [];
+            $data = is_array($decoded) ? ($decoded['data'] ?? []) : [];
+            $message = is_array($error) ? ($error['message'] ?? null) : null;
+            $message ??= is_array($decoded) ? ($decoded['detail'] ?? null) : null;
+            $message ??= is_array($data) ? ($data['message'] ?? null) : null;
+            $reference = is_array($data) ? ($data['ref'] ?? null) : null;
+
+            if (is_string($message) && $message !== '') {
+                $diagnostic = implode(' ', array_filter([
+                    $message,
+                    is_string($reference) && $reference !== '' ? sprintf('[ref: %s]', $reference) : null,
+                ]));
+
+                if (str_contains($message, 'not supported when using Codex with a ChatGPT account')) {
+                    return $diagnostic;
+                }
+            }
+        }
+
+        return $diagnostic ?? $plain;
     }
 
     private function clamp(string $line): string
