@@ -103,6 +103,8 @@ The agent runs only when you ask for it. The Composer plugin never asks.
 
 Set `VET_AGENT` to choose an installed agent before the PATH search. For example, `VET_AGENT=opencode` uses OpenCode even when another supported agent appears first on your `PATH`. Vet still asks which model to use.
 
+Some models may not be available when you sign in with ChatGPT. Gemini CLI works with API keys; Google has moved Google AI plan and free individual users to Antigravity CLI. [Read Google's transition timeline](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/#important-timeline-for-consumers).
+
 ## The Trust File
 
 `vet.json` holds one entry for each package: the version you read, and the hash of its files. When a package ships the same version with different bytes, vet asks you to read the difference:
