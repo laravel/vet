@@ -13,7 +13,6 @@ use App\ValueObjects\AgentModel;
 use App\ValueObjects\AgentPrompt;
 use App\ValueObjects\AgentReview;
 use Illuminate\Support\Str;
-use LogicException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -77,6 +76,10 @@ final readonly class ReviewWithAgent
         return $this->type;
     }
 
+    /**
+     * @param  array<string, AgentPrompt>  $prompts
+     * @return array<string, AgentReview>
+     */
     public function handle(array $prompts): array
     {
         $schemaFile = $this->schemaFile();
@@ -88,6 +91,10 @@ final readonly class ReviewWithAgent
         }
     }
 
+    /**
+     * @param  array<string, AgentPrompt>  $prompts
+     * @return array<string, AgentReview>
+     */
     private function review(string $schemaFile, array $prompts): array
     {
         $arguments = $this->type->arguments($schemaFile, $this->model);
@@ -99,11 +106,7 @@ final readonly class ReviewWithAgent
         while ($queue !== [] || $running !== []) {
             while ($queue !== [] && count($running) < self::CONCURRENCY) {
                 $package = array_key_first($queue);
-                $prompt = $queue[$package] ?? null;
-
-                if (! $prompt instanceof AgentPrompt) {
-                    throw new LogicException('Each agent prompt must be an AgentPrompt.');
-                }
+                $prompt = $queue[$package];
 
                 $command = [$this->executable, ...$arguments];
                 $input = $prompt->text;
@@ -117,17 +120,11 @@ final readonly class ReviewWithAgent
                 $process->setTimeout($this->timeout);
                 $process->start();
 
-                $running[$package] = $process;
+                $running[$package] = [$process, $prompt];
                 unset($queue[$package]);
             }
 
-            foreach ($running as $package => $process) {
-                $prompt = $prompts[$package] ?? null;
-
-                if (! $prompt instanceof AgentPrompt) {
-                    throw new LogicException('Each agent prompt must be an AgentPrompt.');
-                }
-
+            foreach ($running as $package => [$process, $prompt]) {
                 $review = $this->settled($package, $prompt, $process);
 
                 if ($review instanceof AgentReview) {
@@ -219,6 +216,7 @@ final readonly class ReviewWithAgent
         $details = array_slice($failures === [] ? $lines : $failures, -3);
         $plain = implode(' ', $details);
         $plain = trim((string) preg_replace('/\s+/', ' ', $plain));
+
         $diagnostic = null;
 
         foreach ($details as $detail) {
