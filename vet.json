@@ -1,5 +1,4 @@
 {
-    "minimum-release-age": 7,
     "require": {},
     "require-dev": {
         "brianium/paratest": {
@@ -7,8 +6,8 @@
             "hash": "tree-v2:044bd7bb4bd037d55a8572c5221dfc055419082618410fcccf79924408a8a19d"
         },
         "brick/math": {
-            "version": "0.18.0",
-            "hash": "tree-v2:2874e68aa90095792f48cee52e27a38f16e74caea77707cce8390f8cdf497551"
+            "version": "1.0.0",
+            "hash": "tree-v2:18a4e0a903e82f19128a2a8679c0305e66f104438f01caa4b63b1cec2c6ba4dd"
         },
         "carbonphp/carbon-doctrine-types": {
             "version": "3.2.1",
@@ -39,8 +38,8 @@
             "hash": "tree-v2:c33bdd2e0430e4110e6ee218701bdee1b422acb2510dd198836519b9a8fcc58d"
         },
         "filp/whoops": {
-            "version": "2.18.4",
-            "hash": "tree-v2:db8671d760c94524baa207edf2fc1731a493b7074eb94f8767d821712b68188c"
+            "version": "2.18.5",
+            "hash": "tree-v2:8c32519eacbd19b8d00468e9a8aaf35efca825f90c912fd802d74494d97e1ca5"
         },
         "graham-campbell/result-type": {
             "version": "v1.2.0",
@@ -63,16 +62,16 @@
             "hash": "tree-v2:49f1c99167659adb6f9f9bf1aa7abca02fcd773f3c19041f7983dd50b83d85e7"
         },
         "illuminate/bus": {
-            "version": "v13.30.1",
-            "hash": "tree-v2:3aceae3cab30fc840707303351f2de8ca0e0d1f230a7c9a749b4c06121ebd2e8"
+            "version": "v13.33.0",
+            "hash": "tree-v2:9fac54865b596a8d84f4a586e0a6cbd8451cd695d29785e6a4e6ae665e557f6b"
         },
         "illuminate/cache": {
-            "version": "v13.30.1",
-            "hash": "tree-v2:b9bab0f15d3f74ee8e4530bf943198f16b365e083f4545170b2a7ff23f5be59a"
+            "version": "v13.33.0",
+            "hash": "tree-v2:b354b9679a7a8b0a9f1b6c9b148d73782b8b91d6ac7bb4ccb3b21f18ef7e543a"
         },
         "illuminate/collections": {
-            "version": "v13.31.0",
-            "hash": "tree-v2:a683b55dee4aa814139346202f29211e34ecc2d73d93a31f0f1b59a520e1ed14"
+            "version": "v13.33.0",
+            "hash": "tree-v2:6492eee3c7baec9644374270f59950343fd614f586e67998d90cae443a1d43bd"
         },
         "illuminate/conditionable": {
             "version": "v13.30.1",
@@ -83,24 +82,24 @@
             "hash": "tree-v2:45b7bbbd5c145210030c519518a7d37ae6676df15752c917fd6037a9a2e20ea3"
         },
         "illuminate/console": {
-            "version": "v13.30.1",
-            "hash": "tree-v2:8141e575ada0e1fab955723d3c4b9dd6bc04916a2984e0278ac488fd074959aa"
+            "version": "v13.33.0",
+            "hash": "tree-v2:1266618ab72bc2ce8cd58ecc5cf9323e2cd6d64f7b511162e418ffeef683b14f"
         },
         "illuminate/container": {
             "version": "v13.31.0",
             "hash": "tree-v2:d863b6224f5f50def85f646972ec2de1bf1f9dafa73717599692812bf789d55a"
         },
         "illuminate/contracts": {
-            "version": "v13.31.0",
-            "hash": "tree-v2:ada0df7968b97ac2780d86ceb6b4beef628140bfb14b7f44b96aa42d8d8158df"
+            "version": "v13.33.0",
+            "hash": "tree-v2:6af9d767de89dce44f85106f2cd51a6c53ceb96f90d2bb418b881d02f35c350f"
         },
         "illuminate/events": {
             "version": "v13.30.1",
             "hash": "tree-v2:edfa9ca242f24078e4205a2841aa84b5b44004399f25bb90900c133d3e6cfcfb"
         },
         "illuminate/filesystem": {
-            "version": "v13.31.0",
-            "hash": "tree-v2:536b8dd5453bf1f1b2656332a7347351b2e8353f53b0a40696881f06086ef2a2"
+            "version": "v13.33.0",
+            "hash": "tree-v2:8c625e4e364d2777d15d5544ef354f133d8d1b3b8e991f8731c3323280d125e1"
         },
         "illuminate/macroable": {
             "version": "v13.30.1",
@@ -119,16 +118,16 @@
             "hash": "tree-v2:da06cc53b1492704cfe73f79fef8c5c6993d29fd22f1b73110ef68130695728b"
         },
         "illuminate/support": {
-            "version": "v13.31.0",
-            "hash": "tree-v2:2bc94045a033349db67f21774ed3c66d2fef6858ed95f3abbfdcd979d14b283a"
+            "version": "v13.33.0",
+            "hash": "tree-v2:cd3eb6ed6db33cbef0ea4890a56f0067a82b14e13f6281e429f7540572423ead"
         },
         "illuminate/testing": {
             "version": "v13.31.0",
             "hash": "tree-v2:a90fbe10d0f6bffd6f589c4ac446e9e976ee3c4c0b85f8358c0c53b775495907"
         },
         "illuminate/view": {
-            "version": "v13.30.1",
-            "hash": "tree-v2:499bf30eb1bf1179eebda4272b38a5e6d9fc35d52ea427491408fb409b7519ff"
+            "version": "v13.33.0",
+            "hash": "tree-v2:0253c2a2a464b15c35ed2bc45d3df067c72b540a3fd5be15d4c724e2538919b2"
         },
         "jean85/pretty-package-versions": {
             "version": "2.1.1",
@@ -183,8 +182,8 @@
             "hash": "tree-v2:234c5d4f300a255952cd9c20d906a8d8103826a9dadcc63b17073d922dfdab1a"
         },
         "nikic/php-parser": {
-            "version": "v5.8.0",
-            "hash": "tree-v2:90ddc66bf11d350b722c1773acd27c8dd2fa1e49aef3a97fded688f19fdde528"
+            "version": "v5.9.0",
+            "hash": "tree-v2:bcacf1331427ef1203828abd4716eae2d19aa68027126caa55860acf46057cf7"
         },
         "nunomaduro/collision": {
             "version": "v8.9.5",
@@ -207,8 +206,8 @@
             "hash": "tree-v2:19bb7af2b1ec2c1a8187fca9af3615fe7ba53c12948053951f9175a1a03a0e48"
         },
         "pestphp/pest": {
-            "version": "v5.1.4",
-            "hash": "tree-v2:bf131b4882da2d208d0f146796e8ceab70d02c61d848ec3873a5ec0764af1397"
+            "version": "v5.2.1",
+            "hash": "tree-v2:9323c34ca7bb57058662787dc91f4afc8fdfd7969df7d61b04ad2e558cc666ec"
         },
         "pestphp/pest-plugin": {
             "version": "v5.0.0",
@@ -223,8 +222,8 @@
             "hash": "tree-v2:539c2118cd2c7e19e545c3000f1d68b558c4a7bb3e468a65183e2836c8aefce7"
         },
         "pestphp/pest-plugin-phpstan": {
-            "version": "v5.2.0",
-            "hash": "tree-v2:51f6b6a51e6ea8b5e97ece7d52a1785925d6451d0ecc3a136e25d14ec4d9ac6e"
+            "version": "v5.2.1",
+            "hash": "tree-v2:dbc9e6096ec0f510576339b3660d91e6e5dec0a7682fe969aa68befaa8bb7deb"
         },
         "pestphp/pest-plugin-profanity": {
             "version": "v5.0.0",
@@ -243,8 +242,8 @@
             "hash": "tree-v2:0409e2019377650177c2b10da803617abc85e49d5b02b8697d450c007eab42b4"
         },
         "phpdocumentor/reflection-common": {
-            "version": "2.2.0",
-            "hash": "tree-v2:4d02e6474b2c5b0a756adbb6d10bc568fff06a6d51ad8bb23162d2719dd08119"
+            "version": "2.2.1",
+            "hash": "tree-v2:b5e96fe132bff07f74d641a9d92eed23f59de9bf11828c15afe4b0a79efede7f"
         },
         "phpdocumentor/reflection-docblock": {
             "version": "6.0.3",
@@ -287,8 +286,8 @@
             "hash": "tree-v2:8eefb702abb01e63c627bc14e0d4c0c8d111f701c45d2dba2790ab3fcee24774"
         },
         "phpunit/phpunit": {
-            "version": "13.3.2",
-            "hash": "tree-v2:d0e541edd57fcc910f9b2ec4b3e9a5f824c7020a1b57ad14aa629b073f68dd5c"
+            "version": "13.3.4",
+            "hash": "tree-v2:e4a4f291439816928aa15301faa0b740e6474d30532950d168edbc9b2e27738b"
         },
         "psr/clock": {
             "version": "1.0.0",
@@ -331,12 +330,12 @@
             "hash": "tree-v2:ad16df2a5b3611348dc88ba0a921d27b7e074406ff667ca547c6a3579734972c"
         },
         "ramsey/uuid": {
-            "version": "4.9.3",
-            "hash": "tree-v2:5683dc29fce0bf6588b8074e4f5d5c1987401c061bb8e412ae7efff27c24c5ad"
+            "version": "4.9.4",
+            "hash": "tree-v2:68d8f0c8847e8275812a7af6335ada47d71f8534bb96c5b54ea18141e4739d77"
         },
         "rector/rector": {
-            "version": "2.6.6",
-            "hash": "tree-v2:eca5ef5e2770ffe49f17863b75d70b3e3895469706806e7e2df8f9121ca7e35c"
+            "version": "2.6.7",
+            "hash": "tree-v2:9e83455ef9d1fa0a25829c840dd17ad00620e4b315bed4aee4fde6a2aa10cac5"
         },
         "sebastian/cli-parser": {
             "version": "5.0.1",
@@ -407,8 +406,8 @@
             "hash": "tree-v2:7888f31d60c29c4f777204510e9a60a557c98a4e480efe5d9eb13dd617bf21f1"
         },
         "symfony/console": {
-            "version": "v8.1.6",
-            "hash": "tree-v2:01257a291b6a18c89a12477f0774958ddc09f31fb52eeef44394edca3a6d50d9"
+            "version": "v8.1.7",
+            "hash": "tree-v2:598a0176389fa48645d6f97a76c8292cee48cbe83e2aa42621f9534ebf2b7db2"
         },
         "symfony/deprecation-contracts": {
             "version": "v3.7.1",
@@ -427,8 +426,8 @@
             "hash": "tree-v2:0ac7e6b0bd6da93975ac9b3ec9f41aa596e9c1c6217813797d1e8bb64be89139"
         },
         "symfony/finder": {
-            "version": "v8.1.5",
-            "hash": "tree-v2:2b19e0272afc430e5b2dfa1cd9612fd6d2904447e7c3b5254f0d3d9f7942f5a2"
+            "version": "v8.1.7",
+            "hash": "tree-v2:0a8089f4f1838a59093bb28bee128857938da3e6295ce085c0bc2be3639865d3"
         },
         "symfony/polyfill-ctype": {
             "version": "v1.37.0",
@@ -467,16 +466,16 @@
             "hash": "tree-v2:7b744a489362acde9fac59148b3ec3858fb94be301512d961e9077efbfa58372"
         },
         "symfony/process": {
-            "version": "v8.1.6",
-            "hash": "tree-v2:b66622d2228ed50c9e89b8252127d6aa0399f0c31531d80bbdcca2ad27f2ef83"
+            "version": "v8.1.7",
+            "hash": "tree-v2:31d8b2b0059e116a2499e95ffb593c538c152eff7a94132d6ef62f912c2b8659"
         },
         "symfony/service-contracts": {
             "version": "v3.7.3",
             "hash": "tree-v2:87421779a4d0f4aae910ba4a77c7a04bfd6d385d86190a96ec8276ec1ba48987"
         },
         "symfony/string": {
-            "version": "v8.1.2",
-            "hash": "tree-v2:6c3dbd245e870cd78bdd16b764534dff6ddf4c1e0391fd491116cf3a2c1d5ea7"
+            "version": "v8.1.7",
+            "hash": "tree-v2:e51a49ae27601177aa109b457a6fa3c578e8df63f80845a3101095010791f66f"
         },
         "symfony/translation": {
             "version": "v8.1.5",
@@ -487,8 +486,8 @@
             "hash": "tree-v2:74a8e3a8f0580af687b411de0e087911c348807f6e59858632fbffabeb7bf9a9"
         },
         "symfony/var-dumper": {
-            "version": "v8.1.6",
-            "hash": "tree-v2:b7a1ccc2d729546e5fafde7a2a85e7a192491362c56c0406f59b5170b753bf72"
+            "version": "v8.1.7",
+            "hash": "tree-v2:87f21d869fba5d9bfb2b387767f8faa5da71078885b304fa722465bb28596caf"
         },
         "symplify/rule-doc-generator-contracts": {
             "version": "11.2.0",
@@ -514,5 +513,6 @@
             "version": "2.4.1",
             "hash": "tree-v2:7376c95163e3fc61ad793a2342e94ff787b01739b28ecce59d5acd1ce8cc691b"
         }
-    }
+    },
+    "minimum-release-age": 7
 }
