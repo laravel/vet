@@ -217,3 +217,40 @@ it('names each agent that it looks for when the path holds none', function (): v
         rmdir($directory);
     }
 });
+
+it('uses the configured agent name when the environment names one', function (): void {
+    $directory = sys_get_temp_dir().'/vet-path-'.bin2hex(random_bytes(6));
+
+    StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}')
+        ->install($directory, 'codex');
+
+    try {
+        $name = withEnvironment(['PATH' => $directory, 'VET_AGENT' => ' codex '], static fn (): string => ReviewWithAgent::default()->name());
+    } finally {
+        File::deleteDirectory($directory);
+    }
+
+    expect($name)->toBe('codex');
+});
+
+it('reports an unsupported agent name', function (): void {
+    expect(static fn (): ReviewWithAgent => ReviewWithAgent::named('unknown'))
+        ->toThrow(AgentFailedException::class, 'The agent [unknown] is not supported.');
+});
+
+it('reports when no agent is installed', function (): void {
+    expect(AgentFailedException::missing()->getMessage())
+        ->toContain('Could not find an agent on your PATH.')
+        ->and(AgentFailedException::missing()->getMessage())->toContain('[claude]');
+});
+
+it('returns the agent account diagnostic without extra output', function (): void {
+    $agent = new ReviewWithAgent(AgentType::Codex, stubAgent(StubAgent::silent()->failing(
+        1,
+        '{"error":{"message":"not supported when using Codex with a ChatGPT account"}}',
+    )), AgentModel::default(), 300, silentDots());
+
+    $review = $agent->handle(['acme/widget' => agentPrompt('the delta', [], [])])['acme/widget'];
+
+    expect($review->summary)->toBe('The agent stopped with exit code [1]: not supported when using Codex with a ChatGPT account');
+});
