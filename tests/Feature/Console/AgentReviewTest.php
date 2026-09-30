@@ -358,7 +358,7 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
     expect($trustFile)->toContain('"version": "2.0.0"');
 });
 
-it('names the configured agent when your path holds none, and still lets you pick', function (): void {
+it('explains how to choose an agent when your path holds none, and still lets you pick', function (): void {
     $fixture = Fixture::open('stale-project');
     $directory = sys_get_temp_dir().'/vet-no-agent-'.bin2hex(random_bytes(6));
 
@@ -368,7 +368,7 @@ it('names the configured agent when your path holds none, and still lets you pic
         withEnvironment(['PATH' => $directory], function () use ($fixture): void {
             command('vet', ['--path' => $fixture->rootPath])
                 ->expectsQuestion('How do you want to review these packages?', 'agent')
-                ->expectsOutputToContain('Could not find the configured agent [claude] on your PATH.')
+                ->expectsOutputToContain('Could not find an agent on your PATH. Install one of [claude], [codex], [gemini], [opencode] and make sure it is on your PATH. Set [--agent] or [VET_AGENT] to choose which installed agent to run.')
                 ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
                 ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
                 ->assertExitCode(0)
