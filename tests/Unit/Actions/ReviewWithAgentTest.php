@@ -212,7 +212,7 @@ it('names each agent that it looks for when the path holds none', function (): v
 
     try {
         expect(static fn (): ReviewWithAgent => withEnvironment(['PATH' => $directory, 'VET_AGENT' => null], ReviewWithAgent::default(...)))
-            ->toThrow(AgentFailedException::class, 'Could not find the configured agent [claude] on your PATH.');
+            ->toThrow(AgentFailedException::class, 'Could not find an agent on your PATH. Install one of [claude], [codex], [gemini], [opencode], or set [--agent] or [VET_AGENT] to choose an installed agent.');
     } finally {
         rmdir($directory);
     }

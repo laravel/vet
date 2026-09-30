@@ -12,7 +12,7 @@ final class AgentFailedException extends RuntimeException implements VetExceptio
     public static function missing(): self
     {
         return new self(sprintf(
-            'Could not find an agent on your PATH. Install one of [%s].',
+            'Could not find an agent on your PATH. Install one of [%s], or set [--agent] or [VET_AGENT] to choose an installed agent.',
             implode('], [', array_column(AgentType::cases(), 'value')),
         ));
     }
@@ -26,11 +26,4 @@ final class AgentFailedException extends RuntimeException implements VetExceptio
         ));
     }
 
-    public static function missingConfigured(AgentType $type): self
-    {
-        return new self(sprintf(
-            'Could not find the configured agent [%s] on your PATH.',
-            $type->value,
-        ));
-    }
 }

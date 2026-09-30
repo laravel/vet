@@ -58,7 +58,7 @@ final readonly class ReviewWithAgent
             return new self($type, $executable, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
         }
 
-        throw AgentFailedException::missingConfigured($type);
+        throw AgentFailedException::missing();
     }
 
     public function withModel(AgentModel $model): self
