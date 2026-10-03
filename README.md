@@ -99,7 +99,17 @@ In a terminal, vet asks how you want to review. Pick your coding agent, and it r
 
 `PASS` means the agent read every file and found no attack. `FAIL` names each file and the reason. `WARN` means part of the reading is yours, such as a file too big for the prompt. Vet picks every `PASS` package in the list for you, so one `enter` records them, and you read the rest.
 
-The agent runs only when you ask for it. The Composer plugin never asks.
+The agent runs only when you ask for it. The Composer plugin never asks. Choose an agent with `--agent`:
+
+```shell
+./vendor/bin/vet --agent=codex
+```
+
+Use `claude`, `codex`, `gemini` or `opencode` as the value. Vet asks which model to use. Without `--agent`, Vet uses `VET_AGENT` or finds the first supported agent on your `PATH`.
+
+Set `VET_AGENT` to choose an installed agent before the PATH search. For example, `VET_AGENT=opencode` uses OpenCode even when another supported agent appears first on your `PATH`.
+
+Some models may not be available when you sign in with ChatGPT. Gemini CLI works with API keys; Google has moved Google AI plan and free individual users to Antigravity CLI. [Read Google's transition timeline](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/#important-timeline-for-consumers).
 
 ## The Trust File
 

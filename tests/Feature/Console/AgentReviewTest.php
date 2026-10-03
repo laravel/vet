@@ -7,6 +7,28 @@ use Tests\Fixtures\Fixture;
 use Tests\Fixtures\StaleProject;
 use Tests\Fixtures\StubAgent;
 
+it('uses the agent that the command option names', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $agent = StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}');
+    $executable = $fixture->agentNamed('opencode', $agent);
+
+    try {
+        command('vet', ['--agent' => 'opencode', '--path' => $fixture->rootPath])
+            ->expectsQuestion('How do you want to review these packages?', 'agent')
+            ->expectsQuestion('Which model do you want the agent to use?', '')
+            ->expectsOutputToContain('[opencode] reviews [1] package (')
+            ->expectsQuestion('Which packages do you trust?', [])
+            ->run();
+
+        $arguments = StubAgent::argumentsGivenTo($executable);
+    } finally {
+        $fixture->remove();
+    }
+
+    expect($arguments)->toContain('run', '--agent', 'plan')
+        ->and(implode("\n", $arguments))->toContain('Answer with one JSON object');
+});
+
 it('hands each delta to the agent, and writes the verdict under the package', function (): void {
     $fixture = Fixture::open('delta-shapes');
     $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/New.php] writes a path outside the package","findings":[]}'));
@@ -336,7 +358,7 @@ it('hands every delta to the agent when you ask for it, then lets you pick', fun
     expect($trustFile)->toContain('"version": "2.0.0"');
 });
 
-it('names the agents that it looks for when your path holds none, and still lets you pick', function (): void {
+it('explains how to choose an agent when your path holds none, and still lets you pick', function (): void {
     $fixture = Fixture::open('stale-project');
     $directory = sys_get_temp_dir().'/vet-no-agent-'.bin2hex(random_bytes(6));
 
@@ -346,7 +368,7 @@ it('names the agents that it looks for when your path holds none, and still lets
         withEnvironment(['PATH' => $directory], function () use ($fixture): void {
             command('vet', ['--path' => $fixture->rootPath])
                 ->expectsQuestion('How do you want to review these packages?', 'agent')
-                ->expectsOutputToContain('Could not find an agent on your PATH. Install one of [claude], [codex], [gemini], [opencode].')
+                ->expectsOutputToContain('Could not find an agent on your PATH. Install one of [claude], [codex], [gemini], [opencode] and make sure it is on your PATH. Set [--agent] or [VET_AGENT] to choose which installed agent to run.')
                 ->expectsQuestion('Which packages do you trust?', ['acme/widget'])
                 ->expectsOutputToContain('Recorded [acme/widget] [2.0.0]')
                 ->assertExitCode(0)
