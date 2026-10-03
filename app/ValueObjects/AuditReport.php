@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\ValueObjects;
 
+use App\Enums\AuditStatus;
+
 final readonly class AuditReport
 {
     /**
@@ -26,8 +28,19 @@ final readonly class AuditReport
         return count($this->packages);
     }
 
+    /**
+     * @return array<string, PackageAudit>
+     */
+    public function unsafe(): array
+    {
+        return array_filter($this->packages, static fn (PackageAudit $audit): bool => $audit->status === AuditStatus::Unsafe);
+    }
+
     public function coveredCount(): int
     {
-        return count($this->packages) - count($this->failing());
+        return count(array_filter(
+            $this->packages,
+            static fn (PackageAudit $audit): bool => $audit->status === AuditStatus::Covered,
+        ));
     }
 }

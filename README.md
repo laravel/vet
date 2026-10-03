@@ -122,13 +122,18 @@ The agent runs only when you ask for it. The Composer plugin never asks.
         "laravel/framework": [
             "config/cache.php"
         ]
-    }
+    },
+    "skip": [
+        "laravel/*"
+    ]
 }
 ```
 
 `minimum-release-age` is the number of days a release waits before vet lets it in. A release younger than that fails the audit, even one you trust. Packages under `minimum-release-age-exclude` skip the wait, and `*` matches any part of a name. Vet itself always skips it.
 
 `ignore` lists the paths that a tool rewrites inside `vendor/` on purpose, such as the configuration files that Laravel Vapor changes during a deploy. Vet leaves them out of the hash and out of the changes.
+
+`skip` names packages that vet does not compare on an update. Pick `Skip them (unsafe)` when vet asks how you want to review, or run `./vendor/bin/vet skip laravel/*`. A pattern with `*` matches any part of a name. Vet marks that choice as unsafe.
 
 To start the trust file again, run `./vendor/bin/vet --fresh`. It clears every entry, keeps your settings, and records what `vendor/` holds today.
 
