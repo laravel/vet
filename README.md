@@ -105,7 +105,7 @@ The agent runs only when you ask for it. The Composer plugin never asks. Choose 
 ./vendor/bin/vet --agent=codex
 ```
 
-Use `claude`, `codex`, `gemini` or `opencode` as the value. Vet asks which model to use. Without `--agent`, Vet falls back to `VET_AGENT` and then `claude`.
+Use `claude`, `codex`, `gemini` or `opencode` as the value. Vet asks which model to use. Without `--agent`, Vet uses `VET_AGENT` or finds the first supported agent on your `PATH`.
 
 Set `VET_AGENT` to choose an installed agent before the PATH search. For example, `VET_AGENT=opencode` uses OpenCode even when another supported agent appears first on your `PATH`.
 

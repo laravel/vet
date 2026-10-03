@@ -36,11 +36,21 @@ final readonly class ReviewWithAgent
     public static function default(): self
     {
         $configured = getenv('VET_AGENT');
-        $name = $configured === false || trim($configured) === ''
-            ? AgentType::Claude->value
-            : trim($configured);
+        if ($configured !== false && trim($configured) !== '') {
+            return self::named(trim($configured));
+        }
 
-        return self::named($name);
+        $finder = new ExecutableFinder;
+
+        foreach (AgentType::cases() as $type) {
+            $executable = $finder->find($type->value);
+
+            if ($executable !== null) {
+                return new self($type, $executable, AgentModel::default(), self::TIMEOUT, app(ProgressDots::class));
+            }
+        }
+
+        throw AgentFailedException::missing();
     }
 
     public static function named(string $name): self

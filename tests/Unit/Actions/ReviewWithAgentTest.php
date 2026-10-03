@@ -184,11 +184,10 @@ it('writes no verdict when the agent gives no answer in its time', function (): 
         ->and(microtime(true) - $started)->toBeLessThan(4.0);
 });
 
-it('defaults to claude when the path holds multiple agents, and runs it by its name', function (): void {
+it('defaults to the first installed agent, and runs it by its name', function (): void {
     $directory = sys_get_temp_dir().'/vet-path-'.bin2hex(random_bytes(6));
 
     $answer = '{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}';
-    StubAgent::answering($answer)->install($directory, 'claude');
     StubAgent::answering($answer)->install($directory, 'codex');
 
     try {
@@ -201,7 +200,7 @@ it('defaults to claude when the path holds multiple agents, and runs it by its n
         File::deleteDirectory($directory);
     }
 
-    expect($name)->toBe('claude')
+    expect($name)->toBe('codex')
         ->and($review->verdict)->toBe(AgentVerdict::Clear);
 });
 
