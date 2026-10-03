@@ -232,6 +232,21 @@ it('uses the configured agent name when the environment names one', function ():
     expect($name)->toBe('codex');
 });
 
+it('reports when the named agent is not installed', function (): void {
+    $directory = sys_get_temp_dir().'/vet-path-'.bin2hex(random_bytes(6));
+
+    mkdir($directory);
+
+    try {
+        expect(static fn (): ReviewWithAgent => withEnvironment(
+            ['PATH' => $directory],
+            static fn (): ReviewWithAgent => ReviewWithAgent::named('codex'),
+        ))->toThrow(AgentFailedException::class, 'Could not find an agent on your PATH.');
+    } finally {
+        rmdir($directory);
+    }
+});
+
 it('reports an unsupported agent name', function (): void {
     expect(static fn (): ReviewWithAgent => ReviewWithAgent::named('unknown'))
         ->toThrow(AgentFailedException::class, 'The agent [unknown] is not supported.');
