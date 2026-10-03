@@ -37,6 +37,7 @@ use App\ValueObjects\Grant;
 use App\ValueObjects\MinimumReleaseAge;
 use App\ValueObjects\PackageAudit;
 use App\ValueObjects\Project;
+use App\ValueObjects\SkippedPackages;
 use App\ValueObjects\TreeHash;
 use App\ValueObjects\TrustFile;
 use Illuminate\Support\Collection;
@@ -228,18 +229,24 @@ final class VetCommand extends Command
         $status = self::FAILURE;
 
         form()
-            ->add(fn (): bool => $this->wantsAgentFirst(), name: 'agentFirst')
+            ->add(fn (): string => $this->reviewChoice(), name: 'choice')
             ->add(
-                /** @param array{agentFirst: bool} $responses */
+                /** @param array{choice: string} $responses */
                 function (array $responses) use ($auditor, $screen, $batch, &$agentReviews, &$status): void {
-                    if ($responses['agentFirst'] && $agentReviews === []) {
+                    if ($responses['choice'] === 'skip') {
+                        $status = $this->recordSkip($auditor, $screen);
+
+                        return;
+                    }
+
+                    if ($responses['choice'] === 'agent' && $agentReviews === []) {
                         $agentReviews = $this->reviewWithAgent($screen, $batch);
                     }
 
                     $status = $this->pickPackages(
                         $auditor,
                         $screen,
-                        $responses['agentFirst'] ? $agentReviews : [],
+                        $responses['choice'] === 'agent' ? $agentReviews : [],
                         self::PICK_OR_GO_BACK_HINT,
                     );
                 },
@@ -297,16 +304,40 @@ final class VetCommand extends Command
         return $recorded->count() === $failing->count() && $screen->recent() === [] ? self::SUCCESS : self::FAILURE;
     }
 
-    private function wantsAgentFirst(): bool
+    private function reviewChoice(): string
     {
-        return select(
+        return match (select(
             label: 'How do you want to review these packages?',
             options: [
                 'manual' => 'Manually, and pick the packages that I trust',
                 'agent' => 'Automatically, with my coding agent reading the changes first',
+                'skip' => 'Skip them (unsafe)',
             ],
             default: 'manual',
-        ) === 'agent';
+        )) {
+            'agent' => 'agent',
+            'skip' => 'skip',
+            default => 'manual',
+        };
+    }
+
+    private function recordSkip(AuditProject $auditor, RenderProjectAudit $screen): int
+    {
+        $names = array_values(array_map(
+            static fn (PackageAudit $audit): string => $audit->package,
+            $screen->failing(),
+        ));
+
+        $auditor->trustFile->addSkips($names);
+
+        $this->components->warn(sprintf(
+            'Skipped [%s] as unsafe, and wrote %s to [%s] in [vet.json].',
+            implode('], [', array_map(ControlSafe::text(...), $names)),
+            count($names) === 1 ? 'it' : 'them',
+            SkippedPackages::SECTION,
+        ));
+
+        return $screen->recent() === [] ? self::SUCCESS : self::FAILURE;
     }
 
     /**
@@ -604,6 +635,15 @@ final class VetCommand extends Command
         }
 
         $this->dots()->end();
+
+        if ($audit->status === AuditStatus::Unsafe) {
+            $this->components->warn(sprintf(
+                '[%s] is skipped, and that choice is unsafe. Vet does not compare it.',
+                $audit->package,
+            ));
+
+            return self::SUCCESS;
+        }
 
         if ($audit->status === AuditStatus::Unknown) {
             $this->newLine();

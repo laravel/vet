@@ -123,6 +123,10 @@ final readonly class AuditProject
 
     public function auditOf(Package $package): PackageAudit
     {
+        if ($this->trustFile->skips($package->name)) {
+            return $this->unsafeAudit($package->name, $package->version, $package->dev, PackageStatus::Installed, null);
+        }
+
         $fingerprint = $this->fingerprinter->ofPackage($package);
         $grant = $this->trustFile->grantFor($package->name);
         $wait = $this->waitOf($package);
@@ -146,6 +150,16 @@ final readonly class AuditProject
 
     public function auditOfIncoming(ComposerOperation $operation): PackageAudit
     {
+        if ($this->trustFile->skips($operation->package)) {
+            return $this->unsafeAudit(
+                $operation->package,
+                $operation->to ?? '',
+                $this->isDev($operation->package),
+                PackageStatus::Pending,
+                $operation->from,
+            );
+        }
+
         $grant = $this->trustFile->grantFor($operation->package);
         $version = $operation->to ?? '';
         $dev = $this->isDev($operation->package);
@@ -336,6 +350,25 @@ final readonly class AuditProject
         return $until instanceof DateTimeImmutable
             ? sprintf('wait until [%s]', $until->format('Y-m-d H:i T'))
             : null;
+    }
+
+    private function unsafeAudit(string $package, string $version, bool $dev, PackageStatus $state, ?string $from): PackageAudit
+    {
+        return new PackageAudit(
+            package: $package,
+            version: $version,
+            hash: null,
+            dev: $dev,
+            status: AuditStatus::Unsafe,
+            files: 0,
+            bytes: 0,
+            grant: null,
+            source: InstallSourceType::Dist,
+            state: $state,
+            from: $from,
+            cause: null,
+            path: null,
+        );
     }
 
     private function statusOf(?Grant $grant, Fingerprint $fingerprint): AuditStatus
