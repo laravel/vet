@@ -357,3 +357,79 @@ it('names the agents that it looks for when your path holds none, and still lets
         $fixture->remove();
     }
 });
+
+it('hands every change to the agent without a question, and records the packages that it clears', function (): void {
+    $fixture = Fixture::open('delta-shapes');
+    $agent = $fixture->agentNamed('claude', StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}'));
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent-review' => true])
+            ->expectsOutputToContain('[claude] reviews [5] packages (')
+            ->expectsOutputToContain('Recorded [3] packages.')
+            ->expectsOutputToContain('The agent did not clear [2] packages. Run [./vendor/bin/vet] in a terminal to read them.')
+            ->assertExitCode(1)
+            ->run();
+
+        /** @var array{require: array<string, array{version: string}>} $trustFile */
+        $trustFile = json_decode($fixture->read('vet.json'), true);
+        $arguments = implode(' ', StubAgent::argumentsGivenTo($agent));
+    } finally {
+        $fixture->remove();
+    }
+
+    expect(array_map(static fn (array $grant): string => $grant['version'], $trustFile['require']))->toBe([
+        'acme/inert-only' => '2.0.0',
+        'acme/manifest-only' => '2.0.0',
+        'acme/media' => '1.0.0',
+        'acme/moved' => '2.0.0',
+        'acme/opaque' => '1.0.0',
+    ])->and($arguments)->not->toContain('--model');
+});
+
+it('records nothing when the agent clears no package', function (): void {
+    $fixture = Fixture::open('stale-project');
+    $fixture->agent(StubAgent::answering('{"verdict":"risk","summary":"[src/Widget.php] renames the widget","findings":[]}'));
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent-review' => true])
+            ->expectsOutputToContain('FAIL   [src/Widget.php] renames the widget')
+            ->expectsOutputToContain('Recorded nothing.')
+            ->expectsOutputToContain('The agent did not clear [1] package.')
+            ->assertExitCode(1)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+});
+
+it('succeeds when the agent clears every package', function (): void {
+    $project = StaleProject::amongUngranted(2);
+    $project->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing reaches outside the package","findings":[]}'));
+
+    try {
+        command('vet', ['--path' => $project->rootPath, '--agent-review' => true])
+            ->expectsOutputToContain('[claude] reviews [3] packages (')
+            ->expectsOutputToContain('Recorded [3] packages.')
+            ->doesntExpectOutputToContain('The agent did not clear')
+            ->assertExitCode(0)
+            ->run();
+    } finally {
+        $project->remove();
+    }
+});
+
+it('runs no agent when every package is trusted', function (): void {
+    $fixture = Fixture::open('audited-project');
+    $agent = $fixture->agent(StubAgent::answering('{"verdict":"clear","summary":"nothing","findings":[]}'));
+
+    try {
+        command('vet', ['--path' => $fixture->rootPath, '--agent-review' => true])
+            ->expectsOutputToContain('packages are trusted.')
+            ->assertExitCode(0)
+            ->run();
+    } finally {
+        $fixture->remove();
+    }
+
+    expect(file_exists($agent.'.prompt'))->toBeFalse();
+});
