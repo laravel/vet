@@ -43,21 +43,21 @@ final readonly class MinimumReleaseAge
         return new self($days, $excluded);
     }
 
-    public function holdsUntil(Package $package, DateTimeImmutable $now): ?DateTimeImmutable
+    public function holdsUntil(string $package, string $version, ReleaseDate $released, DateTimeImmutable $now): ?DateTimeImmutable
     {
-        if ($this->days === 0 || $this->excludes($package)) {
+        if ($this->days === 0 || $this->excludes($package, $version)) {
             return null;
         }
 
-        $until = $package->released->plusDays($this->days);
+        $until = $released->plusDays($this->days);
 
         return $until instanceof DateTimeImmutable && $until > $now
             ? $until->setTimezone(new DateTimeZone('UTC'))
             : null;
     }
 
-    private function excludes(Package $package): bool
+    private function excludes(string $package, string $version): bool
     {
-        return $package->name === self::VET || array_any($this->excluded, static fn (string $entry): bool => ExcludeEntry::matches($entry, $package));
+        return $package === self::VET || array_any($this->excluded, static fn (string $entry): bool => ExcludeEntry::matches($entry, $package, $version));
     }
 }
