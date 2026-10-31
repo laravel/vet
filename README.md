@@ -116,7 +116,8 @@ The agent runs only when you ask for it. The Composer plugin never asks.
     "require-dev": { … },
     "minimum-release-age": 7,
     "minimum-release-age-exclude": [
-        "laravel/*"
+        "laravel/*",
+        "carbonphp/carbon:3.11.4"
     ],
     "ignore": {
         "laravel/framework": [
@@ -126,7 +127,7 @@ The agent runs only when you ask for it. The Composer plugin never asks.
 }
 ```
 
-`minimum-release-age` is the number of days a release waits before vet lets it in. A release younger than that fails the audit, even one you trust. Packages under `minimum-release-age-exclude` skip the wait, and `*` matches any part of a name. Vet itself always skips it.
+`minimum-release-age` is the number of days a release waits before vet lets it in. A release younger than that fails the audit, even one you trust. Packages under `minimum-release-age-exclude` skip the wait, and `*` matches any part of a name. Add a version constraint after a colon, such as `carbonphp/carbon:3.11.4` or `carbonphp/carbon:^3.11`, and only the releases that match it skip the wait. Vet itself always skips it.
 
 `ignore` lists the paths that a tool rewrites inside `vendor/` on purpose, such as the configuration files that Laravel Vapor changes during a deploy. Vet leaves them out of the hash and out of the changes.
 
