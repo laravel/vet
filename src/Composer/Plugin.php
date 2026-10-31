@@ -67,7 +67,7 @@ final class Plugin implements EventSubscriberInterface, PluginInterface
             $allowed = $released === null
                 || $request->isFixedPackage($package)
                 || $request->isLockedPackage($package)
-                || $age->allows($package->getName(), $released, $now);
+                || $age->allows($package->getName(), $package->getVersion(), $released, $now);
 
             if ($allowed) {
                 $kept[] = $package;

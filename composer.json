@@ -21,6 +21,7 @@
         "ext-zip": "*"
     },
     "require-dev": {
+        "composer/semver": "^3.4",
         "guzzlehttp/guzzle": "^7.15.5|^8.0",
         "laravel-zero/foundation": "^13.25",
         "laravel-zero/framework": "^13.0",
