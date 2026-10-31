@@ -331,7 +331,7 @@ final readonly class AuditProject
 
     private function waitOf(Package $package): ?string
     {
-        $until = $this->trustFile->minimumReleaseAge()->holdsUntil($package->name, $package->version, $package->released, $this->now);
+        $until = $this->trustFile->minimumReleaseAge()->holdsUntil($package, $this->now);
 
         return $until instanceof DateTimeImmutable
             ? sprintf('wait until [%s]', $until->format('Y-m-d H:i T'))

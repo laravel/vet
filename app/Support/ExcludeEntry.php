@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\ValueObjects\Package;
 use Composer\Semver\Semver;
 use Composer\Semver\VersionParser;
 use UnexpectedValueException;
@@ -21,9 +22,9 @@ final class ExcludeEntry
         return true;
     }
 
-    public static function matches(string $entry, string $package, string $version): bool
+    public static function matches(string $entry, Package $package): bool
     {
-        return fnmatch(self::patternOf($entry), $package) && Semver::satisfies($version, self::constraintOf($entry));
+        return fnmatch(self::patternOf($entry), $package->name) && Semver::satisfies($package->version, self::constraintOf($entry));
     }
 
     private static function patternOf(string $entry): string

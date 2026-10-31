@@ -4,36 +4,40 @@ declare(strict_types=1);
 
 use App\Exceptions\FailureException;
 use App\ValueObjects\MinimumReleaseAge;
-use App\ValueObjects\ReleaseDate;
+use App\ValueObjects\Package;
+
+function releasedPackage(string $name, string $version, ?string $time): Package
+{
+    return Package::fromLockEntry(['name' => $name, 'version' => $version, 'time' => $time], false);
+}
 
 it('holds a release until it reaches the minimum age, in UTC', function (): void {
     $age = MinimumReleaseAge::from(7, null);
-    $released = ReleaseDate::fromEntry(['time' => '2026-09-20T10:00:00+02:00']);
+    $package = releasedPackage('acme/widget', '1.0.0', '2026-09-20T10:00:00+02:00');
 
-    expect($age->holdsUntil('acme/widget', '1.0.0', $released, new DateTimeImmutable('2026-09-21T00:00:00+00:00'))?->format('Y-m-d H:i T'))
+    expect($age->holdsUntil($package, new DateTimeImmutable('2026-09-21T00:00:00+00:00'))?->format('Y-m-d H:i T'))
         ->toBe('2026-09-27 08:00 UTC')
-        ->and($age->holdsUntil('acme/widget', '1.0.0', $released, new DateTimeImmutable('2026-09-27T08:00:01+00:00')))
+        ->and($age->holdsUntil($package, new DateTimeImmutable('2026-09-27T08:00:01+00:00')))
         ->toBeNull();
 });
 
-it('holds nothing when it has no days, names no date, or excludes the package', function (MinimumReleaseAge $age, ReleaseDate $released): void {
-    expect($age->holdsUntil('acme/widget', '1.0.0', $released, new DateTimeImmutable('2026-09-21T00:00:00+00:00')))->toBeNull();
+it('holds nothing when it has no days, names no date, or excludes the package', function (MinimumReleaseAge $age, Package $package): void {
+    expect($age->holdsUntil($package, new DateTimeImmutable('2026-09-21T00:00:00+00:00')))->toBeNull();
 })->with([
-    'no days' => [MinimumReleaseAge::from(null, null), ReleaseDate::fromEntry(['time' => '2026-09-20T00:00:00+00:00'])],
-    'zero days' => [MinimumReleaseAge::from(0, []), ReleaseDate::fromEntry(['time' => '2026-09-20T00:00:00+00:00'])],
-    'no date' => [MinimumReleaseAge::from(7, []), ReleaseDate::fromEntry([])],
-    'a blank date' => [MinimumReleaseAge::from(7, []), ReleaseDate::fromEntry(['time' => ' '])],
-    'an unreadable date' => [MinimumReleaseAge::from(7, []), ReleaseDate::fromEntry(['time' => 'yesterday-ish'])],
-    'an excluded package' => [MinimumReleaseAge::from(7, ['acme/*']), ReleaseDate::fromEntry(['time' => '2026-09-20T00:00:00+00:00'])],
+    'no days' => [MinimumReleaseAge::from(null, null), releasedPackage('acme/widget', '1.0.0', '2026-09-20T00:00:00+00:00')],
+    'zero days' => [MinimumReleaseAge::from(0, []), releasedPackage('acme/widget', '1.0.0', '2026-09-20T00:00:00+00:00')],
+    'no date' => [MinimumReleaseAge::from(7, []), releasedPackage('acme/widget', '1.0.0', null)],
+    'a blank date' => [MinimumReleaseAge::from(7, []), releasedPackage('acme/widget', '1.0.0', ' ')],
+    'an unreadable date' => [MinimumReleaseAge::from(7, []), releasedPackage('acme/widget', '1.0.0', 'yesterday-ish')],
+    'an excluded package' => [MinimumReleaseAge::from(7, ['acme/*']), releasedPackage('acme/widget', '1.0.0', '2026-09-20T00:00:00+00:00')],
 ]);
 
 it('holds a recent release unless the exclude list names its version', function (): void {
     $age = MinimumReleaseAge::from(7, ['acme/widget:1.2.0']);
-    $released = ReleaseDate::fromEntry(['time' => '2026-09-20T00:00:00+00:00']);
     $now = new DateTimeImmutable('2026-09-21T00:00:00+00:00');
 
-    expect($age->holdsUntil('acme/widget', '1.2.0', $released, $now))->toBeNull()
-        ->and($age->holdsUntil('acme/widget', '1.2.1', $released, $now))->toBeInstanceOf(DateTimeImmutable::class);
+    expect($age->holdsUntil(releasedPackage('acme/widget', '1.2.0', '2026-09-20T00:00:00+00:00'), $now))->toBeNull()
+        ->and($age->holdsUntil(releasedPackage('acme/widget', '1.2.1', '2026-09-20T00:00:00+00:00'), $now))->toBeInstanceOf(DateTimeImmutable::class);
 });
 
 it('refuses a number of days that is not a whole number of zero or more', function (mixed $days): void {
@@ -58,9 +62,7 @@ it('refuses an exclude entry that is not a list of package names', function (mix
 
 it('holds back no release of vet itself', function (): void {
     expect(MinimumReleaseAge::from(7, [])->holdsUntil(
-        'laravel/vet',
-        '1.0.0',
-        ReleaseDate::fromEntry(['time' => '2026-09-20T00:00:00+00:00']),
+        releasedPackage('laravel/vet', '1.0.0', '2026-09-20T00:00:00+00:00'),
         new DateTimeImmutable('2026-09-21T00:00:00+00:00'),
     ))->toBeNull();
 });
