@@ -16,9 +16,11 @@ enum AuditStatus: string
 
     case Recent = 'recent';
 
+    case Unsafe = 'unsafe';
+
     public function fails(): bool
     {
-        return $this !== self::Covered;
+        return $this !== self::Covered && $this !== self::Unsafe;
     }
 
     public function weight(): int
@@ -27,14 +29,14 @@ enum AuditStatus: string
             self::Unknown => 0,
             self::Changed => 1,
             self::Ungranted => 2,
-            self::Covered, self::Recent => 3,
+            self::Covered, self::Recent, self::Unsafe => 3,
         };
     }
 
     public function color(): string
     {
         return match ($this) {
-            self::Unknown, self::Changed => 'red',
+            self::Unknown, self::Changed, self::Unsafe => 'red',
             self::Ungranted, self::Covered, self::Recent => 'yellow',
         };
     }

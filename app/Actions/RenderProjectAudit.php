@@ -41,6 +41,7 @@ final readonly class RenderProjectAudit
     /**
      * @param  array<string, PackageAudit>  $failing
      * @param  array<string, PackageAudit>  $recent
+     * @param  array<string, PackageAudit>  $unsafe
      * @param  array<string, PackageReview>  $reviews
      * @param  array<string, AgentReview>  $agentReviews
      */
@@ -51,6 +52,7 @@ final readonly class RenderProjectAudit
         private Invitation $invitation,
         private array $failing,
         private array $recent,
+        private array $unsafe,
         private array $reviews,
         private array $agentReviews,
     ) {
@@ -81,7 +83,7 @@ final readonly class RenderProjectAudit
             $b->package,
         ]);
 
-        return new self($output, $auditor, $report, $invitation, $failing, $recent, $reviews, []);
+        return new self($output, $auditor, $report, $invitation, $failing, $recent, $report->unsafe(), $reviews, []);
     }
 
     /**
@@ -89,7 +91,7 @@ final readonly class RenderProjectAudit
      */
     public function withAgentReviews(array $agentReviews): self
     {
-        return new self($this->output, $this->auditor, $this->report, $this->invitation, $this->failing, $this->recent, $this->reviews, $agentReviews);
+        return new self($this->output, $this->auditor, $this->report, $this->invitation, $this->failing, $this->recent, $this->unsafe, $this->reviews, $agentReviews);
     }
 
     /**
@@ -159,19 +161,11 @@ final readonly class RenderProjectAudit
             $this->components->error('The installed tree does not match composer.lock. Run [composer install] to install what composer.lock holds.');
         }
 
-        if ($this->failing === [] && $this->recent === []) {
-            $this->components->info(sprintf(
-                'All [%d] %s trusted.',
-                $this->report->total(),
-                $this->report->total() === 1 ? 'package is' : 'packages are',
-            ));
-
+        if ($this->renderSettled()) {
             return $this->verdict($discrepancies);
         }
 
-        $this->renderFailing();
-        $this->renderRecent();
-        $this->renderSummary();
+        $this->renderOutstanding();
         $this->renderVerdict();
 
         return self::FAILURE;
@@ -181,19 +175,11 @@ final readonly class RenderProjectAudit
     {
         $this->output->newLine();
 
-        if ($this->failing === [] && $this->recent === []) {
-            $this->components->info(sprintf(
-                'All [%d] %s trusted.',
-                $this->report->total(),
-                $this->report->total() === 1 ? 'package is' : 'packages are',
-            ));
-
+        if ($this->renderSettled()) {
             return;
         }
 
-        $this->renderFailing();
-        $this->renderRecent();
-        $this->renderSummary();
+        $this->renderOutstanding();
         $this->renderRecentVerdict();
     }
 
@@ -230,6 +216,34 @@ final readonly class RenderProjectAudit
         return $delta instanceof Delta
             ? PackageReview::ofDelta($delta)
             : PackageReview::ofWholePackage($audit->files);
+    }
+
+    private function renderSettled(): bool
+    {
+        if ($this->failing !== [] || $this->recent !== []) {
+            return false;
+        }
+
+        if ($this->unsafe === []) {
+            $this->components->info(sprintf(
+                'All [%d] %s trusted.',
+                $this->report->total(),
+                $this->report->total() === 1 ? 'package is' : 'packages are',
+            ));
+        } else {
+            $this->renderUnsafe();
+            $this->renderSummary();
+        }
+
+        return true;
+    }
+
+    private function renderOutstanding(): void
+    {
+        $this->renderFailing();
+        $this->renderUnsafe();
+        $this->renderRecent();
+        $this->renderSummary();
     }
 
     private function renderFailing(): void
@@ -288,6 +302,31 @@ final readonly class RenderProjectAudit
         );
     }
 
+    private function renderUnsafe(): void
+    {
+        if ($this->unsafe === []) {
+            return;
+        }
+
+        $this->output->writeln(sprintf('  <options=bold>unsafe</> <fg=gray>(%d)</>', count($this->unsafe)));
+        $this->output->newLine();
+
+        foreach ($this->unsafe as $audit) {
+            $this->components->twoColumnDetail(
+                sprintf(
+                    '<fg=%s>%s</> <fg=gray>%s</>%s',
+                    $audit->status->color(),
+                    $audit->package,
+                    $audit->versions(),
+                    $audit->dev ? ' <fg=gray>(dev)</>' : '',
+                ),
+                sprintf('<fg=gray>%s</>', $audit->note()),
+            );
+        }
+
+        $this->output->newLine();
+    }
+
     private function renderRecent(): void
     {
         if ($this->recent === []) {
@@ -331,9 +370,10 @@ final readonly class RenderProjectAudit
     private function renderSummary(): void
     {
         $this->output->writeln(sprintf(
-            '  <options=bold>Packages:</> <fg=yellow;options=bold>%d to review</><fg=gray>,</> %s<fg=green;options=bold>%d trusted</>',
+            '  <options=bold>Packages:</> <fg=yellow;options=bold>%d to review</><fg=gray>,</> %s%s<fg=green;options=bold>%d trusted</>',
             count($this->failing),
             $this->recent === [] ? '' : sprintf('<fg=yellow;options=bold>%d too recent</><fg=gray>,</> ', count($this->recent)),
+            $this->unsafe === [] ? '' : sprintf('<fg=red;options=bold>%d unsafe</><fg=gray>,</> ', count($this->unsafe)),
             $this->report->coveredCount(),
         ));
         $this->output->newLine();
