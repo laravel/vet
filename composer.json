@@ -21,16 +21,16 @@
         "ext-zip": "*"
     },
     "require-dev": {
-        "guzzlehttp/guzzle": "^7.15.5|^8.0",
+        "guzzlehttp/guzzle": "^7.16.1|^8.0",
         "laravel-zero/foundation": "^13.25",
         "laravel-zero/framework": "^13.0",
         "laravel/pint": "^1.32.1",
         "mockery/mockery": "^1.6.15",
-        "pestphp/pest": "^5.2.1",
-        "pestphp/pest-plugin-phpstan": "^5.2.1",
-        "pestphp/pest-plugin-rector": "^5.0.4",
-        "phpstan/phpstan": "^2.2.16",
-        "rector/rector": "^2.6.7"
+        "pestphp/pest": "^5.3.5",
+        "pestphp/pest-plugin-phpstan": "^5.3.1",
+        "pestphp/pest-plugin-rector": "^5.0.6",
+        "phpstan/phpstan": "^2.3.5",
+        "rector/rector": "^2.8.4"
     },
     "extra": {
         "class": "Laravel\\Vet\\Composer\\Plugin"
