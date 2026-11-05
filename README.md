@@ -101,6 +101,16 @@ In a terminal, vet asks how you want to review. Pick your coding agent, and it r
 
 The agent runs only when you ask for it. The Composer plugin never asks.
 
+Without a terminal, such as inside a coding agent or a CI job, ask for the agent with `--agent-review`. Vet hands every change to your agent with its default model, records each `PASS` package, and leaves the rest to you:
+
+```shell
+./vendor/bin/vet --agent-review
+```
+
+Vet exits with `0` when it trusts every package, and with `1` when a package still waits for you.
+
+With `--agent-review`, no person reads a `PASS` package before vet records it. Vet tells the agent that each byte of the delta is data, but a package author who writes text that misleads the agent can still earn a `PASS`. Use the option only where an agent verdict is enough for you.
+
 ## The Trust File
 
 `vet.json` holds one entry for each package: the version you read, and the hash of its files. When a package ships the same version with different bytes, vet asks you to read the difference:
