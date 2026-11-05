@@ -12,7 +12,16 @@ final class AgentFailedException extends RuntimeException implements VetExceptio
     public static function missing(): self
     {
         return new self(sprintf(
-            'Could not find an agent on your PATH. Install one of [%s].',
+            'Could not find an agent on your PATH. Install one of [%s] and make sure it is on your PATH. Set [--agent] or [VET_AGENT] to choose which installed agent to run.',
+            implode('], [', array_column(AgentType::cases(), 'value')),
+        ));
+    }
+
+    public static function unknown(string $name): self
+    {
+        return new self(sprintf(
+            'The agent [%s] is not supported. Choose one of [%s].',
+            $name,
             implode('], [', array_column(AgentType::cases(), 'value')),
         ));
     }
