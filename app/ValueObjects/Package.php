@@ -12,6 +12,8 @@ final readonly class Package
 {
     private const string METAPACKAGE = 'metapackage';
 
+    private const string LOCAL_DIST = 'path';
+
     /**
      * @param  array<string, string>  $replace
      * @param  array<string, string>  $provide
@@ -23,6 +25,7 @@ final readonly class Package
         public string $version,
         public string $type,
         public bool $dev,
+        public ?string $distType,
         public ?string $distUrl,
         public ?string $distReference,
         public ?string $distShasum,
@@ -47,6 +50,7 @@ final readonly class Package
             version: Json::string($entry, 'version') ?? '',
             type: Json::string($entry, 'type') ?? 'library',
             dev: $dev,
+            distType: Json::string($dist, 'type'),
             distUrl: Json::string($dist, 'url'),
             distReference: Json::string($dist, 'reference'),
             distShasum: Json::string($dist, 'shasum'),
@@ -74,6 +78,7 @@ final readonly class Package
             version: $package->version,
             type: $package->type,
             dev: $package->dev,
+            distType: $package->distType,
             distUrl: $package->distUrl,
             distReference: $package->distReference,
             distShasum: $package->distShasum,
@@ -100,6 +105,7 @@ final readonly class Package
             version: $this->version,
             type: $this->type,
             dev: $this->dev,
+            distType: $this->distType,
             distUrl: $url,
             distReference: $reference === null || $reference === '' ? $this->distReference : $reference,
             distShasum: $shasum === '' ? null : $shasum,
@@ -124,6 +130,7 @@ final readonly class Package
             version: $this->version,
             type: $this->type,
             dev: $dev,
+            distType: $this->distType,
             distUrl: $this->distUrl,
             distReference: $this->distReference,
             distShasum: $this->distShasum,
@@ -140,6 +147,11 @@ final readonly class Package
     public function installsTree(): bool
     {
         return $this->type !== self::METAPACKAGE;
+    }
+
+    public function isLocal(): bool
+    {
+        return $this->distType === self::LOCAL_DIST;
     }
 
     /**

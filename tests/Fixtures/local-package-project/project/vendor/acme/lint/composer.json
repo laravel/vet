@@ -1,0 +1,11 @@
+{
+    "name": "acme/lint",
+    "description": "A tiny linter.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\Lint\\": "src/"
+        }
+    }
+}

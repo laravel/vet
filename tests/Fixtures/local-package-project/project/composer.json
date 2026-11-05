@@ -1,0 +1,17 @@
+{
+    "name": "acme/app",
+    "description": "A project that installs a package from a local path repository.",
+    "require": {
+        "acme/widget": "^1.0",
+        "acme/toolkit": "dev-main"
+    },
+    "require-dev": {
+        "acme/lint": "^1.0"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../packages/toolkit"
+        }
+    ]
+}
