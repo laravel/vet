@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\AuditStatus;
 use App\Enums\InstallSourceType;
 use App\Enums\PackageStatus;
+use App\Exceptions\LocalPackageException;
 use App\Exceptions\PackageInstallsNoTreeException;
 use App\Exceptions\VetException;
 use App\ValueObjects\AuditReport;
@@ -63,7 +64,7 @@ final readonly class AuditProject
         $audits = [];
 
         foreach ($this->installed->all() as $name => $package) {
-            if ($this->plan->touches($name) || ! $this->installsTree($name)) {
+            if ($this->plan->touches($name) || ! $this->audits($name)) {
                 continue;
             }
 
@@ -77,6 +78,10 @@ final readonly class AuditProject
     {
         if (! $this->installsTree($name)) {
             throw PackageInstallsNoTreeException::named($name);
+        }
+
+        if ($this->isLocal($name)) {
+            throw LocalPackageException::named($name);
         }
 
         $operation = $this->plan->of($name);
@@ -266,7 +271,7 @@ final readonly class AuditProject
         $audits = [];
 
         foreach ($this->plan->incoming() as $operation) {
-            if (! $this->installsTree($operation->package)) {
+            if (! $this->audits($operation->package)) {
                 continue;
             }
 
@@ -307,15 +312,24 @@ final readonly class AuditProject
         return $this->lock->packages()[$package] ?? null;
     }
 
+    private function known(string $package): ?Package
+    {
+        return $this->locked($package) ?? ($this->installed->has($package) ? $this->installed->get($package) : null);
+    }
+
     private function installsTree(string $package): bool
     {
-        $locked = $this->locked($package);
+        return $this->known($package)?->installsTree() ?? true;
+    }
 
-        if ($locked instanceof Package) {
-            return $locked->installsTree();
-        }
+    private function isLocal(string $package): bool
+    {
+        return $this->known($package)?->isLocal() ?? false;
+    }
 
-        return ! $this->installed->has($package) || $this->installed->get($package)->installsTree();
+    private function audits(string $package): bool
+    {
+        return $this->installsTree($package) && ! $this->isLocal($package);
     }
 
     private function isDev(string $package): bool

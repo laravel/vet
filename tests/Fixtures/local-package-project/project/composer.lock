@@ -1,0 +1,60 @@
+{
+    "_readme": [
+        "This file is a fixture: vet reads it, Composer never wrote it."
+    ],
+    "content-hash": "fixture",
+    "packages": [
+        {
+            "name": "acme/widget",
+            "version": "1.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/widget/1.0.0.zip",
+                "reference": "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
+                "shasum": ""
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Widget\\": "src/"
+                }
+            },
+            "bin": [
+                "bin/widget.phar"
+            ]
+        },
+        {
+            "name": "acme/toolkit",
+            "version": "dev-main",
+            "type": "library",
+            "dist": {
+                "type": "path",
+                "url": "../packages/toolkit",
+                "reference": "eeee5555eeee5555eeee5555eeee5555eeee5555"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Toolkit\\": "src/"
+                }
+            }
+        }
+    ],
+    "packages-dev": [
+        {
+            "name": "acme/lint",
+            "version": "1.0.0",
+            "type": "library",
+            "dist": {
+                "type": "zip",
+                "url": "https://packages.test/acme/lint/1.0.0.zip",
+                "reference": "cccc3333cccc3333cccc3333cccc3333cccc3333",
+                "shasum": ""
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Lint\\": "src/"
+                }
+            }
+        }
+    ]
+}
