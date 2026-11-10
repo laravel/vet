@@ -70,6 +70,7 @@ final class VetCommand extends Command
         {--to= : The version to compare to (defaults to the installed one)}
         {--path= : The project directory to audit (defaults to the current one)}
         {--plan= : Audit the operations that this composer plan file holds}
+        {--agent-review : Hand every change to your coding agent without a question, and record the packages that it clears}
         {--no-cache : Re-download archives instead of reusing the cache}';
 
     /**
@@ -209,6 +210,10 @@ final class VetCommand extends Command
             return self::FAILURE;
         }
 
+        if ($this->option('agent-review') === true && $discrepancies === []) {
+            return $this->trustWhatTheAgentClears($auditor, $screen);
+        }
+
         if (! $this->asksQuestions() || $discrepancies !== []) {
             return $screen->render($discrepancies);
         }
@@ -249,6 +254,35 @@ final class VetCommand extends Command
         return $status;
     }
 
+    private function trustWhatTheAgentClears(AuditProject $auditor, RenderProjectAudit $screen): int
+    {
+        $screen->renderReport();
+
+        if ($screen->failing() === []) {
+            return $screen->recent() === [] ? self::SUCCESS : self::FAILURE;
+        }
+
+        $reviews = $this->reviewWithAgent($screen, $screen->agentBatch());
+
+        $failing = new Collection($screen->failing());
+        $cleared = $failing->only($this->clearPackages(
+            $failing->filter(static fn (PackageAudit $audit): bool => $audit->hash instanceof TreeHash),
+            $reviews,
+        ));
+
+        $status = $this->record($auditor, $screen, $failing, $cleared);
+
+        if ($cleared->count() < $failing->count()) {
+            $this->components->error(sprintf(
+                'The agent did not clear [%d] %s. Run [./vendor/bin/vet] in a terminal to read them.',
+                $failing->count() - $cleared->count(),
+                Str::plural('package', $failing->count() - $cleared->count()),
+            ));
+        }
+
+        return $status;
+    }
+
     /**
      * @param  array<string, AgentReview>  $reviews
      */
@@ -274,6 +308,15 @@ final class VetCommand extends Command
             static fn (PackageAudit $audit): bool => $picked->contains($audit->package),
         );
 
+        return $this->record($auditor, $screen, $failing, $recorded);
+    }
+
+    /**
+     * @param  Collection<string, PackageAudit>  $failing
+     * @param  Collection<string, PackageAudit>  $recorded
+     */
+    private function record(AuditProject $auditor, RenderProjectAudit $screen, Collection $failing, Collection $recorded): int
+    {
         if ($recorded->isEmpty()) {
             $this->components->info('Recorded nothing.');
 
@@ -337,7 +380,7 @@ final class VetCommand extends Command
         }
 
         $agent = ReviewWithAgent::default();
-        $agent = $agent->withModel($this->agentModel($agent));
+        $agent = $agent->withModel($this->option('agent-review') === true ? AgentModel::default() : $this->agentModel($agent));
 
         $this->components->info(sprintf(
             '[%s] reviews [%d] %s (%s). This takes a moment.',
