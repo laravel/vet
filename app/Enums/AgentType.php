@@ -32,7 +32,7 @@ enum AgentType: string
     {
         return match ($this) {
             self::Claude => ['fable', 'opus', 'sonnet', 'haiku'],
-            self::Codex => ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.3-codex-spark'],
+            self::Codex => ['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.3-codex-spark'],
             self::Gemini => ['gemini-3.1-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'],
             self::Opencode => ['anthropic/claude-opus-5', 'anthropic/claude-sonnet-5', 'openai/gpt-5.6-sol', 'google/gemini-3.1-pro-preview'],
         };
