@@ -66,6 +66,7 @@ final class VetCommand extends Command
         {--init : Record every package that vendor/ holds today, and start the trust file from them}
         {--fresh : Clear every entry of the trust file, then do the same as --init}
         {--minimum-release-age= : With --init, hold back each release younger than this number of days}
+        {--agent= : Choose the agent for this review}
         {--from= : Show the delta from this version rather than the trusted one}
         {--to= : The version to compare to (defaults to the installed one)}
         {--path= : The project directory to audit (defaults to the current one)}
@@ -336,7 +337,7 @@ final class VetCommand extends Command
             return [];
         }
 
-        $agent = ReviewWithAgent::default();
+        $agent = $this->reviewAgent();
         $agent = $agent->withModel($this->agentModel($agent));
 
         $this->components->info(sprintf(
@@ -352,6 +353,14 @@ final class VetCommand extends Command
         $this->dots()->end();
 
         return $reviews;
+    }
+
+    private function reviewAgent(): ReviewWithAgent
+    {
+        $name = $this->option('agent');
+        assert($name === null || is_string($name));
+
+        return $name === null ? ReviewWithAgent::default() : ReviewWithAgent::named($name);
     }
 
     private function dots(): ProgressDots
