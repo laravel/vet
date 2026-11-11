@@ -19,6 +19,7 @@ final readonly class TrustFile
         private array $grants,
         private IgnoredFiles $ignored,
         private MinimumReleaseAge $minimumReleaseAge,
+        private SkippedPackages $skipped,
     ) {}
 
     public static function forProject(Project $project): self
@@ -47,6 +48,7 @@ final readonly class TrustFile
             $grants,
             IgnoredFiles::fromArray($document->section('ignore')),
             MinimumReleaseAge::from($document->value(MinimumReleaseAge::DAYS), $document->value(MinimumReleaseAge::EXCLUDE)),
+            SkippedPackages::from($document->value(SkippedPackages::SECTION)),
         );
     }
 
@@ -70,6 +72,21 @@ final readonly class TrustFile
         return $this->minimumReleaseAge;
     }
 
+    public function skips(string $package): bool
+    {
+        return $this->skipped->matches($package);
+    }
+
+    /**
+     * @param  list<string>  $patterns
+     */
+    public function addSkips(array $patterns): void
+    {
+        $this->document->write([
+            SkippedPackages::SECTION => $this->skipped->with($patterns)->patterns(),
+        ]);
+    }
+
     public function withGrant(Grant $grant): self
     {
         return new self(
@@ -78,6 +95,7 @@ final readonly class TrustFile
             [...$this->grants, $grant->package => $grant],
             $this->ignored,
             $this->minimumReleaseAge,
+            $this->skipped,
         );
     }
 
