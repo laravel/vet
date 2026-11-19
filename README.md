@@ -2,8 +2,8 @@
     <img src="https://raw.githubusercontent.com/laravel/vet/0.x/art/logo.png?ref=1" alt="Vet example" height="300">
 </p>
 
-> [!NOTE]
-> Laravel Vet is in beta. The behaviour can change before the first stable release.
+> [!WARNING]
+> Laravel Vet is archived and gets no more updates. Composer now does this work itself. Read [Moving To Composer](#moving-to-composer).
 
 Laravel Vet is a dependency audit for PHP. It shows you the code that `composer update` is about to write into `vendor/`, and records the packages you trust in a `vet.json` file.
 
@@ -30,6 +30,40 @@ Vet runs as a Composer plugin, on every install and update, in any PHP project:
   Packages: 1 to review, 124 trusted
 
    ERROR  [1] package is not trusted. Read every change with [./vendor/bin/vet -v]. Run [./vendor/bin/vet] in a terminal to pick the ones that you trust.
+```
+
+## Moving To Composer
+
+Starting with Composer `^2.11`, Composer holds back each release younger than a period you choose. Update Composer to the latest version:
+
+```shell
+composer self-update
+```
+
+Next, move `minimum-release-age` and `minimum-release-age-exclude` from `vet.json` into `composer.json`:
+
+```json
+{
+    "config": {
+        "policy": {
+            "cooldown": {
+                "period": "7 days",
+                "ignore": {
+                    "laravel/*": "We trust the Laravel packages"
+                }
+            }
+        }
+    }
+}
+```
+
+Composer also blocks each version that Packagist.org flags as malware. Packagist.org takes these flags from Aikido. The block is on by default.
+
+Then remove Vet:
+
+```shell
+composer remove laravel/vet --dev
+rm vet.json
 ```
 
 ## Installation

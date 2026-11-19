@@ -4,6 +4,7 @@
     "keywords": ["php", "supply chain", "audit", "composer", "security", "console", "cli", "dev"],
     "type": "composer-plugin",
     "license": "MIT",
+    "abandoned": true,
     "authors": [
         {
             "name": "Nuno Maduro",
